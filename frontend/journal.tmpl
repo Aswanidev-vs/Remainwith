@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>My Journal - Remainwith</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+
+<style>
+:root {
+    /* Palette */
+    --primary: #db8066;
+    --primary-light: rgba(219,128,102,0.08);
+    --primary-hover: #c9745d;
+    --bg: #FAF9F6;
+    --surface: #ffffff;
+    --border: #e6e2e1;
+    --text-main: #2d3a30;
+    --text-muted: #836d67;
+    --text-light: #b7aca8;
+
+    /* Spacing & Structure */
+    --radius-lg: 1rem;
+    --radius-sm: 0.5rem;
+    --container-width: 1024px;
+
+    /* Typography */
+    --font-serif: "Merriweather", serif;
+    --font-sans: "Manrope", sans-serif;
+
+    /* Shadows */
+    --shadow-soft: 0 4px 20px -2px rgba(45, 58, 48, 0.04);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: var(--font-sans);
+    background: var(--bg);
+    color: var(--text-main);
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+/* --- Layout Grid --- */
+.app-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    max-width: var(--container-width);
+    margin: 0 auto;
+    padding: 1.5rem;
+    gap: 2rem;
+}
+
+@media (min-width: 768px) {
+    .app-layout {
+        grid-template-columns: 260px 1fr; /* Sidebar | Journal */
+        padding: 3rem 2rem;
+        align-items: start;
+    }
+}
+
+/* --- Sidebar (Navigation & Context) --- */
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+@media (min-width: 768px) {
+    .sidebar {
+        position: sticky;
+        top: 3rem;
+    }
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--text-main);
+    text-decoration: none;
+    margin-bottom: 0.5rem;
+}
+
+.brand-icon {
+    color: var(--primary);
+    font-size: 2rem;
+}
+
+.brand-text {
+    font-weight: 700;
+    font-size: 1.25rem;
+    letter-spacing: -0.02em;
+}
+
+.nav-links {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.nav-item:hover {
+    background: white;
+    color: var(--primary);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+}
+
+.nav-item.active {
+    background: var(--surface);
+    color: var(--text-main);
+    font-weight: 700;
+    box-shadow: var(--shadow-soft);
+}
+
+.daily-prompt-card {
+    background: #f4f1f0;
+    padding: 1.25rem;
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(0,0,0,0.03);
+}
+
+.prompt-label {
+    text-transform: uppercase;
+    font-size: 0.65rem;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.prompt-text {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--text-main);
+}
+
+/* --- Main Journal Area --- */
+.journal-area {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    width: 100%;
+}
+
+.journal-header {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+/* New Entry Composer */
+.new-entry-card {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-soft);
+    padding: 1.5rem;
+    border: 1px solid white;
+}
+
+.new-entry-title {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem;
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    color: var(--text-main);
+    background: transparent;
+    margin-bottom: 1rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.new-entry-title:focus {
+    border-color: var(--primary);
+}
+
+.new-entry-title::placeholder {
+    color: var(--text-light);
+}
+
+.new-entry-input {
+    width: 100%;
+    border: none;
+    border-top: 1px solid var(--border);
+    resize: none;
+    outline: none;
+    font-family: var(--font-serif);
+    font-size: 1.05rem;
+    line-height: 1.6;
+    color: var(--text-main);
+    min-height: 120px;
+    background: transparent;
+    margin-bottom: 1rem;
+    padding-top: 1rem;
+}
+
+.new-entry-input::placeholder {
+    color: var(--text-light);
+}
+
+.btn-save {
+    background: var(--primary);
+    color: white;
+    border: none;
+    padding: 0.6rem 1.5rem;
+    border-radius: 2rem;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-save:hover {
+    background: var(--primary-hover);
+}
+
+/* Journal Entries */
+.entry-card {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-soft);
+    padding: 1.75rem;
+    border: 1px solid rgba(255,255,255,0.8);
+}
+
+.entry-date {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.entry-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 0.75rem;
+}
+
+.entry-content {
+    font-family: var(--font-serif);
+    font-size: 1.05rem;
+    line-height: 1.75;
+    color: #3a4b40;
+    margin-bottom: 1rem;
+}
+
+.entry-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.btn-edit, .btn-delete {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    transition: all 0.2s;
+}
+
+.btn-edit:hover {
+    color: var(--primary);
+    background: var(--primary-light);
+}
+
+.btn-delete:hover {
+    color: #d32f2f;
+    background: rgba(211, 47, 47, 0.1);
+}
+
+.material-symbols-outlined {
+    font-size: 1rem !important;
+}
+
+/* Mobile Nav Toggle */
+.mobile-menu-btn {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .mobile-menu-btn {
+        display: block;
+        background: none;
+        border: none;
+        color: var(--text-main);
+    }
+    .daily-prompt-card {
+        display: none;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="app-layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <a href="#" class="brand">
+                <span class="brand-text">Remainwith</span>
+            </a>
+            <button class="mobile-menu-btn">
+                <span class="material-symbols-outlined">menu</span>
+            </button>
+        </div>
+
+        <nav class="nav-links">
+            <a href="/dashboard" class="nav-item">
+                <span class="material-symbols-outlined">home</span>
+                Home
+            </a>
+            <a href="#" class="nav-item active">
+                <span class="material-symbols-outlined">book_2</span>
+                My Journal
+            </a>
+        </nav>
+
+        <div class="daily-prompt-card">
+            <span class="prompt-label">Daily Prompt</span>
+            <p class="prompt-text">"What is a sound you heard today that brought you back to the present moment?"</p>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="journal-area">
+
+        <h1 class="journal-header">My Journal</h1>
+
+        <!-- New Entry Composer -->
+        <form class="new-entry-card" action="/journal" method="POST">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            <input type="text" class="new-entry-title" name="title" placeholder="Title for this journal entry" required>
+            <textarea class="new-entry-input" name="entry" placeholder="Write your thoughts here..." required></textarea>
+            <button class="btn-save" type="submit">Save Entry</button>
+        </form>
+
+        {{range .Journals}}
+        <article class="entry-card" data-id="{{.ID}}">
+            <div class="entry-view">
+                <div class="entry-date">{{.CreatedAt.Format "January 2, 2006"}}</div>
+                <div class="entry-title">{{.Title}}</div>
+                <div class="entry-content">{{.Desc}}</div>
+                <div class="entry-actions">
+                    <button class="btn-edit" onclick="editEntry({{.ID}})">
+                        <span class="material-symbols-outlined">edit</span>
+                        Edit
+                    </button>
+                    <form method="POST" action="/journal/delete/{{.ID}}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this entry?')">
+                        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                        <button class="btn-delete" type="submit">
+                            <span class="material-symbols-outlined">delete</span>
+                            Delete
+                        </button>
+                    </form>
+                </div>
+            </div>
+            <div class="edit-form" style="display:none;">
+                <form method="POST" action="/journal/update/{{.ID}}">
+                    <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                    <input type="text" class="new-entry-title" name="title" value="{{.Title}}" placeholder="Title for this journal entry" required>
+                    <textarea class="new-entry-input" name="entry" placeholder="Write your thoughts here..." required>{{.Desc}}</textarea>
+                    <button class="btn-save" type="submit">Save Changes</button>
+                    <button type="button" class="btn-save" onclick="cancelEdit({{.ID}})">Cancel</button>
+                </form>
+            </div>
+        </article>
+        {{end}}
+
+  
+        <div style="text-align: center; color: var(--text-light); font-style: italic; padding: 2rem;">
+            You've reached the beginning of your journal.
+        </div>
+
+    </main>
+</div>
+
+<script>
+function editEntry(id) {
+    const card = document.querySelector(`.entry-card[data-id="${id}"]`);
+    const viewDiv = card.querySelector('.entry-view');
+    const editForm = card.querySelector('.edit-form');
+    viewDiv.style.display = 'none';
+    editForm.style.display = 'block';
+}
+
+function cancelEdit(id) {
+    const card = document.querySelector(`.entry-card[data-id="${id}"]`);
+    const viewDiv = card.querySelector('.entry-view');
+    const editForm = card.querySelector('.edit-form');
+    viewDiv.style.display = 'block';
+    editForm.style.display = 'none';
+}
+</script>
+</body>
+</html>

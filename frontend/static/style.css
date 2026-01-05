@@ -1,0 +1,401 @@
+:root {
+  /* Strict adherence to original color theme */
+  --bg: #FAF7F2;
+  --ink: #3E3A2F;
+  --muted: #7A7466;
+  --accent: #D98A3A;
+  --soft: #E8E2D8;
+
+  /* Spacing variables for consistency */
+  --spacing-sm: 0.75rem;
+  --spacing-md: 1.5rem;
+  --spacing-lg: 2.5rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::selection {
+  background: var(--soft);
+  color: var(--ink);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  /* Improved Serif Stack: Warm and humanist */
+  font-family: "Iowan Old Style", "Apple Garamond", "Baskerville", "Times New Roman", serif;
+  line-height: 1.6;
+  font-size: 18px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --- Layout --- */
+
+.section {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--spacing-md) var(--spacing-sm);
+  animation: fadeIn 1.2s ease-out;
+}
+
+.text-center {
+  text-align: center;
+}
+
+/* --- Typography --- */
+
+
+h2 {
+  font-size: 0.9rem; /* Small caps style for subheaders */
+  margin-bottom: 1.25rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tagline {
+  color: var(--muted);
+  font-size: 1.2rem;
+  margin-top: 0.25rem;
+  font-style: italic;
+}
+
+.lead {
+  font-size: 1.5rem;
+  line-height: 1.5;
+  margin-bottom: 2rem;
+  color: var(--ink);
+}
+
+/* --- Hero Section --- */
+
+.hero {
+  text-align: center;
+  padding: var(--spacing-md) var(--spacing-sm) var(--spacing-md);
+  opacity: 0;
+  animation: fadeIn 1.5s ease forwards; /* Subtle entrance */
+  
+}
+
+.logo {
+  height: auto;
+  max-width: 300px;
+  width: 100%;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+img{
+  margin-bottom: 2rem;
+}
+/* --- Card Style (The Firework) --- */
+
+.card {
+  background: var(--soft);
+  padding: 3rem 2rem;
+  border-radius: 8px; /* Slightly sharper corners for a paper feel */
+  text-align: center;
+  /* Very subtle shadow to lift it off the page slightly */
+  box-shadow: 0 4px 20px -5px rgba(62, 58, 47, 0.05); 
+}
+
+.card h2 {
+  color: var(--ink); /* Override muted color for card header */
+  font-size: 1.2rem;
+  text-transform: none;
+}
+
+/* --- Values List --- */
+
+.values {
+  list-style: none;
+  padding: 0;
+  margin-top: 1.5rem;
+}
+
+.values li {
+  padding: 0.75rem 0;
+  color: var(--ink);
+  border-bottom: 1px solid var(--soft);
+  display: flex;
+  align-items: center;
+}
+
+.values li:last-child {
+  border-bottom: none;
+}
+
+/* Custom bullet using the accent color */
+.values li::before {
+  content: "•";
+  color: var(--accent);
+  font-size: 1.5rem;
+  margin-right: 1rem;
+  line-height: 0;
+  margin-bottom: 4px; 
+}
+
+/* --- Enter Section & Button --- */
+
+.enter {
+  text-align: center;
+  padding-top: var(--spacing-lg);
+  padding-bottom: var(--spacing-lg);
+}
+
+.enter-link {
+  display: inline-block;
+  margin-top: 2rem;
+  text-decoration: none;
+  color: var(--bg);
+  background-color: var(--ink);
+  padding: 1rem 2.5rem;
+  border-radius: 50px;
+  font-size: 1.1rem;
+  transition: all 0.4s ease; /* Slow transition */
+  border: 1px solid var(--ink);
+}
+
+.enter-link:hover {
+  background-color: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  transform: translateY(-2px);
+}
+
+/* --- Footer --- */
+
+footer {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+/* --- Animation --- */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+  animation: fadeIn 1.2s ease-out;
+}
+
+
+/* Signup link styling to match theme */
+.signup-link {
+  position: absolute;
+  top: 1rem;
+  right: 8rem;
+  display: inline-block;
+  margin: 0;
+  text-decoration: none;
+  color: var(--bg);
+  background-color: var(--accent);
+  padding: 0.5rem 1.5rem;
+  border-radius: 50px;
+  font-size: 1rem;
+  transition: all 0.4s ease;
+  border: 1px solid var(--accent);
+  z-index: 1000;
+}
+
+.login-link{
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: inline-block;
+  margin: 0;
+  text-decoration: none;
+  color: var(--bg);
+  background-color: var(--accent);
+  padding: 0.5rem 1.5rem;
+  border-radius: 50px;
+  font-size: 1rem;
+  transition: all 0.4s ease;
+  border: 1px solid var(--accent);
+  z-index: 1000;
+}
+
+.signup-link:hover {
+  background-color: transparent;
+  color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.login-link:hover {
+  background-color: transparent;
+  color: var(--accent);
+  transform: translateY(-2px);
+}
+
+/* Form styling */
+.form-group {
+  margin-bottom: var(--spacing-md);
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--ink);
+  text-align: left;
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--soft);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 1rem;
+  background-color: var(--bg);
+  color: var(--ink);
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.form-button {
+  width: 100%;
+  margin-top: 0;
+}
+header{
+  position: absolute;
+  right: 0;
+}
+/* Responsive design */
+@media (max-width: 1024px) {
+  .section {
+    max-width: 90%;
+    padding: var(--spacing-md) var(--spacing-sm);
+  }
+
+  .hero {
+    padding: var(--spacing-lg) var(--spacing-sm);
+  }
+
+  .logo {
+    max-width: 280px;
+  }
+
+  .lead {
+    font-size: 1.4rem;
+  }
+}
+
+@media (max-width: 768px) {
+  body {
+    font-size: 16px;
+  }
+
+  .section {
+    max-width: 95%;
+    padding: var(--spacing-sm);
+  }
+
+  .card {
+    padding: 2rem 1.5rem;
+  }
+
+  .hero {
+    padding: var(--spacing-md) var(--spacing-sm);
+  }
+
+  .logo {
+    max-width: 250px;
+  }
+
+  .lead {
+    font-size: 1.3rem;
+  }
+
+  .tagline {
+    font-size: 1.1rem;
+  }
+
+  .enter-link {
+    padding: 0.8rem 2rem;
+    font-size: 1rem;
+  }
+
+  .signup-link, .login-link {
+    position: static;
+    display: block;
+    margin: 0.5rem auto;
+    text-align: center;
+    width: fit-content;
+  }
+
+  header {
+    position: static;
+    text-align: center;
+    padding: var(--spacing-sm);
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    font-size: 14px;
+  }
+
+  .section {
+    padding: var(--spacing-sm) 1rem;
+  }
+
+  .hero {
+    padding: var(--spacing-sm) 1rem;
+  }
+
+  .logo {
+    max-width: 200px;
+  }
+
+  .brand-name {
+    font-size: 1.5rem;
+  }
+
+  .tagline {
+    font-size: 1rem;
+  }
+
+  .lead {
+    font-size: 1.2rem;
+  }
+
+  h2 {
+    font-size: 0.8rem;
+  }
+
+  .values li {
+    font-size: 0.9rem;
+  }
+
+  .enter-link {
+    padding: 0.7rem 1.5rem;
+    font-size: 0.9rem;
+  }
+
+  .signup-link, .login-link {
+    padding: 0.4rem 1rem;
+    font-size: 0.8rem;
+  }
+
+  footer {
+    font-size: 0.8rem;
+    padding: 1.5rem 1rem;
+  }
+}

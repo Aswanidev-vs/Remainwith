@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0" name="viewport"/>
+    <title>Remainwith - Dashboard</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&amp;family=Noto+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+
+    <style>
+        /* --- CSS Variables & Theme Definitions --- */
+        :root {
+            /* Base Dimensions & Fonts */
+            --font-display: "Newsreader", serif;
+            --font-sans: "Noto Sans", sans-serif;
+            --radius-md: 0.5rem;
+            --radius-lg: 0.75rem;
+            --radius-full: 9999px;
+        }
+
+        /* 1. LIGHT THEME (Default) */
+        html[data-theme="light"] {
+            --primary: #7d8471;
+            --bg-body: #f7f7f7;
+            --card-bg: #ffffff;
+            --card-border: #e7e5e4;
+            --text-main: #292524;
+            --text-muted: #57534e;
+            --text-subtle: #a8a29e;
+            --divider: #f5f5f4;
+            --glow-from: #e7e5e4;
+            --glow-to: #f5f5f4;
+            --stone-200: #e7e5e4;
+        }
+
+        /* 2. DARK THEME */
+        html[data-theme="dark"] {
+            --primary: #9ca38f;
+            --bg-body: #191a18;
+            --card-bg: #1c1917;
+            --card-border: #292524;
+            --text-main: #e7e5e4;
+            --text-muted: #a8a29e;
+            --text-subtle: #78716c;
+            --divider: #292524;
+            --glow-from: #292524;
+            --glow-to: #1c1917;
+            --stone-200: #292524;
+        }
+
+        /* 3. SEPIA THEME */
+        html[data-theme="sepia"] {
+            --primary: #8a7356;
+            --bg-body: #f4ecd8;
+            --card-bg: #fdf6e3;
+            --card-border: #e6dcc6;
+            --text-main: #433422;
+            --text-muted: #746351;
+            --text-subtle: #a89984;
+            --divider: #e6dcc6;
+            --glow-from: #e6dcc6;
+            --glow-to: #fdf6e3;
+            --stone-200: #dccfb8;
+        }
+
+        /* 4. FOREST THEME */
+        html[data-theme="forest"] {
+            --primary: #76a881;
+            --bg-body: #1a211e;
+            --card-bg: #222b26;
+            --card-border: #2f3b34;
+            --text-main: #dcece1;
+            --text-muted: #8ca392;
+            --text-subtle: #56695e;
+            --divider: #2f3b34;
+            --glow-from: #2f3b34;
+            --glow-to: #222b26;
+            --stone-200: #2f3b34;
+        }
+
+        /* --- Reset & Base Styles --- */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            font-family: var(--font-display);
+            min-height: 100vh;
+            line-height: 1.5;
+            transition: background-color 0.5s ease, color 0.5s ease;
+            overflow-x: hidden; /* Prevent horizontal scroll on mobile */
+            -webkit-tap-highlight-color: transparent; /* Remove blue tap highlight on mobile */
+        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--text-subtle); border-radius: 4px; opacity: 0.5; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+        ::selection { background-color: var(--primary); color: var(--bg-body); }
+
+        /* Utilities */
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        /* --- Layout --- */
+        .app-container {
+            display: flex; flex-direction: column; align-items: center;
+            width: 100%; min-height: 100vh; padding-bottom: 5rem;
+        }
+
+        /* --- Header --- */
+        .app-header {
+            width: 100%; max-width: 56rem;
+            padding: 1rem; /* Reduced padding for mobile */
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 1rem;
+        }
+        @media (min-width: 640px) {
+            .app-header { padding: 2rem 1.5rem; }
+        }
+
+        .logo-group {
+            display: flex; align-items: center; gap: 0.5rem;
+            cursor: pointer; transition: opacity 0.4s ease-in-out;
+            text-decoration: none; color: inherit;
+            flex-shrink: 0;
+        }
+        .logo-group:hover { opacity: 0.7; }
+        
+        .logo-text { 
+            font-size: 1.25rem; /* Smaller on mobile */
+            font-weight: 700; letter-spacing: -0.025em; 
+        }
+        @media (min-width: 640px) {
+            .logo-text { font-size: 1.5rem; }
+            .logo-group { gap: 0.75rem; }
+        }
+
+        .header-actions { 
+            display: flex; align-items: center; 
+            gap: 0.75rem; /* Tighter gap on mobile */
+        }
+        @media (min-width: 640px) {
+            .header-actions { gap: 1.25rem; }
+        }
+
+        .btn-link {
+            display: flex; align-items: center; gap: 0.5rem;
+            background: none; border: none; cursor: pointer;
+            font-family: var(--font-sans); font-size: 0.875rem;
+            font-weight: 500; color: var(--text-muted);
+            transition: color 0.4s ease-in-out; text-decoration: none;
+            padding: 0.25rem; /* Touch target */
+        }
+        .btn-link:hover { color: var(--primary); }
+        .btn-text { display: none; }
+        @media (min-width: 640px) { .btn-text { display: inline; } }
+
+        /* --- Theme Select Dropdown --- */
+        .theme-selector-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-full);
+            padding: 0.25rem 0.25rem 0.25rem 0.5rem; /* Compact padding */
+            transition: all 0.3s ease;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        }
+        @media (min-width: 640px) {
+             .theme-selector-wrapper { padding: 0.35rem 0.5rem 0.35rem 0.75rem; }
+        }
+
+        .theme-selector-wrapper:hover {
+            border-color: var(--primary);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .icon-palette {
+            font-size: 18px; color: var(--text-muted); margin-right: 0.25rem;
+            display: none; /* Hide icon on very small screens if needed */
+        }
+        @media (min-width: 380px) { .icon-palette { display: inline-block; } }
+
+        .theme-select {
+            appearance: none; -webkit-appearance: none;
+            background: transparent; border: none;
+            font-family: var(--font-sans); font-size: 0.875rem;
+            font-weight: 500; color: var(--text-main);
+            cursor: pointer; padding-right: 0.25rem; outline: none; margin: 0; z-index: 10;
+            max-width: 4rem; /* Limit width on mobile */
+        }
+        @media (min-width: 640px) { .theme-select { max-width: auto; } }
+
+        .theme-select option { background-color: var(--card-bg); color: var(--text-main); }
+
+        .icon-chevron {
+            font-size: 18px; color: var(--text-muted);
+            pointer-events: none; transition: transform 0.3s ease;
+        }
+        .theme-selector-wrapper:hover .icon-chevron { color: var(--primary); }
+
+        /* --- Profile Pic --- */
+        .profile-pic-sm {
+            height: 2rem; width: 2rem; border-radius: 9999px;
+            background-size: cover; background-position: center;
+            box-shadow: 0 0 0 1px var(--stone-200); cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        /* --- Main Content --- */
+        .feed-container {
+            width: 100%; max-width: 600px;
+            padding: 0 1rem; /* Reduced padding mobile */
+            display: flex; flex-direction: column; gap: 2rem;
+        }
+        @media (min-width: 640px) {
+            .feed-container { padding: 0 1.5rem; gap: 2.5rem; }
+        }
+
+        /* --- Greeting --- */
+        .greeting-section {
+            text-align: center; padding: 1rem 0 0.5rem 0;
+            animation: fadeIn 1s ease-out;
+        }
+        .greeting-title {
+            font-size: 1.75rem; /* Smaller mobile font */
+            font-weight: 600; color: var(--text-main); margin-bottom: 0.25rem;
+        }
+        @media (min-width: 640px) { .greeting-title { font-size: 2rem; } }
+        
+        .greeting-subtitle { font-size: 1rem; color: var(--text-muted); font-style: italic; }
+        @media (min-width: 640px) { .greeting-subtitle { font-size: 1.125rem; } }
+
+        /* --- Composer --- */
+        .composer-section { display: flex; flex-direction: column; gap: 1rem; }
+        .composer-wrapper { position: relative; }
+        .composer-glow {
+            position: absolute; inset: -2px;
+            background: linear-gradient(to right, var(--glow-from), var(--glow-to));
+            border-radius: var(--radius-lg); opacity: 0.5; filter: blur(4px);
+            transition: opacity 1s; z-index: 0;
+        }
+        .composer-card {
+            position: relative; z-index: 1;
+            background-color: var(--card-bg); border-radius: var(--radius-lg);
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--card-border); padding: 0.25rem;
+            display: flex; flex-direction: column;
+            transition: background-color 0.5s ease, border-color 0.5s ease;
+        }
+        .composer-textarea {
+            width: 100%; background: transparent; border: none; outline: none;
+            padding: 1rem; min-height: 120px; font-size: 1rem; /* Prevents zoom on iOS inputs */
+            font-family: var(--font-display); font-style: italic;
+            color: var(--text-main); resize: none;
+        }
+        @media (min-width: 640px) { .composer-textarea { font-size: 1.125rem; } }
+        
+        .composer-textarea::placeholder { color: var(--text-subtle); }
+        .composer-actions {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0.75rem 1rem 0.5rem 1rem; border-top: 1px solid var(--divider);
+        }
+
+        .btn-primary {
+            background-color: var(--primary); color: var(--bg-body);
+            padding: 0.5rem 1.25rem; /* Larger touch target area */
+            border-radius: var(--radius-md);
+            font-size: 0.875rem; font-weight: 600; border: none;
+            cursor: pointer; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            transition: all 0.4s ease-in-out; text-decoration: none; display: inline-block;
+        }
+        html[data-theme="light"] .btn-primary { color: #fff; } 
+        html[data-theme="dark"] .btn-primary { color: #1c1917; }
+        .btn-primary:hover { opacity: 0.9; }
+
+        .icon-btn {
+            color: var(--text-subtle); cursor: pointer; padding: 0.25rem;
+            transition: color 0.4s ease-in-out; display: flex; align-items: center;
+        }
+        .icon-btn:hover { color: var(--primary); }
+
+        /* --- Dashboard Grid --- */
+        .dashboard-grid {
+            display: grid; grid-template-columns: 1fr; gap: 1rem;
+        }
+        @media (min-width: 600px) { .dashboard-grid { grid-template-columns: 1fr 1fr; } }
+
+        .dashboard-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-lg); 
+            padding: 1rem; /* Compact padding mobile */
+            display: flex; flex-direction: column; gap: 0.75rem;
+            transition: all 0.4s ease-in-out; position: relative; overflow: hidden;
+        }
+        @media (min-width: 640px) { .dashboard-card { padding: 1.25rem; } }
+
+        .dashboard-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+        }
+        .db-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem; }
+        .db-title { font-size: 1rem; font-weight: 700; color: var(--text-main); font-family: var(--font-sans); }
+        .db-desc { font-size: 0.95rem; color: var(--text-muted); line-height: 1.4; font-style: italic; flex-grow: 1; }
+        .db-actions { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; }
+        .btn-secondary-link {
+            font-size: 0.875rem; color: var(--text-subtle); padding: 0.5rem;
+            text-decoration: none; transition: color 0.3s;
+        }
+        .btn-secondary-link:hover { color: var(--primary); text-decoration: underline; }
+        .camp-icon { color: #e2a07d; }
+
+        /* --- Presence Indicator --- */
+        .presence-container {
+            display: flex; align-items: center; justify-content: center;
+            gap: 0.5rem; padding: 0.5rem 0;
+            animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        .presence-dot-wrapper { position: relative; display: flex; height: 0.5rem; width: 0.5rem; }
+        .presence-ping {
+            position: absolute; display: inline-flex; height: 100%; width: 100%;
+            border-radius: 9999px; background-color: var(--primary);
+            opacity: 0.75; animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+        .presence-dot {
+            position: relative; display: inline-flex; border-radius: 9999px;
+            height: 0.5rem; width: 0.5rem; background-color: var(--primary);
+        }
+        .presence-text { color: var(--text-subtle); font-size: 0.875rem; font-style: italic; text-align: center; }
+
+        /* --- Feed / Cards --- */
+        .feed-list { display: flex; flex-direction: column; gap: 2rem; }
+        @media (min-width: 640px) { .feed-list { gap: 3rem; } }
+
+        .journal-card {
+            display: flex; flex-direction: column; gap: 1rem;
+            background-color: var(--card-bg); 
+            padding: 1.25rem; /* Compact padding mobile */
+            border-radius: var(--radius-lg); border: 1px solid var(--card-border);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+            transition: background-color 0.5s ease, border-color 0.5s ease, box-shadow 0.4s;
+        }
+        @media (min-width: 640px) { .journal-card { padding: 1.5rem; } }
+
+        .journal-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.04); }
+
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; }
+        .user-info { display: flex; align-items: center; gap: 0.75rem; }
+        .avatar {
+            height: 2rem; width: 2rem; border-radius: 9999px;
+            background-color: var(--stone-200); overflow: hidden;
+        }
+        .avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .user-name { font-size: 0.875rem; font-weight: 700; color: var(--text-main); }
+        .timestamp { font-size: 0.75rem; color: var(--text-subtle); font-family: var(--font-sans); }
+
+        .card-content {
+            font-size: 1.05rem; /* Readable mobile font */
+            line-height: 1.6;
+            color: var(--text-main); font-family: var(--font-display);
+            word-wrap: break-word; /* Prevent overflow of long words */
+        }
+        @media (min-width: 640px) { .card-content { font-size: 1.125rem; line-height: 1.625; } }
+
+        .card-footer {
+            padding-top: 1rem; border-top: 1px solid var(--divider);
+            display: flex; align-items: center; gap: 1.5rem;
+        }
+
+        .action-btn {
+            display: flex; align-items: center; gap: 0.5rem;
+            background: none; border: none; cursor: pointer;
+            color: var(--text-subtle); transition: color 0.4s ease-in-out; font-family: inherit;
+            padding: 0.25rem 0;
+        }
+        .action-btn:hover { color: var(--primary); }
+        .action-btn .material-symbols-outlined { font-size: 20px; transition: transform 0.2s; }
+        .action-btn:hover .material-symbols-outlined { transform: scale(1.1); }
+        .action-label { font-size: 0.875rem; font-weight: 500; }
+
+        .app-footer {
+            text-align: center; padding: 2rem 0;
+            color: var(--text-subtle); font-family: var(--font-display); font-style: italic;
+        }
+
+        .loader-container { padding: 3rem 0; display: flex; justify-content: center; color: var(--text-subtle); }
+        .spin { animation: spin 1s linear infinite; font-size: 1.5rem; opacity: 0.2; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+        @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        
+        <!-- Header -->
+        <header class="app-header">
+            <a href="#" class="logo-group">
+                <span class="material-symbols-outlined" style="font-size: 24px; color: var(--text-main);">spa</span>
+                <h1 class="logo-text">Remainwith</h1>
+            </a>
+            
+            <div class="header-actions">
+                <!-- Styled Theme Switcher -->
+                <div class="theme-selector-wrapper">
+                    <span class="material-symbols-outlined icon-palette">palette</span>
+                    <select class="theme-select" id="theme-select" aria-label="Select Theme">
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                        <option value="sepia">Sepia</option>
+                        <option value="forest">Forest</option>
+                    </select>
+                    <span class="material-symbols-outlined icon-chevron">expand_more</span>
+                </div>
+
+                <form action="/logout" method="POST" style="display: inline;">
+                    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                    <button type="submit" class="btn-link">
+                        <span class="btn-text">Log out</span>
+                    </button>
+                </form>
+                <a href="/journal" class="btn-link">
+                    <span class="btn-text">Journal</span>
+                </a>
+                <div class="profile-pic-sm" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCaI3uBIWwC1noJFyIk3WzdR7lE7FuvDxtMu1QujzaYmKoVrakvYTPQFDQHcrkBkRh032COVx_l63E38Y9ndt3--8u44XMd-sdfXVp6dIx86kaLSbo7H79rcBRUtG9RJ2YTKOEy48i7TMejv4uszIFENN3lNitzaunaswSgjCWEevSSrqm6rXrgwBM2J0hkeh9-6pWMFbgLqRvDBv95uWLpVWZ6kjJLtW8_OLT0hX8ktgSZUucU__dea8pVH4M-yCdPcVMmIKPnVkzW');"></div>
+            </div>
+        </header>
+
+        <main class="feed-container">
+            
+            <!-- Greeting -->
+            <section class="greeting-section">
+                <h2 class="greeting-title">You’re here.</h2>
+                <p class="greeting-subtitle">There’s nothing you need to prove.</p>
+            </section>
+
+            <!-- Composer -->
+            <section class="composer-section">
+                <form class="composer-wrapper" action="/thoughts/create" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                    <div class="composer-glow"></div>
+                    <div class="composer-card">
+                        <textarea class="composer-textarea" name="content" placeholder="Release a thought. A sentence is enough."></textarea>
+                        <div class="composer-actions">
+                            <div class="icon-btn">
+                                <span class="material-symbols-outlined" style="font-size: 20px;">image</span>
+                            </div>
+                            <button type="submit" class="btn-primary">
+                                <span>Release quietly</span>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Dashboard Grid -->
+            <section class="dashboard-grid">
+                
+                <!-- Presence Card -->
+                <div class="dashboard-card">
+                    <div class="db-header">
+                        <span class="material-symbols-outlined">accessibility_new</span>
+                        <span class="db-title">Presence Room</span>
+                    </div>
+                    <p class="db-desc">A quiet space to be together. Words are optional.</p>
+                    <div class="db-actions">
+                        <a href="/presence/join" class="btn-primary" style="text-align:center;">Join a room</a>
+                        <a href="/presence/solo" class="btn-secondary-link" style="text-align:center;">Stay alone for a moment</a>
+                    </div>
+                </div>
+
+                <!-- Campfire Card -->
+                <div class="dashboard-card">
+                    <div class="db-header">
+                        <span class="material-symbols-outlined camp-icon">local_fire_department</span>
+                        <span class="db-title">Campfire</span>
+                    </div>
+                    <p class="db-desc">Gather around the fire. Warmth in numbers.</p>
+                    <div class="db-actions">
+                        <a href="/campfire/join" class="btn-primary" style="text-align:center;">Enter Campfire</a>
+                        <a href="/campfire/about" class="btn-secondary-link" style="text-align:center;">How does it work?</a>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- Presence Indicator -->
+            <div class="presence-container">
+                <span class="presence-dot-wrapper">
+                    <span class="presence-ping"></span>
+                    <span class="presence-dot"></span>
+                </span>
+                <p class="presence-text">
+                    12 people are sitting with you right now.
+                </p>
+            </div>
+
+            <!-- Feed Section -->
+            <div class="feed-list">
+                
+                <article class="journal-card">
+                    <header class="card-header">
+                        <div class="user-info">
+                            <div class="avatar">
+                                <img alt="Profile of Sarah" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAAXd9KQMgiexIhf1LOKlZjXkTLyLpYX1IA40L2ZMag1rhYSPjSm9niYQnOTdDBVbvCmeGra5uNIPlI5CdDrSDWlhNdQqh6vCUV5Jq4P6OwFWIzEg-JUJoXR_DWhTvhqHv4bz_o4xkZqFZna1Qkr0VkrneiYcKjf3jW47N8CFlSxtD6t2aCUe_91hPW6QpjDIYqnwoOz4xbZXRBInSTZYuw36SsnKz6ey-xjXLGSSxXKxS7INEbu6dE5ylmlzDKe_KYMXx8w00g7p_T"/>
+                            </div>
+                            <div style="display: flex; flex-direction: column;">
+                                <span class="user-name">Sarah M.</span>
+                            </div>
+                        </div>
+                        <span class="timestamp">Just now</span>
+                    </header>
+                    <div class="card-content">
+                        Trying to find the quiet between the noise of the morning commute. The city feels loud today, but my coffee is warm.
+                    </div>
+                    <div class="card-footer">
+                        <button class="action-btn">
+                            <span class="material-symbols-outlined">favorite</span>
+                            <span class="action-label">I'm here</span>
+                        </button>
+                    </div>
+                </article>
+
+                <article class="journal-card">
+                    <header class="card-header">
+                        <div class="user-info">
+                            <div class="avatar">
+                                <img alt="Profile of David" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDsTb8Aim3w3EV5w5egSyPXZ42xvZhHtIf3JBSP3pguG8gp_jzphvNUIGIMCVC7urDF6T77kddBE5ak7Z5euVrCqIspE1K86iSYJcojO6Lson4pXmPx0EM5fzmWDRwxky1WcjTtw8cMLBFGHFB86dikX7hfPe4DPucgYUcgYRiiC_IRbd_eIjHLtNlsSy7wqW954WJ22RE1ODR-OfWCyPADDIjGIpGHJV1IyT6QdzBTBQFrE3NhYMeLMEidIp0G8A1RfObOrRfJQzy6"/>
+                            </div>
+                            <div style="display: flex; flex-direction: column;">
+                                <span class="user-name">David L.</span>
+                            </div>
+                        </div>
+                        <span class="timestamp">2h ago</span>
+                    </header>
+                    <div class="card-content">
+                        Grateful for the sunlight hitting my desk. It reminds me that warmth always returns, eventually.
+                    </div>
+                    <div class="card-footer">
+                        <button class="action-btn">
+                            <span class="material-symbols-outlined">favorite</span>
+                            <span class="action-label">3 here</span>
+                        </button>
+                    </div>
+                </article>
+
+            </div>
+
+            <div class="loader-container">
+                <span class="material-symbols-outlined spin">progress_activity</span>
+            </div>
+
+            <footer class="app-footer">
+                <p>You’re not behind. You’re present.</p>
+            </footer>
+
+        </main>
+    </div>
+
+    <!-- Theme Logic Script -->
+    <script>
+        (function() {
+            const htmlElement = document.documentElement;
+            const themeSelect = document.getElementById('theme-select');
+            const storageKey = 'remainwith-theme';
+
+            function loadTheme() {
+                const savedTheme = localStorage.getItem(storageKey);
+                if (savedTheme) {
+                    setTheme(savedTheme);
+                } else {
+                    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    setTheme(systemDark ? 'dark' : 'light');
+                }
+            }
+
+            function setTheme(theme) {
+                htmlElement.setAttribute('data-theme', theme);
+                if(themeSelect) themeSelect.value = theme;
+                localStorage.setItem(storageKey, theme);
+            }
+
+            loadTheme();
+
+            if (themeSelect) {
+                themeSelect.addEventListener('change', (e) => {
+                    setTheme(e.target.value);
+                });
+            }
+        })();
+    </script>
+</body>
+</html>

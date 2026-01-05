@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0" name="viewport"/>
+    <title>Remainwith</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&amp;family=Noto+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+
+    <style>
+        /* --- COPYING CORE DESIGN SYSTEM FROM DASHBOARD --- */
+        :root {
+            --font-display: "Newsreader", serif;
+            --font-sans: "Noto Sans", sans-serif;
+            --radius-md: 0.5rem;
+            --radius-lg: 0.75rem;
+            --radius-full: 9999px;
+        }
+
+        html[data-theme="light"] {
+            --primary: #7d8471;
+            --bg-body: #f7f7f7;
+            --card-bg: #ffffff;
+            --card-border: #e7e5e4;
+            --text-main: #292524;
+            --text-muted: #57534e;
+            --text-subtle: #a8a29e;
+            --divider: #f5f5f4;
+            --stone-200: #e7e5e4;
+        }
+
+        html[data-theme="dark"] {
+            --primary: #9ca38f;
+            --bg-body: #191a18;
+            --card-bg: #1c1917;
+            --card-border: #292524;
+            --text-main: #e7e5e4;
+            --text-muted: #a8a29e;
+            --text-subtle: #78716c;
+            --divider: #292524;
+            --stone-200: #292524;
+        }
+
+        html[data-theme="sepia"] {
+            --primary: #8a7356;
+            --bg-body: #f4ecd8;
+            --card-bg: #fdf6e3;
+            --card-border: #e6dcc6;
+            --text-main: #433422;
+            --text-muted: #746351;
+            --text-subtle: #a89984;
+            --divider: #e6dcc6;
+            --stone-200: #dccfb8;
+        }
+
+        html[data-theme="forest"] {
+            --primary: #76a881;
+            --bg-body: #1a211e;
+            --card-bg: #222b26;
+            --card-border: #2f3b34;
+            --text-main: #dcece1;
+            --text-muted: #8ca392;
+            --text-subtle: #56695e;
+            --divider: #2f3b34;
+            --stone-200: #2f3b34;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            font-family: var(--font-display);
+            min-height: 100vh;
+            line-height: 1.6;
+            transition: background-color 0.5s ease, color 0.5s ease;
+            overflow-x: hidden;
+        }
+
+        img { max-width: 100%; height: auto; }
+
+        .material-symbols-outlined { vertical-align: middle; }
+
+        /* --- UTILITY & LAYOUT --- */
+        .app-container {
+            display: flex; flex-direction: column; align-items: center;
+            width: 100%; min-height: 100vh;
+        }
+
+        .content-width {
+            width: 100%; max-width: 700px;
+            padding: 0 1.5rem;
+            display: flex; flex-direction: column; gap: 4rem;
+        }
+
+        /* --- HEADER --- */
+        .app-header {
+            width: 100%; max-width: 65rem;
+            padding: 2rem 1.5rem;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+
+        .logo-group {
+            display: flex; align-items: center; gap: 0.5rem;
+            text-decoration: none; color: inherit;
+        }
+
+        .logo-text { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.025em; }
+
+        .header-actions { display: flex; align-items: center; gap: 1rem; }
+
+        .btn-link {
+            font-family: var(--font-sans); font-size: 0.9rem; font-weight: 500;
+            color: var(--text-muted); text-decoration: none; transition: color 0.2s;
+        }
+        .btn-link:hover { color: var(--primary); }
+
+        /* --- THEME SELECTOR --- */
+        .theme-selector-wrapper { position: relative; display: inline-flex; align-items: center; }
+        .icon-palette {
+            position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+            font-size: 18px !important; color: var(--text-muted); pointer-events: none; z-index: 2;
+        }
+        .theme-select {
+            appearance: none; -webkit-appearance: none; cursor: pointer;
+            background-color: var(--card-bg); color: var(--text-main);
+            border: 1px solid var(--card-border); border-radius: var(--radius-full);
+            padding: 0.5rem 2rem 0.5rem 36px;
+            font-size: 0.85rem; font-family: var(--font-sans); font-weight: 500;
+            transition: all 0.2s ease-in-out;
+        }
+        .theme-select:hover { border-color: var(--primary); }
+
+        /* --- LANDING HERO --- */
+        .hero-section {
+            text-align: center; margin-top: 3rem; margin-bottom: 2rem;
+            animation: fadeIn 1.2s ease-out;
+        }
+        .hero-logo {
+            width: 80px; height: auto; margin-bottom: 1.5rem;
+            border-radius: var(--radius-lg);
+        }
+        .hero-title {
+            font-size: 3rem; font-weight: 600; line-height: 1.1; margin-bottom: 1rem;
+            letter-spacing: -0.03em;
+        }
+        .hero-tagline {
+            font-size: 1.25rem; color: var(--text-muted); font-style: italic;
+        }
+
+        /* --- CONTENT SECTIONS --- */
+        .text-section { text-align: center; }
+        .text-lead {
+            font-size: 1.5rem; line-height: 1.4; color: var(--text-main);
+            margin-bottom: 1.5rem;
+        }
+        .text-body {
+            font-size: 1.1rem; color: var(--text-muted); max-width: 500px; margin: 0 auto;
+        }
+
+        /* --- CARDS (Firework Section) --- */
+        .feature-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-lg);
+            padding: 2.5rem 2rem; text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+            transition: border-color 0.4s;
+        }
+        .feature-card:hover { border-color: var(--primary); }
+        .feature-icon {
+            font-size: 32px; color: var(--primary); margin-bottom: 1rem;
+        }
+
+        /* --- VALUES LIST --- */
+        .values-section h2 {
+            font-size: 2rem; margin-bottom: 2rem; text-align: center;
+        }
+        .values-grid {
+            display: grid; grid-template-columns: 1fr; gap: 1rem;
+        }
+        @media (min-width: 600px) {
+            .values-grid { grid-template-columns: 1fr 1fr; }
+        }
+        .value-item {
+            display: flex; align-items: center; gap: 0.75rem;
+            font-family: var(--font-sans); font-size: 1rem; color: var(--text-muted);
+            padding: 1rem; background-color: var(--card-bg);
+            border-radius: var(--radius-md); border: 1px solid var(--card-border);
+        }
+        .value-item .material-symbols-outlined { color: var(--primary); }
+
+        /* --- FOOTER & CTA --- */
+        .enter-section {
+            text-align: center; padding: 2rem 0 4rem 0;
+            display: flex; flex-direction: column; align-items: center; gap: 1.5rem;
+        }
+        .btn-primary {
+            background-color: var(--primary); color: var(--bg-body);
+            padding: 0.75rem 2rem; border-radius: var(--radius-full);
+            font-size: 1rem; font-weight: 600; text-decoration: none;
+            transition: opacity 0.3s; display: inline-flex; align-items: center; gap: 0.5rem;
+            border: none; cursor: pointer;
+        }
+        .btn-primary:hover { opacity: 0.9; }
+        html[data-theme="light"] .btn-primary { color: #fff; }
+        html[data-theme="dark"] .btn-primary { color: #1c1917; }
+
+        .btn-link{
+          background-color: var(--primary); color: var(--bg-body);
+            padding: 0.75rem 2rem; border-radius: var(--radius-full);
+            font-size: 1rem; font-weight: 600; text-decoration: none;
+            transition: opacity 0.3s; display: inline-flex; align-items: center; gap: 0.5rem;
+            border: none; cursor: pointer;
+        }
+        .btn-link:hover{
+           opacity: 0.9;
+           color: whitesmoke;
+        }
+        html[data-theme="light"] .btn-primary { color: #fff; }
+        html[data-theme="dark"] .btn-primary { color: #1c1917; }
+        .app-footer {
+            padding: 2rem; text-align: center; color: var(--text-subtle);
+            font-size: 0.875rem; font-style: italic; border-top: 1px solid var(--divider);
+            width: 100%; margin-top: auto;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- RESPONSIVE DESIGN --- */
+
+        /* Mobile: up to 480px */
+        @media (max-width: 480px) {
+            .app-header {
+                padding: 1rem 1rem;
+                flex-direction: column; gap: 1rem;
+            }
+            .logo-group img { width: 80px; height: 80px; }
+            .logo-text { font-size: 1rem; }
+            .header-actions { gap: 0.5rem; flex-wrap: wrap; justify-content: center; }
+            .theme-selector-wrapper { width: 40px; }
+            .theme-select { padding-right: 1.5rem; width: 40px; overflow: hidden; color: transparent; }
+            .theme-select option { color: initial; }
+            .icon-palette { left: 50%; transform: translate(-50%, -50%); }
+            .btn-link, .btn-primary { padding: 0.5rem 1rem; font-size: 0.8rem; }
+
+            .content-width { padding: 0 1rem; gap: 2rem; }
+
+            .hero-section { margin-top: 2rem; margin-bottom: 1rem; }
+            .hero-logo { width: 60px; }
+            .hero-title { font-size: 2rem; }
+            .hero-tagline { font-size: 1rem; }
+
+            .text-lead { font-size: 1.25rem; margin-bottom: 1rem; }
+            .text-body { font-size: 1rem; }
+
+            .feature-card { padding: 1.5rem 1rem; }
+            .feature-icon { font-size: 28px; }
+
+            .values-section h2 { font-size: 1.5rem; margin-bottom: 1.5rem; }
+            .values-grid { gap: 0.75rem; }
+            .value-item { padding: 0.75rem; font-size: 0.9rem; gap: 0.5rem; }
+
+            .enter-section { padding: 1.5rem 0 3rem 0; gap: 1rem; }
+            .btn-primary { padding: 0.6rem 1.5rem; font-size: 0.9rem; }
+
+            .app-footer { padding: 1.5rem; font-size: 0.8rem; }
+        }
+
+        /* Tablet: 481px to 1024px */
+        @media (min-width: 481px) and (max-width: 1024px) {
+            .app-header { padding: 1.5rem 1.5rem; }
+            .logo-group img { width: 120px; height: 120px; }
+            .content-width { padding: 0 2rem; gap: 3rem; }
+
+            .hero-title { font-size: 2.5rem; }
+            .hero-tagline { font-size: 1.1rem; }
+
+            .text-lead { font-size: 1.4rem; }
+            .text-body { font-size: 1rem; }
+
+            .feature-card { padding: 2rem 1.5rem; }
+            .feature-icon { font-size: 30px; }
+
+            .values-section h2 { font-size: 1.8rem; }
+            .values-grid { grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+            .enter-section { padding: 2rem 0 3rem 0; }
+            .btn-primary { padding: 0.7rem 1.8rem; font-size: 0.95rem; }
+
+            .app-footer { padding: 1.8rem; }
+        }
+
+        /* Desktop: 1025px and above */
+        @media (min-width: 1025px) {
+            .app-header { padding: 2.5rem 2rem; }
+            .logo-group img { width: 150px; height: 150px; }
+            .content-width { padding: 0 2rem; gap: 5rem; }
+
+            .hero-title { font-size: 3.5rem; }
+            .hero-tagline { font-size: 1.3rem; }
+
+            .text-lead { font-size: 1.6rem; }
+            .text-body { font-size: 1.15rem; }
+
+            .feature-card { padding: 3rem 2.5rem; }
+            .feature-icon { font-size: 36px; }
+
+            .values-section h2 { font-size: 2.2rem; }
+            .values-grid { grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+
+            .enter-section { padding: 2.5rem 0 4.5rem 0; }
+            .btn-primary { padding: 0.8rem 2.2rem; font-size: 1.05rem; }
+
+            .app-footer { padding: 2.2rem; font-size: 0.9rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        
+        <!-- Header: Logo + Navigation + Theme -->
+        <header class="app-header">
+            <a href="/" class="logo-group">
+    <img src="/assets/Remainwith_logov1.png" alt="logo" width="200px" height="200px">
+
+                <!-- <span class="material-symbols-outlined" style="font-size: 24px; color: var(--text-main);">spa</span> -->
+                <span class="logo-text">Remainwith</span>
+            </a>
+            
+            <div class="header-actions">
+                <!-- Theme Switcher -->
+                <div class="theme-selector-wrapper">
+                    <span class="material-symbols-outlined icon-palette">palette</span>
+                    <select class="theme-select" id="theme-select" aria-label="Select Theme">
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                        <option value="sepia">Sepia</option>
+                        <option value="forest">Forest</option>
+                    </select>
+                </div>
+                
+                <span style="color: var(--divider); height: 20px; border-left: 1px solid;"></span>
+                
+                <a href="/login" class="btn-link" style="padding: 0.4rem 1rem; font-size: 0.85rem;">Log in</a>
+                <a href="/signup" class="btn-primary" style="padding: 0.4rem 1rem; font-size: 0.85rem;">Sign Up</a>
+            </div>
+        </header>
+
+        <main class="content-width">
+            
+            <!-- Hero -->
+            <section class="hero-section">
+                <!-- Fallback to icon if image missing, or use image class -->
+                <!-- <img src="/assets/Remainwith_logo.png" alt="Remainwith" class="hero-logo" /> -->
+                <div style="margin-bottom: 1rem;">
+                    <img src="/assets/Remainwith_logov1.png" alt="logo" width="200px" height="200px">
+
+
+                </div>
+                
+                <h1 class="hero-title">Remainwith</h1>
+                <p class="hero-tagline">A quiet place to remain with others.</p>
+            </section>
+
+            <!-- What is it -->
+            <section class="text-section">
+                <p class="text-lead">
+                    Remainwith is not a feed.<br />
+                    Not a stage. Not a place to perform.
+                </p>
+                <p class="text-body">
+                    It is a shared space for presence — where people sit together, speak slowly, and leave without feeling drained.
+                </p>
+            </section>
+
+            <!-- Feature Card: Firework -->
+            <section class="feature-card">
+                <span class="material-symbols-outlined feature-icon">local_fire_department</span>
+                <h2 style="font-size: 1.75rem; font-weight: 500; margin-bottom: 1rem;">The Firework</h2>
+                <p class="text-body" style="margin-bottom: 1rem;">
+                    Sometimes, someone starts a fire. Others may join — quietly. No followers. No audience.
+                </p>
+                <p class="text-body" style="font-size: 0.95rem; font-style: italic;">
+                    Just people sitting together, while the sound of a fire plays in the background.
+                </p>
+            </section>
+
+            <!-- Values / Different by Design -->
+            <section class="values-section">
+                <h2>Different by design</h2>
+                <div class="values-grid">
+                    <div class="value-item">
+                        <span class="material-symbols-outlined">do_not_disturb_on</span>
+                        <span>No likes, counts, or trends</span>
+                    </div>
+                    <div class="value-item">
+                        <span class="material-symbols-outlined">vertical_align_center</span>
+                        <span>No infinite scroll</span>
+                    </div>
+                    <div class="value-item">
+                        <span class="material-symbols-outlined">hourglass_empty</span>
+                        <span>No urgency to reply</span>
+                    </div>
+                    <div class="value-item">
+                        <span class="material-symbols-outlined">self_improvement</span>
+                        <span>Presence over performance</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Enter / CTA -->
+            <section class="enter-section">
+                <p class="text-lead" style="font-size: 1.25rem;">
+                    You don’t need to stay long.<br />
+                    You just need to arrive.
+                </p>
+                <!-- Using Signup as the CTA for new users -->
+                <a href="/signup" class="btn-primary">
+                    <span>Enter quietly</span>
+                    <span class="material-symbols-outlined">arrow_forward</span>
+                </a>
+            </section>
+
+        </main>
+
+        <footer class="app-footer">
+            <p>Remainwith — built slowly.</p>
+        </footer>
+
+    </div>
+
+    <!-- Theme Logic (Shared with Dashboard) -->
+    <script>
+        (function() {
+            const htmlElement = document.documentElement;
+            const themeSelect = document.getElementById('theme-select');
+            const storageKey = 'remainwith-theme';
+
+            function loadTheme() {
+                const savedTheme = localStorage.getItem(storageKey);
+                if (savedTheme) {
+                    setTheme(savedTheme);
+                } else {
+                    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    setTheme(systemDark ? 'dark' : 'light');
+                }
+            }
+
+            function setTheme(theme) {
+                htmlElement.setAttribute('data-theme', theme);
+                if(themeSelect) themeSelect.value = theme;
+                localStorage.setItem(storageKey, theme);
+            }
+
+            loadTheme();
+
+            if (themeSelect) {
+                themeSelect.addEventListener('change', (e) => {
+                    setTheme(e.target.value);
+                });
+            }
+        })();
+    </script>
+</body>
+</html>

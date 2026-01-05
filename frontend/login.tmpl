@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Remainwith - Login</title>
+
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com" rel="preconnect"/>
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+    <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+
+    <style>
+        /* --- CSS Variables & Configuration --- */
+        :root {
+            /* Colors */
+            --color-primary: #7d8471;
+            --color-primary-hover: #6b7260;
+            --color-primary-faded: #5e6355;
+
+            --color-bg-light: #F8F7F2;
+            --color-bg-dark: #191a18;
+
+            --color-text-main: #2C2C2C;
+            --color-text-subtle: #767873;
+
+            --color-white: #ffffff;
+            --color-card-dark: #232422;
+
+            --color-border-light: #e6e5e0;
+            --color-border-dark: #333333;
+            --color-border-input-dark: #444444;
+
+            /* Input Backgrounds (replicating Tailwind opacity utilities) */
+            --bg-input-light: rgba(248, 247, 242, 0.3);
+            --bg-input-dark: rgba(0, 0, 0, 0.2);
+
+            /* Fonts */
+            --font-display: 'Newsreader', serif;
+            --font-sans: 'Inter', sans-serif;
+
+            /* Shadows */
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+
+            /* Radius */
+            --radius-lg: 0.5rem;
+            --radius-xl: 0.75rem;
+        }
+
+        /* --- Reset & Base --- */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--color-bg-light);
+            color: var(--color-text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.5s, color 0.5s;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Typography Helpers */
+        .serif-text {
+            font-family: var(--font-display);
+        }
+
+        .material-symbols-outlined {
+            font-family: 'Material Symbols Outlined';
+            font-weight: normal;
+            font-style: normal;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+        }
+
+        /* --- Layout --- */
+        .main-container {
+            width: 100%;
+            max-width: 600px;
+            padding: 3rem 1.5rem; /* py-12 px-6 */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* --- Header Section --- */
+        .header-section {
+            margin-bottom: 2.5rem;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .header-icon {
+            color: var(--color-primary);
+            font-size: 3rem; /* text-5xl */
+            margin-bottom: 1rem;
+        }
+
+        .header-title {
+            font-size: 2.25rem; /* text-4xl */
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            font-style: italic;
+            color: var(--color-text-main);
+        }
+
+        .header-subtitle {
+            margin-top: 0.75rem;
+            color: var(--color-text-subtle);
+            font-size: 1.125rem; /* text-lg */
+            font-style: italic;
+        }
+
+        /* --- Card & Form --- */
+        .login-card {
+            width: 100%;
+            background-color: var(--color-white);
+            padding: 2rem;
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--color-border-light);
+            transition: background-color 0.5s, border-color 0.5s;
+        }
+
+        @media (min-width: 640px) {
+            .login-card {
+                padding: 3rem; /* sm:p-12 */
+            }
+        }
+
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--color-text-main);
+            letter-spacing: 0.025em;
+        }
+
+        .form-input {
+            width: 100%;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--color-border-light);
+            background-color: var(--bg-input-light);
+            padding: 0.75rem;
+            color: var(--color-text-main);
+            font-family: var(--font-sans);
+            font-size: 1rem;
+            transition: box-shadow 0.2s, border-color 0.2s;
+            box-shadow: var(--shadow-sm);
+            outline: none;
+        }
+
+        .form-input::placeholder {
+            color: var(--color-text-subtle);
+            opacity: 0.4;
+        }
+
+        .form-input:focus {
+            border-color: var(--color-primary);
+            /* Tailwind ring effect: */
+            box-shadow: 0 0 0 1px var(--color-primary), var(--shadow-sm);
+        }
+
+        /* Password input container */
+        .password-input-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .password-input-container .form-input {
+            padding-right: 3rem; /* Make room for the toggle button */
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 0.75rem;
+            background: none;
+            border: none;
+            color: var(--color-text-subtle);
+            cursor: pointer;
+            padding: 0.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s;
+        }
+
+        .password-toggle:hover {
+            color: var(--color-primary);
+        }
+
+        .password-toggle .material-symbols-outlined {
+            font-size: 1.25rem;
+        }
+
+        /* --- Button --- */
+        .btn-submit {
+            margin-top: 1rem;
+            width: 100%;
+            background-color: var(--color-primary);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--radius-lg);
+            font-size: 0.875rem;
+            font-weight: 500;
+            letter-spacing: 0.025em;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-submit:hover {
+            background-color: var(--color-primary-hover);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-icon {
+            font-size: 0.875rem; /* text-sm */
+            transition: transform 0.3s;
+        }
+
+        .btn-submit:hover .btn-icon {
+            transform: translateX(4px);
+        }
+
+        /* --- Footer Links --- */
+        .signup-area {
+            margin-top: 2rem;
+            text-align: center;
+        }
+
+        .signup-text {
+            color: var(--color-text-subtle);
+            font-size: 0.875rem;
+        }
+
+        .link-primary {
+            color: var(--color-primary);
+            font-weight: 500;
+            text-decoration: none;
+            border-bottom: 1px solid rgba(125, 132, 113, 0.2);
+            margin-left: 0.25rem;
+            transition: color 0.2s, border-color 0.2s;
+        }
+
+        .link-primary:hover {
+            color: var(--color-primary-faded);
+            border-bottom-color: var(--color-primary);
+        }
+
+        .fixed-footer {
+            position: fixed;
+            bottom: 1.5rem;
+            width: 100%;
+            text-align: center;
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        .fixed-footer .icon {
+            color: var(--color-primary);
+            font-size: 1.25rem;
+        }
+
+        /* --- Animations --- */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-enter {
+            opacity: 0;
+            animation: fadeInUp 0.8s ease-out forwards;
+        }
+
+        .delay-100 { animation-delay: 0.15s; }
+        .delay-200 { animation-delay: 0.3s; }
+
+        /* Error message styling */
+        .error-message {
+            background-color: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .error-message .material-symbols-outlined {
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        /* --- Dark Mode Overrides --- */
+        /* To test: add class="dark" to the <html> or <body> tag */
+        .dark body {
+            background-color: var(--color-bg-dark);
+        }
+
+        .dark .login-card {
+            background-color: var(--color-card-dark);
+            border-color: var(--color-border-dark);
+        }
+
+        .dark .form-input {
+            border-color: var(--color-border-input-dark);
+            background-color: var(--bg-input-dark);
+        }
+
+        .dark .form-input:focus {
+             border-color: var(--color-primary);
+        }
+
+        /* Auto Dark Mode Preference */
+        @media (prefers-color-scheme: dark) {
+            /* Uncomment these lines if you want the site to automatically switch
+               based on system settings without the 'dark' class */
+            /*
+            body { background-color: var(--color-bg-dark); }
+            .login-card { background-color: var(--color-card-dark); border-color: var(--color-border-dark); }
+            .form-input { border-color: var(--color-border-input-dark); background-color: var(--bg-input-dark); }
+            */
+        }
+    </style>
+</head>
+<body class="bg-background-light">
+
+    <main class="main-container">
+        <!-- Header -->
+        <div class="header-section animate-enter">
+<img src="/assets/Remainwith_logo.png" alt="Remainwith logo" width="150px" height="150px" class="logo" />
+
+ <br/> <h1 class="serif-text brand-name">Remainwith</h1>
+            <p class="header-subtitle serif-text">Intention in every moment.</p>
+        </div>
+
+        <!-- Card -->
+        <div class="login-card animate-enter delay-100">
+            {{if .Error}}
+            <div class="error-message">
+                <span class="material-symbols-outlined">error</span>
+                {{.Error}}
+            </div>
+            {{end}}
+            <form action="/login" method="post" class="login-form">
+                <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                <div class="form-group">
+                    <label class="form-label" for="email">Email Address</label>
+                    <input class="form-input" id="email" name="email" placeholder="you@example.com" type="email" required/>
+                </div>
+
+                <div class="form-group">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label class="form-label" for="password">Password</label>
+                    </div>
+                    <div class="password-input-container">
+                        <input class="form-input" id="password" name="password" placeholder="••••••••" type="password" required/>
+                        <button type="button" class="password-toggle" data-target="password">
+                            <span class="material-symbols-outlined">visibility</span>
+                        </button>
+                    </div>
+                </div>
+
+                <button class="btn-submit" type="submit">
+                    <span>Log In</span>
+                    <span class="material-symbols-outlined btn-icon">arrow_forward</span>
+                </button>
+            </form>
+        </div>
+
+        <!-- Signup Link -->
+        <div class="signup-area animate-enter delay-200">
+            <p class="signup-text">
+                Don't have an account?
+                <a class="link-primary" href="/signup">Start your journal</a>
+            </p>
+        </div>
+    </main>
+
+    <footer class="fixed-footer">
+        <span class="material-symbols-outlined icon">spa</span>
+    </footer>
+
+    <script>
+        // Password visibility toggle functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggleButtons = document.querySelectorAll('.password-toggle');
+
+            toggleButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const targetId = this.getAttribute('data-target');
+                    const input = document.getElementById(targetId);
+                    const icon = this.querySelector('.material-symbols-outlined');
+
+                    if (input.type === 'password') {
+                        input.type = 'text';
+                        icon.textContent = 'visibility_off';
+                    } else {
+                        input.type = 'password';
+                        icon.textContent = 'visibility';
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

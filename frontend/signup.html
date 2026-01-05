@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Signup - Remainwith</title>
+  <link rel="stylesheet" href="static/style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+</head>
+<body>
+
+  <!-- Hero -->
+  <section class="hero">
+    <img src="../assets/Remainwith.png" alt="Remainwith logo" class="logo" />
+    <p class="tagline">
+        Join the quiet space.
+    </p>
+  </section>
+
+  <!-- Signup Form -->
+  <section class="section">
+    <div class="card">
+      <h2>Sign Up</h2>
+      <form action="/signup" method="post">
+        <div class="form-group">
+          <label for="name" class="form-label">Name</label>
+          <input type="text" id="name" name="name" required class="form-input" />
+        </div>
+        <div class="form-group">
+          <label for="email" class="form-label">Email</label>
+          <input type="email" id="email" name="email" required class="form-input" />
+        </div>
+        <div class="form-group">
+          <label for="password" class="form-label">Password</label>
+          <input type="password" id="password" name="password" required class="form-input" />
+        </div>
+        <div class="form-group">
+          <label for="password" class="form-label">Re-Password</label>
+          <input type="password" id="Repassword" name="Repassword" required class="form-input" />
+        </div>
+        <button type="submit" class="enter-link form-button">Sign Up</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <p>Remainwith — built slowly.</p>
+  </footer>
+
+</body>
+</html>
