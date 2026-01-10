@@ -59,8 +59,8 @@ func NewUser(ctx context.Context, name, email, password string) error {
 
 	_, err := config.DB.Exec(
 		ctx,
-		`INSERT INTO users (name, email, password)
-         VALUES ($1, $2, $3)`,
+		`INSERT INTO users (name, email, password, created_at)
+         VALUES ($1, $2, $3, NOW())`,
 		name, email, password,
 	)
 
@@ -256,3 +256,232 @@ func NewJournal(ctx context.Context, userID int, title, description string) (int
 
 // 	return err
 // }
+
+// --- Interests & Onboarding Logic ---
+
+type Interest struct {
+	ID       int    `json:"id"`
+	Name     string `json:"name"`
+	Category string `json:"category"`
+}
+
+// GetAllInterests retrieves all available interests organized for the UI.
+func GetAllInterests(ctx context.Context) ([]Interest, error) {
+	if config.DB == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+
+	rows, err := config.DB.Query(ctx, "SELECT id, name, category FROM interests WHERE is_active = true ORDER BY category, id")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var interests []Interest
+	for rows.Next() {
+		var i Interest
+		if err := rows.Scan(&i.ID, &i.Name, &i.Category); err != nil {
+			return nil, err
+		}
+		interests = append(interests, i)
+	}
+	return interests, nil
+}
+
+// SaveUserInterests saves the selected interests for a user.
+// It clears existing interests first to allow for updates.
+func SaveUserInterests(ctx context.Context, userID int, interestIDs []int) error {
+	if config.DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	tx, err := config.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	// Clear existing
+	_, err = tx.Exec(ctx, "DELETE FROM user_interests WHERE user_id = $1", userID)
+	if err != nil {
+		return err
+	}
+
+	// Insert new
+	for _, iID := range interestIDs {
+		_, err = tx.Exec(ctx, "INSERT INTO user_interests (user_id, interest_id) VALUES ($1, $2)", userID, iID)
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit(ctx)
+}
+
+// SaveUserInterestsByNames saves the selected interests for a user using interest names.
+func SaveUserInterestsByNames(ctx context.Context, userID int, interestNames []string) error {
+	if config.DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	tx, err := config.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	// Clear existing
+	_, err = tx.Exec(ctx, "DELETE FROM user_interests WHERE user_id = $1", userID)
+	if err != nil {
+		return err
+	}
+
+	// Insert new
+	for _, name := range interestNames {
+		var interestID int
+		// We ignore errors here (e.g. if name not found) to allow partial saves or avoid crashing on stale frontend data
+		if err := tx.QueryRow(ctx, "SELECT id FROM interests WHERE name = $1", name).Scan(&interestID); err == nil {
+			if _, err := tx.Exec(ctx, "INSERT INTO user_interests (user_id, interest_id) VALUES ($1, $2)", userID, interestID); err != nil {
+				return err
+			}
+		}
+	}
+
+	return tx.Commit(ctx)
+}
+
+// ShouldShowOnboarding checks if the user should see the interest dialog.
+// Criteria: User has NO interests set.
+// This ensures users who haven't selected interests see the dialog.
+func ShouldShowOnboarding(ctx context.Context, userID int) (bool, error) {
+	var hasInterests bool
+	err := config.DB.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM user_interests WHERE user_id = $1)", userID).Scan(&hasInterests)
+	if err != nil {
+		return false, err
+	}
+	if hasInterests {
+		return false, nil
+	}
+
+	return true, nil
+}
+
+// GetSuggestedUsers finds other users who share similar interests.
+func GetSuggestedUsers(ctx context.Context, userID int, limit int) ([]Userinfo, error) {
+	rows, err := config.DB.Query(ctx, `
+		SELECT DISTINCT u.id, u.name, u.email
+		FROM users u
+		JOIN user_interests ui ON u.id = ui.user_id
+		WHERE u.id != $1
+		AND ui.interest_id IN (SELECT interest_id FROM user_interests WHERE user_id = $1)
+		LIMIT $2
+	`, userID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []Userinfo
+	for rows.Next() {
+		var u Userinfo
+		// Note: Password is not selected, so it will be empty (safe)
+		if err := rows.Scan(&u.ID, &u.Name, &u.Email); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, nil
+}
+
+// SeedInterests populates the interests table with predefined categories and options if not already present.
+func SeedInterests(ctx context.Context) error {
+	if config.DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	// Ensure tables exist
+	_, err := config.DB.Exec(ctx, `
+		CREATE TABLE IF NOT EXISTS interests (
+			id SERIAL PRIMARY KEY,
+			name TEXT NOT NULL,
+			category TEXT NOT NULL,
+			is_active BOOLEAN DEFAULT TRUE
+		);
+		CREATE TABLE IF NOT EXISTS user_interests (
+			user_id INT NOT NULL,
+			interest_id INT NOT NULL,
+			PRIMARY KEY (user_id, interest_id)
+		);
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create interests tables: %w", err)
+	}
+
+	interests := []struct {
+		name     string
+		category string
+	}{
+		// 🧠 How You’ve Been Feeling
+		{"Anxiety", "🧠 How You’ve Been Feeling"},
+		{"Overthinking", "🧠 How You’ve Been Feeling"},
+		{"Stress", "🧠 How You’ve Been Feeling"},
+		{"Loneliness", "🧠 How You’ve Been Feeling"},
+		{"Emotional exhaustion", "🧠 How You’ve Been Feeling"},
+		{"Calm & clarity", "🧠 How You’ve Been Feeling"},
+		{"Gratitude", "🧠 How You’ve Been Feeling"},
+
+		// 🎯 What You’re Working On
+		{"Self-discipline", "🎯 What You’re Working On"},
+		{"Staying consistent", "🎯 What You’re Working On"},
+		{"Finding motivation", "🎯 What You’re Working On"},
+		{"Breaking a habit", "🎯 What You’re Working On"},
+		{"Improving focus", "🎯 What You’re Working On"},
+		{"Building confidence", "🎯 What You’re Working On"},
+
+		// 🧍 Life Situations
+		{"Student life", "🧍 Life Situations"},
+		{"Career confusion", "🧍 Life Situations"},
+		{"Relationship struggles", "🧍 Life Situations"},
+		{"Family pressure", "🧍 Life Situations"},
+		{"Living alone", "🧍 Life Situations"},
+		{"Feeling stuck", "🧍 Life Situations"},
+
+		// 🌱 Reflection & Meaning
+		{"Self-reflection", "🌱 Reflection & Meaning"},
+		{"Finding purpose", "🌱 Reflection & Meaning"},
+		{"Letting go", "🌱 Reflection & Meaning"},
+		{"Acceptance", "🌱 Reflection & Meaning"},
+		{"Mindfulness", "🌱 Reflection & Meaning"},
+		{"Understanding myself better", "🌱 Reflection & Meaning"},
+
+		// 🌙 Time & Energy States
+		{"Late-night thoughts", "🌙 Time & Energy States"},
+		{"Low-energy days", "🌙 Time & Energy States"},
+		{"Need encouragement", "🌙 Time & Energy States"},
+		{"Quiet reflection", "🌙 Time & Energy States"},
+		{"Morning motivation", "🌙 Time & Energy States"},
+	}
+
+	tx, err := config.DB.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	for _, interest := range interests {
+		// Check if interest already exists
+		var exists bool
+		err := tx.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM interests WHERE name = $1)", interest.name).Scan(&exists)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			_, err = tx.Exec(ctx, "INSERT INTO interests (name, category, is_active) VALUES ($1, $2, true)", interest.name, interest.category)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return tx.Commit(ctx)
+}

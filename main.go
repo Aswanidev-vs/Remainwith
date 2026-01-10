@@ -2,11 +2,13 @@ package main
 
 import (
 	"Remainwith/config"
+	"Remainwith/db"
 	"Remainwith/internal/about"
 	"Remainwith/internal/chat"
 	"Remainwith/internal/handler"
 	"Remainwith/internal/message"
 	"Remainwith/internal/ws"
+	"context"
 	"log"
 	"net/http"
 )
@@ -18,6 +20,11 @@ func main() {
 
 	if err := config.InitDB(); err != nil {
 		log.Fatal("Database connection failed:", err)
+	}
+
+	// Seed interests if they don't exist
+	if err := db.SeedInterests(context.Background()); err != nil {
+		log.Println("Warning: Failed to seed interests:", err)
 	}
 
 	// Initialize websocket hub
@@ -59,6 +66,15 @@ func main() {
 	router.Handle("GET /campfire", http.HandlerFunc(chat.CampfirePageHandler))
 
 	router.Handle("GET /campfire/chat", http.HandlerFunc(chat.ChatPageHandler))
+
+	// Interests API routes
+	router.HandleFunc("GET /api/interests", handler.GetInterestsHandler)
+	router.HandleFunc("POST /api/interests", func(w http.ResponseWriter, r *http.Request) {
+		handler.JWTMiddleware(http.HandlerFunc(handler.SaveInterestsHandler)).ServeHTTP(w, r)
+	})
+	router.HandleFunc("GET /api/onboarding/check", func(w http.ResponseWriter, r *http.Request) {
+		handler.JWTMiddleware(http.HandlerFunc(handler.CheckOnboardingHandler)).ServeHTTP(w, r)
+	})
 
 	// Websocket routes
 	router.HandleFunc("/ws", hub.HandleConnection)

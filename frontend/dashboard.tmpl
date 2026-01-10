@@ -92,8 +92,8 @@
             min-height: 100vh;
             line-height: 1.5;
             transition: background-color 0.5s ease, color 0.5s ease;
-            overflow-x: hidden; /* Prevent horizontal scroll on mobile */
-            -webkit-tap-highlight-color: transparent; /* Remove blue tap highlight on mobile */
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
         }
 
         ::-webkit-scrollbar { width: 8px; }
@@ -119,38 +119,23 @@
         /* --- Header --- */
         .app-header {
             width: 100%; max-width: 56rem;
-            padding: 1rem; /* Reduced padding for mobile */
+            padding: 1rem;
             display: flex; align-items: center; justify-content: space-between;
             gap: 1rem;
         }
-        @media (min-width: 640px) {
-            .app-header { padding: 2rem 1.5rem; }
-        }
+        @media (min-width: 640px) { .app-header { padding: 2rem 1.5rem; } }
 
         .logo-group {
             display: flex; align-items: center; gap: 0.5rem;
             cursor: pointer; transition: opacity 0.4s ease-in-out;
-            text-decoration: none; color: inherit;
-            flex-shrink: 0;
+            text-decoration: none; color: inherit; flex-shrink: 0;
         }
         .logo-group:hover { opacity: 0.7; }
-        
-        .logo-text { 
-            font-size: 1.25rem; /* Smaller on mobile */
-            font-weight: 700; letter-spacing: -0.025em; 
-        }
-        @media (min-width: 640px) {
-            .logo-text { font-size: 1.5rem; }
-            .logo-group { gap: 0.75rem; }
-        }
+        .logo-text { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.025em; }
+        @media (min-width: 640px) { .logo-text { font-size: 1.5rem; } }
 
-        .header-actions { 
-            display: flex; align-items: center; 
-            gap: 0.75rem; /* Tighter gap on mobile */
-        }
-        @media (min-width: 640px) {
-            .header-actions { gap: 1.25rem; }
-        }
+        .header-actions { display: flex; align-items: center; gap: 0.75rem; }
+        @media (min-width: 640px) { .header-actions { gap: 1.25rem; } }
 
         .btn-link {
             display: flex; align-items: center; gap: 0.5rem;
@@ -158,138 +143,73 @@
             font-family: var(--font-sans); font-size: 0.875rem;
             font-weight: 500; color: var(--text-muted);
             transition: color 0.4s ease-in-out; text-decoration: none;
-            padding: 0.25rem; /* Touch target */
+            padding: 0.25rem;
         }
         .btn-link:hover { color: var(--primary); }
         .btn-text { display: none; }
         @media (min-width: 640px) { .btn-text { display: inline; } }
 
-   /* --- Updated Theme Selector (Matching Image) --- */
-/* --- Theme Selector Container --- */
-/* --- Theme Selector Container --- */
-.theme-selector-wrapper {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    width: fit-content;
-}
-
-/* Palette Icon (Left side) */
-.icon-palette {
-    position: absolute;
-    left: 12px;
-    top: 50%; /* Center vertically */
-    transform: translateY(-50%);
-    font-size: 18px !important;
-    color: var(--text-muted);
-    pointer-events: none; 
-    z-index: 2;
-}
-
-/* Select Box */
-.theme-select {
-    appearance: none;
-    -webkit-appearance: none;
-    cursor: pointer;
-    
-    /* Layout */
-    background-color: var(--card-bg);
-    color: var(--text-main);
-    border: 1px solid var(--card-border);
-    border-radius: var(--radius-full);
-    
-    /* Padding: Top (0.6rem) Right (2.5rem) Bottom (0.6rem) Left (38px) */
-    padding: 0.6rem 2.5rem 0.6rem 38px; 
-    
-    font-size: 0.9rem;
-    font-family: var(--font-sans);
-    font-weight: 500;
-    
-    /* Transition fixed: added duration */
-    transition: all 0.2s ease-in-out;
-    z-index: 1;
-}
-
-/* Chevron Icon (Right side) */
-.icon-chevron {
-    position: absolute;
-    right: 10px;
-    top: 50%; /* Center vertically */
-    transform: translateY(-50%);
-    font-size: 20px !important;
-    color: var(--text-muted);
-    pointer-events: none;
-    z-index: 2;
-}
-
-/* Interaction Effects */
-.theme-select:hover {
-    border-color: var(--primary);
-    background-color: var(--divider);
-}
-
-.theme-selector-wrapper:hover .material-symbols-outlined {
-    color: var(--primary);
-}
-
-/* Chevron Icon (Right side) */
-.icon-chevron {
-    position: absolute;
-    right: 12px;
-    font-size: 20px !important;
-    color: var(--text-muted);
-    pointer-events: none;
-    z-index: 2;
-}
-
-/* Interaction States */
-.theme-selector-wrapper:hover .theme-select {
-    border-color: var(--primary);
-    background-color: var(--divider);
-}
-
-.theme-selector-wrapper:hover .material-symbols-outlined {
-    color: var(--primary);
-}
-        .icon-chevron {
-            font-size: 18px; color: var(--text-muted);
-            pointer-events: none; transition: transform 0.3s ease;
+        /* --- Theme Selector --- */
+        .theme-selector-wrapper { position: relative; display: inline-flex; align-items: center; width: fit-content; }
+        .icon-palette {
+            position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+            font-size: 18px !important; color: var(--text-muted); pointer-events: none; z-index: 2;
         }
-        .theme-selector-wrapper:hover .icon-chevron { color: var(--primary); }
+        .theme-select {
+            appearance: none; -webkit-appearance: none; cursor: pointer;
+            background-color: var(--card-bg); color: var(--text-main);
+            border: 1px solid var(--card-border); border-radius: var(--radius-full);
+            padding: 0.6rem 2.5rem 0.6rem 38px;
+            font-size: 0.9rem; font-family: var(--font-sans); font-weight: 500;
+            transition: all 0.2s ease-in-out; z-index: 1;
+        }
+        .icon-chevron {
+            position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+            font-size: 20px !important; color: var(--text-muted); pointer-events: none; z-index: 2;
+        }
+        .theme-select:hover { border-color: var(--primary); background-color: var(--divider); }
+        .theme-selector-wrapper:hover .material-symbols-outlined { color: var(--primary); }
 
-        /* --- Profile Pic --- */
+        /* --- Profile --- */
         .profile-pic-sm {
             height: 2rem; width: 2rem; border-radius: 9999px;
             background-size: cover; background-position: center;
-            box-shadow: 0 0 0 1px var(--stone-200); cursor: pointer;
-            flex-shrink: 0;
+            box-shadow: 0 0 0 1px var(--stone-200); cursor: pointer; flex-shrink: 0;
         }
+        .profile-menu { position: relative; }
+        .profile-trigger { background: none; border: none; padding: 0; cursor: pointer; }
+        .profile-dropdown {
+            position: absolute; right: 0; top: calc(100% + 12px); width: 240px;
+            background: var(--card-bg); border: 1px solid var(--card-border);
+            border-radius: var(--radius-lg); box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            padding: 0.5rem; z-index: 50; opacity: 0; transform: translateY(-8px);
+            pointer-events: none; transition: all 0.25s ease;
+        }
+        .profile-dropdown.open { opacity: 1; transform: translateY(0); pointer-events: auto; }
+        .profile-dropdown-header { padding: 0.75rem; border-bottom: 1px solid var(--divider); margin-bottom: 0.25rem; }
+        .profile-item {
+            display: flex; align-items: center; gap: 0.75rem; padding: 0.6rem 0.75rem;
+            font-size: 0.9rem; color: var(--text-main); text-decoration: none;
+            border-radius: var(--radius-md); background: none; border: none; width: 100%;
+            cursor: pointer; transition: background 0.2s, color 0.2s;
+        }
+        .profile-item:hover { background: var(--divider); color: var(--primary); }
+        .profile-item.danger { color: #c2410c; }
+        .profile-item.danger:hover { background: rgba(194,65,12,0.08); }
 
-        /* --- Main Content --- */
+        /* --- Main Feed --- */
         .feed-container {
-            width: 100%; max-width: 600px;
-            padding: 0 1rem; /* Reduced padding mobile */
+            width: 100%; max-width: 600px; padding: 0 1rem;
             display: flex; flex-direction: column; gap: 2rem;
         }
-        @media (min-width: 640px) {
-            .feed-container { padding: 0 1.5rem; gap: 2.5rem; }
-        }
+        @media (min-width: 640px) { .feed-container { padding: 0 1.5rem; gap: 2.5rem; } }
 
-        /* --- Greeting --- */
-        .greeting-section {
-            text-align: center; padding: 1rem 0 0.5rem 0;
-            animation: fadeIn 1s ease-out;
-        }
-        .greeting-title {
-            font-size: 1.75rem; /* Smaller mobile font */
-            font-weight: 600; color: var(--text-main); margin-bottom: 0.25rem;
-        }
+        .greeting-section { text-align: center; padding: 1rem 0 0.5rem 0; animation: fadeIn 1s ease-out; }
+        .greeting-title { font-size: 1.75rem; font-weight: 600; margin-bottom: 0.25rem; }
         @media (min-width: 640px) { .greeting-title { font-size: 2rem; } }
-        
         .greeting-subtitle { font-size: 1rem; color: var(--text-muted); font-style: italic; }
-        @media (min-width: 640px) { .greeting-subtitle { font-size: 1.125rem; } }
 
-        /* --- Composer --- */
+        /* Composer */
         .composer-section { display: flex; flex-direction: column; gap: 1rem; }
         .composer-wrapper { position: relative; }
         .composer-glow {
@@ -308,22 +228,17 @@
         }
         .composer-textarea {
             width: 100%; background: transparent; border: none; outline: none;
-            padding: 1rem; min-height: 120px; font-size: 1rem; /* Prevents zoom on iOS inputs */
+            padding: 1rem; min-height: 120px; font-size: 1rem;
             font-family: var(--font-display); font-style: italic;
             color: var(--text-main); resize: none;
         }
-        @media (min-width: 640px) { .composer-textarea { font-size: 1.125rem; } }
-        
-        .composer-textarea::placeholder { color: var(--text-subtle); }
         .composer-actions {
             display: flex; justify-content: space-between; align-items: center;
             padding: 0.75rem 1rem 0.5rem 1rem; border-top: 1px solid var(--divider);
         }
-
         .btn-primary {
             background-color: var(--primary); color: var(--bg-body);
-            padding: 0.5rem 1.25rem; /* Larger touch target area */
-            border-radius: var(--radius-md);
+            padding: 0.5rem 1.25rem; border-radius: var(--radius-md);
             font-size: 0.875rem; font-weight: 600; border: none;
             cursor: pointer; box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
             transition: all 0.4s ease-in-out; text-decoration: none; display: inline-block;
@@ -332,32 +247,16 @@
         html[data-theme="dark"] .btn-primary { color: #1c1917; }
         .btn-primary:hover { opacity: 0.9; }
 
-        .icon-btn {
-            color: var(--text-subtle); cursor: pointer; padding: 0.25rem;
-            transition: color 0.4s ease-in-out; display: flex; align-items: center;
-        }
-        .icon-btn:hover { color: var(--primary); }
-
-        /* --- Dashboard Grid --- */
-        .dashboard-grid {
-            display: grid; grid-template-columns: 1fr; gap: 1rem;
-        }
+        /* Dashboard Cards */
+        .dashboard-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
         @media (min-width: 600px) { .dashboard-grid { grid-template-columns: 1fr 1fr; } }
-
         .dashboard-card {
-            background-color: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: var(--radius-lg); 
-            padding: 1rem; /* Compact padding mobile */
+            background-color: var(--card-bg); border: 1px solid var(--card-border);
+            border-radius: var(--radius-lg); padding: 1rem;
             display: flex; flex-direction: column; gap: 0.75rem;
             transition: all 0.4s ease-in-out; position: relative; overflow: hidden;
         }
-        @media (min-width: 640px) { .dashboard-card { padding: 1.25rem; } }
-
-        .dashboard-card:hover {
-            border-color: var(--primary);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-        }
+        .dashboard-card:hover { border-color: var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
         .db-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem; }
         .db-title { font-size: 1rem; font-weight: 700; color: var(--text-main); font-family: var(--font-sans); }
         .db-desc { font-size: 0.95rem; color: var(--text-muted); line-height: 1.4; font-style: italic; flex-grow: 1; }
@@ -367,209 +266,177 @@
             text-decoration: none; transition: color 0.3s;
         }
         .btn-secondary-link:hover { color: var(--primary); text-decoration: underline; }
-        .camp-icon { color: #e2a07d; }
 
-        /* --- Presence Indicator --- */
-        .presence-container {
-            display: flex; align-items: center; justify-content: center;
-            gap: 0.5rem; padding: 0.5rem 0;
-            animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-        }
-        .presence-dot-wrapper { position: relative; display: flex; height: 0.5rem; width: 0.5rem; }
-        .presence-ping {
-            position: absolute; display: inline-flex; height: 100%; width: 100%;
-            border-radius: 9999px; background-color: var(--primary);
-            opacity: 0.75; animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
-        }
-        .presence-dot {
-            position: relative; display: inline-flex; border-radius: 9999px;
-            height: 0.5rem; width: 0.5rem; background-color: var(--primary);
-        }
-        .presence-text { color: var(--text-subtle); font-size: 0.875rem; font-style: italic; text-align: center; }
-
-        /* --- Feed / Cards --- */
+        /* Feed Cards */
         .feed-list { display: flex; flex-direction: column; gap: 2rem; }
-        @media (min-width: 640px) { .feed-list { gap: 3rem; } }
-
         .journal-card {
             display: flex; flex-direction: column; gap: 1rem;
-            background-color: var(--card-bg); 
-            padding: 1.25rem; /* Compact padding mobile */
+            background-color: var(--card-bg); padding: 1.25rem;
             border-radius: var(--radius-lg); border: 1px solid var(--card-border);
             box-shadow: 0 2px 8px rgba(0,0,0,0.02);
-            transition: background-color 0.5s ease, border-color 0.5s ease, box-shadow 0.4s;
+            transition: background-color 0.5s ease, border-color 0.5s ease;
         }
-        @media (min-width: 640px) { .journal-card { padding: 1.5rem; } }
-
-        .journal-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.04); }
-
         .card-header { display: flex; justify-content: space-between; align-items: flex-start; }
         .user-info { display: flex; align-items: center; gap: 0.75rem; }
-        .avatar {
-            height: 2rem; width: 2rem; border-radius: 9999px;
-            background-color: var(--stone-200); overflow: hidden;
-        }
+        .avatar { height: 2rem; width: 2rem; border-radius: 9999px; background-color: var(--stone-200); overflow: hidden; }
         .avatar img { width: 100%; height: 100%; object-fit: cover; }
-        .user-name { font-size: 0.875rem; font-weight: 700; color: var(--text-main); }
-        .timestamp { font-size: 0.75rem; color: var(--text-subtle); font-family: var(--font-sans); }
+        .card-content { font-size: 1.05rem; line-height: 1.6; color: var(--text-main); font-family: var(--font-display); }
 
-        .card-content {
-            font-size: 1.05rem; /* Readable mobile font */
-            line-height: 1.6;
-            color: var(--text-main); font-family: var(--font-display);
-            word-wrap: break-word; /* Prevent overflow of long words */
-        }
-        @media (min-width: 640px) { .card-content { font-size: 1.125rem; line-height: 1.625; } }
-
-        .card-footer {
-            padding-top: 1rem; border-top: 1px solid var(--divider);
-            display: flex; align-items: center; gap: 1.5rem;
-        }
-
-        .action-btn {
-            display: flex; align-items: center; gap: 0.5rem;
-            background: none; border: none; cursor: pointer;
-            color: var(--text-subtle); transition: color 0.4s ease-in-out; font-family: inherit;
-            padding: 0.25rem 0;
-        }
-        .action-btn:hover { color: var(--primary); }
-        .action-btn .material-symbols-outlined { font-size: 20px; transition: transform 0.2s; }
-        .action-btn:hover .material-symbols-outlined { transform: scale(1.1); }
-        .action-label { font-size: 0.875rem; font-weight: 500; }
-
-        .app-footer {
-            text-align: center; padding: 2rem 0;
-            color: var(--text-subtle); font-family: var(--font-display); font-style: italic;
-        }
-
-        .loader-container { padding: 3rem 0; display: flex; justify-content: center; color: var(--text-subtle); }
-        .spin { animation: spin 1s linear infinite; font-size: 1.5rem; opacity: 0.2; }
-
+        /* Footer */
+        .app-footer { text-align: center; padding: 2rem 0; color: var(--text-subtle); font-family: var(--font-display); font-style: italic; }
+        
+        /* Animations */
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
-        @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-        /* Enhanced responsiveness for tablets and larger screens */
-        @media (min-width: 768px) {
-            .app-header { padding: 2.5rem 2rem; }
-            .logo-text { font-size: 1.75rem; }
-            .greeting-title { font-size: 2.25rem; }
-            .greeting-subtitle { font-size: 1.25rem; }
-            .dashboard-card { padding: 1.5rem; }
-            .journal-card { padding: 1.75rem; }
-            .feed-container { max-width: 700px; }
+        /* ==========================================================================
+           ONBOARDING MODAL STYLES (New Addition)
+           ========================================================================== */
+        
+        /* Backdrop Effect */
+        dialog::backdrop {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            animation: fadeIn 0.4s ease-out;
         }
 
-        @media (min-width: 1024px) {
-            .app-header { padding: 3rem 2.5rem; }
-            .logo-text { font-size: 2rem; }
-            .greeting-title { font-size: 2.5rem; }
-            .greeting-subtitle { font-size: 1.375rem; }
-            .dashboard-card { padding: 2rem; }
-            .journal-card { padding: 2rem; }
-            .feed-container { max-width: 800px; }
-            .dashboard-grid { gap: 1.5rem; }
+        /* Modal Container */
+        #onboarding-dialog {
+            margin: auto;
+            background: transparent;
+            max-width: 600px;
+            width: 95%;
+            border: none;
+            outline: none;
+            overflow: hidden; /* For rounded corners */
+            border-radius: var(--radius-lg);
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.2);
         }
 
-        /* Improved touch targets on mobile */
-        @media (max-width: 767px) {
-            .btn-primary { padding: 0.75rem 1.5rem; font-size: 1rem; }
-            .btn-link { padding: 0.5rem; }
-            .icon-btn { padding: 0.5rem; }
-            .action-btn { padding: 0.5rem 0; }
+        /* Modal Inner Card Structure */
+        .modal-card {
+            display: flex;
+            flex-direction: column;
+            max-height: 85vh; /* Limits height to allow internal scrolling */
+            background: var(--card-bg);
+            color: var(--text-main);
+            padding: 0; /* Reset generic padding */
+            border: 1px solid var(--card-border);
         }
-        /* --- Profile Menu --- */
-.profile-menu {
-    position: relative;
-}
 
-.profile-trigger {
-    background: none;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-}
+        /* 1. Fixed Header */
+        .modal-header {
+            padding: 2rem 2rem 1rem 2rem;
+            text-align: center;
+            border-bottom: 1px solid var(--divider);
+            background: var(--card-bg);
+            flex-shrink: 0;
+        }
+        .modal-title { font-size: 1.75rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text-main); font-family: var(--font-display); }
+        .modal-subtitle { font-family: var(--font-sans); font-size: 0.95rem; color: var(--text-muted); }
 
-/* Dropdown Card */
-.profile-dropdown {
-    position: absolute;
-    right: 0;
-    top: calc(100% + 12px);
-    width: 240px;
-    background: var(--card-bg);
-    border: 1px solid var(--card-border);
-    border-radius: var(--radius-lg);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-    padding: 0.5rem;
-    z-index: 50;
+        /* 2. Scrollable Middle Section */
+        #interests-container {
+            padding: 1.5rem 2rem;
+            overflow-y: auto; /* Enables scroll */
+            flex-grow: 1;
+            scrollbar-width: thin;
+            scrollbar-color: var(--text-subtle) transparent;
+        }
+        #interests-container::-webkit-scrollbar { width: 6px; }
+        #interests-container::-webkit-scrollbar-track { background: transparent; }
+        #interests-container::-webkit-scrollbar-thumb { background-color: var(--card-border); border-radius: 10px; }
 
-    opacity: 0;
-    transform: translateY(-8px);
-    pointer-events: none;
-    transition: all 0.25s ease;
-}
+        /* Categories */
+        .category-section { margin-bottom: 2rem; }
+        
+        /* Sticky Category Title */
+        .category-title {
+            font-family: var(--font-sans);
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-subtle);
+            margin-bottom: 1rem;
+            
+            /* Sticky Magic */
+            position: sticky;
+            top: -1.5rem; /* Matches padding-top of container */
+            background: var(--card-bg);
+            padding: 0.75rem 0;
+            z-index: 10;
+        }
 
-/* Visible state */
-.profile-dropdown.open {
-    opacity: 1;
-    transform: translateY(0);
-    pointer-events: auto;
-}
+        .tags-grid { display: flex; flex-wrap: wrap; gap: 0.75rem; }
 
-.profile-dropdown-header {
-    padding: 0.75rem;
-    border-bottom: 1px solid var(--divider);
-    margin-bottom: 0.25rem;
-}
+        /* Tag Styling */
+        .tag-checkbox { appearance: none; position: absolute; width: 0; height: 0; opacity: 0; }
+        
+        .tag-label {
+            display: inline-flex; align-items: center; justify-content: center;
+            padding: 0.6rem 1.1rem;
+            background-color: transparent;
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-full);
+            font-family: var(--font-sans);
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
 
-.profile-dropdown-header strong {
-    display: block;
-    font-family: var(--font-sans);
-    font-size: 0.95rem;
-}
+        .tag-label:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background-color: var(--bg-body);
+        }
 
-.profile-email {
-    font-size: 0.8rem;
-    color: var(--text-subtle);
-}
+        /* Checked State */
+        .tag-checkbox:checked + .tag-label {
+            background-color: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateY(-1px);
+        }
 
-/* Menu Items */
-.profile-item {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.6rem 0.75rem;
-    font-size: 0.9rem;
-    color: var(--text-main);
-    text-decoration: none;
-    border-radius: var(--radius-md);
-    background: none;
-    border: none;
-    width: 100%;
-    cursor: pointer;
-    transition: background 0.2s, color 0.2s;
-}
+        /* Text Contrast for Active Tags */
+        html[data-theme="light"] .tag-checkbox:checked + .tag-label,
+        html[data-theme="sepia"] .tag-checkbox:checked + .tag-label,
+        html[data-theme="forest"] .tag-checkbox:checked + .tag-label {
+            color: #ffffff;
+        }
+        html[data-theme="dark"] .tag-checkbox:checked + .tag-label {
+            color: var(--bg-body);
+            font-weight: 700;
+        }
 
-.profile-item:hover {
-    background: var(--divider);
-    color: var(--primary);
-}
+        /* 3. Fixed Footer */
+        .modal-footer {
+            padding: 1.5rem 2rem;
+            background: var(--card-bg);
+            border-top: 1px solid var(--divider);
+            display: flex; justify-content: space-between; align-items: center;
+            flex-shrink: 0;
+        }
 
-.profile-item.danger {
-    color: #c2410c;
-}
+        .btn-ghost {
+            background: none; border: none;
+            color: var(--text-subtle);
+            font-family: var(--font-sans); font-size: 0.9rem;
+            cursor: pointer; padding: 0.5rem 1rem;
+            transition: color 0.2s;
+        }
+        .btn-ghost:hover { color: var(--text-main); text-decoration: underline; }
 
-.profile-item.danger:hover {
-    background: rgba(194,65,12,0.08);
-}
-
-/* Divider */
-.profile-divider {
-    height: 1px;
-    background: var(--divider);
-    margin: 0.4rem 0;
-}
+        /* Mobile Adjustments for Modal */
+        @media (max-width: 640px) {
+            #interests-container { padding: 1rem 1.25rem; }
+            .modal-header, .modal-footer { padding: 1.25rem; }
+            .modal-title { font-size: 1.4rem; }
+            .tag-label { font-size: 0.85rem; padding: 0.5rem 0.9rem; }
+        }
 
     </style>
 </head>
@@ -580,13 +447,11 @@
         <!-- Header -->
         <header class="app-header">
             <a href="#" class="logo-group">
-                             <img src="/assets/Remainwith_logov1.png" alt="logo" width="200px" height="200px">
-
+                <img src="/assets/Remainwith_logov1.png" alt="logo" width="200px" height="200px">
                 <h1 class="logo-text">Remainwith</h1>
             </a>
             
             <div class="header-actions">
-                <!-- Styled Theme Switcher -->
                 <div class="theme-selector-wrapper">
                     <span class="material-symbols-outlined icon-palette">palette</span>
                     <select class="theme-select" id="theme-select" aria-label="Select Theme">
@@ -610,55 +475,34 @@
                     <span class="btn-text">Journal</span>
                 </a>
                 <div class="profile-menu">
-    <button class="profile-trigger" id="profileTrigger" aria-label="Open profile menu">
-        <div class="profile-pic-sm" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCaI3uBIWwC1noJFyIk3WzdR7lE7FuvDxtMu1QujzaYmKoVrakvYTPQFDQHcrkBkRh032COVx_l63E38Y9ndt3--8u44XMd-sdfXVp6dIx86kaLSbo7H79rcBRUtG9RJ2YTKOEy48i7TMejv4uszIFENN3lNitzaunaswSgjCWEevSSrqm6rXrgwBM2J0hkeh9-6pWMFbgLqRvDBv95uWLpVWZ6kjJLtW8_OLT0hX8ktgSZUucU__dea8pVH4M-yCdPcVMmIKPnVkzW');"></div>
-    </button>
+                    <button class="profile-trigger" id="profileTrigger" aria-label="Open profile menu">
+                        <div class="profile-pic-sm" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCaI3uBIWwC1noJFyIk3WzdR7lE7FuvDxtMu1QujzaYmKoVrakvYTPQFDQHcrkBkRh032COVx_l63E38Y9ndt3--8u44XMd-sdfXVp6dIx86kaLSbo7H79rcBRUtG9RJ2YTKOEy48i7TMejv4uszIFENN3lNitzaunaswSgjCWEevSSrqm6rXrgwBM2J0hkeh9-6pWMFbgLqRvDBv95uWLpVWZ6kjJLtW8_OLT0hX8ktgSZUucU__dea8pVH4M-yCdPcVMmIKPnVkzW');"></div>
+                    </button>
 
-    <!-- Profile Dropdown -->
-    <div class="profile-dropdown" id="profileDropdown">
-        <div class="profile-dropdown-header">
-            <strong>Aswani</strong>
-        </div>
-
-        <a href="/profile" class="profile-item">
-            <span class="material-symbols-outlined">person</span>
-            Profile
-        </a>
-
-        <a href="/settings" class="profile-item">
-            <span class="material-symbols-outlined">settings</span>
-            Settings
-        </a>
-
-        <a href="/about" class="profile-item">
-            <span class="material-symbols-outlined">info</span>
-            About Remainwith
-        </a>
-
-        <div class="profile-divider"></div>
-
-        <form action="/logout" method="POST">
-            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-            <button type="submit" class="profile-item danger">
-                <span class="material-symbols-outlined">logout</span>
-                Log out
-            </button>
-        </form>
-    </div>
-</div>
-
+                    <!-- Profile Dropdown -->
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <div class="profile-dropdown-header"><strong>Aswani</strong></div>
+                        <a href="/profile" class="profile-item"><span class="material-symbols-outlined">person</span>Profile</a>
+                        <a href="/settings" class="profile-item"><span class="material-symbols-outlined">settings</span>Settings</a>
+                        <a href="/about" class="profile-item"><span class="material-symbols-outlined">info</span>About Remainwith</a>
+                        <div class="profile-divider"></div>
+                        <form action="/logout" method="POST">
+                            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                            <button type="submit" class="profile-item danger">
+                                <span class="material-symbols-outlined">logout</span>Log out
+                            </button>
+                        </form>
+                    </div>
+                </div>
             </div>
         </header>
 
         <main class="feed-container">
-            
-            <!-- Greeting -->
             <section class="greeting-section">
                 <h2 class="greeting-title">You’re here.</h2>
                 <p class="greeting-subtitle">There’s nothing you need to prove.</p>
             </section>
 
-            <!-- Composer -->
             <section class="composer-section">
                 <form class="composer-wrapper" action="/thoughts/create" method="POST">
                     <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
@@ -666,21 +510,14 @@
                     <div class="composer-card">
                         <textarea class="composer-textarea" name="content" placeholder="Release a thought. A sentence is enough."></textarea>
                         <div class="composer-actions">
-                            <div class="icon-btn">
-                                <span class="material-symbols-outlined" style="font-size: 20px;">image</span>
-                            </div>
-                            <button type="submit" class="btn-primary">
-                                <span>Release quietly</span>
-                            </button>
+                            <div class="icon-btn"><span class="material-symbols-outlined" style="font-size: 20px;">image</span></div>
+                            <button type="submit" class="btn-primary"><span>Release quietly</span></button>
                         </div>
                     </div>
                 </form>
             </section>
 
-            <!-- Dashboard Grid -->
             <section class="dashboard-grid">
-                
-                <!-- Presence Card -->
                 <div class="dashboard-card">
                     <div class="db-header">
                         <span class="material-symbols-outlined">accessibility_new</span>
@@ -693,7 +530,6 @@
                     </div>
                 </div>
 
-                <!-- Campfire Card -->
                 <div class="dashboard-card">
                     <div class="db-header">
                         <span class="material-symbols-outlined camp-icon">local_fire_department</span>
@@ -705,84 +541,73 @@
                         <a href="/campfire/about" class="btn-secondary-link" style="text-align:center;">How does it work?</a>
                     </div>
                 </div>
-
             </section>
 
-            <!-- Presence Indicator -->
             <div class="presence-container">
-                <span class="presence-dot-wrapper">
-                    <span class="presence-ping"></span>
-                    <span class="presence-dot"></span>
-                </span>
-                <p class="presence-text">
-                    12 people are sitting with you right now.
-                </p>
+                <span class="presence-dot-wrapper"><span class="presence-ping"></span><span class="presence-dot"></span></span>
+                <p class="presence-text">12 people are sitting with you right now.</p>
             </div>
 
-            <!-- Feed Section -->
             <div class="feed-list">
-                
                 <article class="journal-card">
                     <header class="card-header">
                         <div class="user-info">
-                            <div class="avatar">
-                                <img alt="Profile of Sarah" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAAXd9KQMgiexIhf1LOKlZjXkTLyLpYX1IA40L2ZMag1rhYSPjSm9niYQnOTdDBVbvCmeGra5uNIPlI5CdDrSDWlhNdQqh6vCUV5Jq4P6OwFWIzEg-JUJoXR_DWhTvhqHv4bz_o4xkZqFZna1Qkr0VkrneiYcKjf3jW47N8CFlSxtD6t2aCUe_91hPW6QpjDIYqnwoOz4xbZXRBInSTZYuw36SsnKz6ey-xjXLGSSxXKxS7INEbu6dE5ylmlzDKe_KYMXx8w00g7p_T"/>
-                            </div>
-                            <div style="display: flex; flex-direction: column;">
-                                <span class="user-name">Sarah M.</span>
-                            </div>
+                            <div class="avatar"><img alt="Profile of Sarah" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAAXd9KQMgiexIhf1LOKlZjXkTLyLpYX1IA40L2ZMag1rhYSPjSm9niYQnOTdDBVbvCmeGra5uNIPlI5CdDrSDWlhNdQqh6vCUV5Jq4P6OwFWIzEg-JUJoXR_DWhTvhqHv4bz_o4xkZqFZna1Qkr0VkrneiYcKjf3jW47N8CFlSxtD6t2aCUe_91hPW6QpjDIYqnwoOz4xbZXRBInSTZYuw36SsnKz6ey-xjXLGSSxXKxS7INEbu6dE5ylmlzDKe_KYMXx8w00g7p_T"/></div>
+                            <div style="display: flex; flex-direction: column;"><span class="user-name">Sarah M.</span></div>
                         </div>
                         <span class="timestamp">Just now</span>
                     </header>
-                    <div class="card-content">
-                        Trying to find the quiet between the noise of the morning commute. The city feels loud today, but my coffee is warm.
-                    </div>
+                    <div class="card-content">Trying to find the quiet between the noise of the morning commute. The city feels loud today, but my coffee is warm.</div>
                     <div class="card-footer">
-                        <button class="action-btn">
-                            <span class="material-symbols-outlined">favorite</span>
-                            <span class="action-label">I'm here</span>
-                        </button>
+                        <button class="action-btn"><span class="material-symbols-outlined">favorite</span><span class="action-label">I'm here</span></button>
                     </div>
                 </article>
 
                 <article class="journal-card">
                     <header class="card-header">
                         <div class="user-info">
-                            <div class="avatar">
-                                <img alt="Profile of David" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDsTb8Aim3w3EV5w5egSyPXZ42xvZhHtIf3JBSP3pguG8gp_jzphvNUIGIMCVC7urDF6T77kddBE5ak7Z5euVrCqIspE1K86iSYJcojO6Lson4pXmPx0EM5fzmWDRwxky1WcjTtw8cMLBFGHFB86dikX7hfPe4DPucgYUcgYRiiC_IRbd_eIjHLtNlsSy7wqW954WJ22RE1ODR-OfWCyPADDIjGIpGHJV1IyT6QdzBTBQFrE3NhYMeLMEidIp0G8A1RfObOrRfJQzy6"/>
-                            </div>
-                            <div style="display: flex; flex-direction: column;">
-                                <span class="user-name">David L.</span>
-                            </div>
+                            <div class="avatar"><img alt="Profile of David" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDsTb8Aim3w3EV5w5egSyPXZ42xvZhHtIf3JBSP3pguG8gp_jzphvNUIGIMCVC7urDF6T77kddBE5ak7Z5euVrCqIspE1K86iSYJcojO6Lson4pXmPx0EM5fzmWDRwxky1WcjTtw8cMLBFGHFB86dikX7hfPe4DPucgYUcgYRiiC_IRbd_eIjHLtNlsSy7wqW954WJ22RE1ODR-OfWCyPADDIjGIpGHJV1IyT6QdzBTBQFrE3NhYMeLMEidIp0G8A1RfObOrRfJQzy6"/></div>
+                            <div style="display: flex; flex-direction: column;"><span class="user-name">David L.</span></div>
                         </div>
                         <span class="timestamp">2h ago</span>
                     </header>
-                    <div class="card-content">
-                        Grateful for the sunlight hitting my desk. It reminds me that warmth always returns, eventually.
-                    </div>
+                    <div class="card-content">Grateful for the sunlight hitting my desk. It reminds me that warmth always returns, eventually.</div>
                     <div class="card-footer">
-                        <button class="action-btn">
-                            <span class="material-symbols-outlined">favorite</span>
-                            <span class="action-label">3 here</span>
-                        </button>
+                        <button class="action-btn"><span class="material-symbols-outlined">favorite</span><span class="action-label">3 here</span></button>
                     </div>
                 </article>
-
             </div>
 
-            <div class="loader-container">
-                <span class="material-symbols-outlined spin">progress_activity</span>
-            </div>
-
-            <footer class="app-footer">
-                <p>You’re not behind. You’re present.</p>
-            </footer>
-
+            <div class="loader-container"><span class="material-symbols-outlined spin">progress_activity</span></div>
+            <footer class="app-footer"><p>You’re not behind. You’re present.</p></footer>
         </main>
     </div>
 
-    <!-- Theme Logic Script -->
+    <!-- ==========================================================================
+         ONBOARDING DIALOG HTML (Populated via JS)
+         ========================================================================== -->
+    <dialog id="onboarding-dialog">
+        <form class="modal-card" id="interests-form" method="dialog">
+            <div class="modal-header">
+                <h2 class="modal-title">What’s been on your mind?</h2>
+                <p class="modal-subtitle">Select up to 5. You can change this anytime.</p>
+            </div>
+
+            <!-- Content Area (Scrollable) -->
+            <div id="interests-container">
+                <!-- Javascript will inject categories and tags here -->
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn-ghost" id="btn-skip">Skip for now</button>
+                <button type="submit" class="btn-primary" id="btn-save-interests">Continue</button>
+            </div>
+        </form>
+    </dialog>
+
+    <!-- Application Logic -->
     <script>
+        // --- Theme Manager ---
         (function() {
             const htmlElement = document.documentElement;
             const themeSelect = document.getElementById('theme-select');
@@ -825,21 +650,171 @@
             }
         })();
 
-    (function () {
-        const trigger = document.getElementById("profileTrigger");
-        const dropdown = document.getElementById("profileDropdown");
+        // --- Profile Menu ---
+        (function () {
+            const trigger = document.getElementById("profileTrigger");
+            const dropdown = document.getElementById("profileDropdown");
 
-        trigger.addEventListener("click", (e) => {
-            e.stopPropagation();
-            dropdown.classList.toggle("open");
-        });
+            trigger.addEventListener("click", (e) => {
+                e.stopPropagation();
+                dropdown.classList.toggle("open");
+            });
 
-        document.addEventListener("click", () => {
-            dropdown.classList.remove("open");
-        });
-    })();
+            document.addEventListener("click", () => {
+                dropdown.classList.remove("open");
+            });
+        })();
 
+        // ==========================================================================
+        // ONBOARDING LOGIC
+        // ==========================================================================
+        (function() {
+            const dialog = document.getElementById('onboarding-dialog');
+            const container = document.getElementById('interests-container');
+            const form = document.getElementById('interests-form');
+            const skipBtn = document.getElementById('btn-skip');
+            
+            // Data provided in prompt
+            const interestsData = [
+                // 🧠 How You’ve Been Feeling
+                { name: "Anxiety", category: "🧠 How You’ve Been Feeling" },
+                { name: "Overthinking", category: "🧠 How You’ve Been Feeling" },
+                { name: "Stress", category: "🧠 How You’ve Been Feeling" },
+                { name: "Loneliness", category: "🧠 How You’ve Been Feeling" },
+                { name: "Emotional exhaustion", category: "🧠 How You’ve Been Feeling" },
+                { name: "Calm & clarity", category: "🧠 How You’ve Been Feeling" },
+                { name: "Gratitude", category: "🧠 How You’ve Been Feeling" },
 
+                // 🎯 What You’re Working On
+                { name: "Self-discipline", category: "🎯 What You’re Working On" },
+                { name: "Staying consistent", category: "🎯 What You’re Working On" },
+                { name: "Finding motivation", category: "🎯 What You’re Working On" },
+                { name: "Breaking a habit", category: "🎯 What You’re Working On" },
+                { name: "Improving focus", category: "🎯 What You’re Working On" },
+                { name: "Building confidence", category: "🎯 What You’re Working On" },
+
+                // 🧍 Life Situations
+                { name: "Student life", category: "🧍 Life Situations" },
+                { name: "Career confusion", category: "🧍 Life Situations" },
+                { name: "Relationship struggles", category: "🧍 Life Situations" },
+                { name: "Family pressure", category: "🧍 Life Situations" },
+                { name: "Living alone", category: "🧍 Life Situations" },
+                { name: "Feeling stuck", category: "🧍 Life Situations" },
+
+                // 🌱 Reflection & Meaning
+                { name: "Self-reflection", category: "🌱 Reflection & Meaning" },
+                { name: "Finding purpose", category: "🌱 Reflection & Meaning" },
+                { name: "Letting go", category: "🌱 Reflection & Meaning" },
+                { name: "Acceptance", category: "🌱 Reflection & Meaning" },
+                { name: "Mindfulness", category: "🌱 Reflection & Meaning" },
+                { name: "Understanding myself better", category: "🌱 Reflection & Meaning" },
+
+                // 🌙 Time & Energy States
+                { name: "Late-night thoughts", category: "🌙 Time & Energy States" },
+                { name: "Low-energy days", category: "🌙 Time & Energy States" },
+                { name: "Need encouragement", category: "🌙 Time & Energy States" },
+                { name: "Quiet reflection", category: "🌙 Time & Energy States" },
+                { name: "Morning motivation", category: "🌙 Time & Energy States" },
+            ];
+
+            // 1. Render Function
+            function renderInterests(interests) {
+                // Group by category
+                const grouped = interests.reduce((acc, curr) => {
+                    (acc[curr.category] = acc[curr.category] || []).push(curr);
+                    return acc;
+                }, {});
+
+                let html = '';
+                // Generate HTML for each category
+                for (const [category, items] of Object.entries(grouped)) {
+                    // Create safe IDs for labels
+                    html += `
+                        <div class="category-section">
+                            <div class="category-title">${category}</div>
+                            <div class="tags-grid">
+                                ${items.map((item, index) => {
+                                    // Generate a unique ID based on category + index to avoid collisions
+                                    const safeId = category.replace(/[^a-zA-Z0-9]/g, '') + '-' + index;
+                                    return `
+                                        <input type="checkbox" class="tag-checkbox" name="interests" value="${item.name}" id="${safeId}">
+                                        <label class="tag-label" for="${safeId}">${item.name}</label>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+                container.innerHTML = html;
+                attachLimitListener();
+            }
+
+            // 2. Limit Selection to 5
+            function attachLimitListener() {
+                const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(cb => {
+                    cb.addEventListener('change', () => {
+                        const checked = container.querySelectorAll('input[type="checkbox"]:checked');
+                        if (checked.length > 5) {
+                            cb.checked = false;
+                            // Simple alert for feedback
+                            alert("You can select up to 5 interests.");
+                        }
+                    });
+                });
+            }
+
+            // 3. Logic to Show Modal (Simulating "First Time Login")
+            function checkAndShowOnboarding() {
+                // In a real app, you might check this via API: /api/onboarding/check
+                // For this demo, we use LocalStorage to simulate "Is this a new user?"
+                
+                const hasOnboarded = localStorage.getItem('onboarding_complete');
+
+                // If user hasn't onboarded yet, show the modal
+                if (!hasOnboarded) {
+                    renderInterests(interestsData);
+                    
+                    // Small delay to ensure styles are loaded and DOM is ready
+                    setTimeout(() => {
+                        if (typeof dialog.showModal === "function") {
+                            dialog.showModal();
+                        } else {
+                            alert("Your browser does not support the <dialog> API");
+                        }
+                    }, 500);
+                }
+            }
+
+            // 4. Handle Save/Continue
+            form.addEventListener('submit', (e) => {
+                e.preventDefault(); // Prevent dialog from closing immediately by default
+                
+                const checked = Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+                
+                // In a real app: POST to /api/interests
+                // fetch('/api/interests', { method: 'POST', body: ... })
+                
+                console.log("Saving Interests:", checked);
+                
+                // Mark onboarding as complete in simulation
+                localStorage.setItem('onboarding_complete', 'true');
+                
+                dialog.close();
+            });
+
+            // 5. Handle Skip
+            skipBtn.addEventListener('click', () => {
+                console.log("Onboarding Skipped");
+                // Even if skipped, mark as complete so it doesn't pop up again
+                localStorage.setItem('onboarding_complete', 'true');
+                dialog.close();
+            });
+
+            // Initialize
+            checkAndShowOnboarding();
+
+        })();
     </script>
 </body>
 </html>
