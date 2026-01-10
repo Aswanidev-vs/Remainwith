@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="light">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -12,35 +12,76 @@
 
 <style>
 :root {
-    /* Palette */
-    --primary: #db8066;
-    --primary-light: rgba(219,128,102,0.08);
-    --primary-hover: #c9745d;
-    --bg: #FAF9F6;
-    --surface: #ffffff;
-    --border: #e6e2e1;
-    --text-main: #2d3a30;
-    --text-muted: #836d67;
-    --text-light: #b7aca8;
+    --font-display: "Newsreader", serif;
+    --font-sans: "Noto Sans", sans-serif;
 
-    /* Spacing & Structure */
-    --radius-lg: 1rem;
-    --radius-sm: 0.5rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
     --container-width: 1024px;
-
-    /* Typography */
-    --font-serif: "Merriweather", serif;
-    --font-sans: "Manrope", sans-serif;
-
-    /* Shadows */
     --shadow-soft: 0 4px 20px -2px rgba(45, 58, 48, 0.04);
+}
+
+/* 1. LIGHT THEME (Default) */
+html[data-theme="light"] {
+    --primary: #7d8471;
+    --primary-light: rgba(125, 132, 113, 0.08);
+    --primary-hover: #6b715f;
+    --bg-body: #f7f7f7;
+    --card-bg: #ffffff;
+    --card-border: #e7e5e4;
+    --text-main: #292524;
+    --text-muted: #57534e;
+    --text-subtle: #a8a29e;
+    --divider: #f5f5f4;
+}
+
+/* 2. DARK THEME */
+html[data-theme="dark"] {
+    --primary: #9ca38f;
+    --primary-light: rgba(156, 163, 143, 0.08);
+    --primary-hover: #8a907f;
+    --bg-body: #191a18;
+    --card-bg: #1c1917;
+    --card-border: #292524;
+    --text-main: #e7e5e4;
+    --text-muted: #a8a29e;
+    --text-subtle: #78716c;
+    --divider: #292524;
+}
+
+/* 3. SEPIA THEME */
+html[data-theme="sepia"] {
+    --primary: #8a7356;
+    --primary-light: rgba(138, 117, 86, 0.08);
+    --primary-hover: #7a6a4e;
+    --bg-body: #f4ecd8;
+    --card-bg: #fdf6e3;
+    --card-border: #e6dcc6;
+    --text-main: #433422;
+    --text-muted: #746351;
+    --text-subtle: #a89984;
+    --divider: #e6dcc6;
+}
+
+/* 4. FOREST THEME */
+html[data-theme="forest"] {
+    --primary: #76a881;
+    --primary-light: rgba(118, 168, 129, 0.08);
+    --primary-hover: #659c73;
+    --bg-body: #1a211e;
+    --card-bg: #222b26;
+    --card-border: #2f3b34;
+    --text-main: #dcece1;
+    --text-muted: #8ca392;
+    --text-subtle: #56695e;
+    --divider: #2f3b34;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
     font-family: var(--font-sans);
-    background: var(--bg);
+    background: var(--bg-body);
     color: var(--text-main);
     min-height: 100vh;
     overflow-x: hidden;
@@ -123,17 +164,17 @@ body {
 }
 
 .nav-item.active {
-    background: var(--surface);
+    background: var(--card-bg);
     color: var(--text-main);
     font-weight: 700;
     box-shadow: var(--shadow-soft);
 }
 
 .daily-prompt-card {
-    background: #f4f1f0;
+    background: var(--card-bg);
     padding: 1.25rem;
     border-radius: var(--radius-lg);
-    border: 1px solid rgba(0,0,0,0.03);
+    border: 1px solid var(--card-border);
 }
 
 .prompt-label {
@@ -170,7 +211,7 @@ body {
 
 /* New Entry Composer */
 .new-entry-card {
-    background: var(--surface);
+    background: var(--card-bg);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-soft);
     padding: 1.5rem;
@@ -179,7 +220,7 @@ body {
 
 .new-entry-title {
     width: 100%;
-    border: 1px solid var(--border);
+    border: 1px solid var(--card-border);
     border-radius: var(--radius-sm);
     padding: 0.75rem;
     font-family: var(--font-sans);
@@ -196,13 +237,13 @@ body {
 }
 
 .new-entry-title::placeholder {
-    color: var(--text-light);
+    color: var(--text-subtle);
 }
 
 .new-entry-input {
     width: 100%;
     border: none;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--card-border);
     resize: none;
     outline: none;
     font-family: var(--font-serif);
@@ -216,7 +257,7 @@ body {
 }
 
 .new-entry-input::placeholder {
-    color: var(--text-light);
+    color: var(--text-subtle);
 }
 
 .btn-save {
@@ -313,6 +354,94 @@ body {
         display: none;
     }
 }
+
+/* --- Modal --- */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    backdrop-filter: blur(2px);
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.modal-card {
+    background: var(--card-bg);
+    padding: 2rem;
+    border-radius: var(--radius-lg);
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    transform: translateY(10px);
+    transition: transform 0.2s;
+    border: 1px solid var(--card-border);
+}
+
+.modal-overlay.active .modal-card {
+    transform: translateY(0);
+}
+
+.modal-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    color: var(--text-main);
+}
+
+.modal-text {
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
+.btn-cancel {
+    background: transparent;
+    border: 1px solid var(--card-border);
+    color: var(--text-main);
+    padding: 0.6rem 1.2rem;
+    border-radius: 2rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-cancel:hover {
+    background: var(--divider);
+}
+
+.btn-confirm-delete {
+    background: #d32f2f;
+    color: white;
+    border: none;
+    padding: 0.6rem 1.2rem;
+    border-radius: 2rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.btn-confirm-delete:hover {
+    background: #b71c1c;
+}
 </style>
 </head>
 
@@ -372,13 +501,10 @@ body {
                         <span class="material-symbols-outlined">edit</span>
                         Edit
                     </button>
-                    <form method="POST" action="/journal/delete/{{.ID}}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this entry?')">
-                        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
-                        <button class="btn-delete" type="submit">
-                            <span class="material-symbols-outlined">delete</span>
-                            Delete
-                        </button>
-                    </form>
+                    <button class="btn-delete" onclick="openDeleteModal({{.ID}})">
+                        <span class="material-symbols-outlined">delete</span>
+                        Delete
+                    </button>
                 </div>
             </div>
             <div class="edit-form" style="display:none;">
@@ -394,14 +520,48 @@ body {
         {{end}}
 
   
-        <div style="text-align: center; color: var(--text-light); font-style: italic; padding: 2rem;">
+        <div style="text-align: center; color: var(--text-subtle); font-style: italic; padding: 2rem;">
             You've reached the beginning of your journal.
         </div>
 
     </main>
 </div>
 
+<!-- Delete Confirmation Modal -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="modal-card">
+        <h3 class="modal-title">Delete Entry?</h3>
+        <p class="modal-text">Are you sure you want to delete this journal entry? This action cannot be undone.</p>
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="closeDeleteModal()">Cancel</button>
+            <form id="deleteForm" method="POST" action="">
+                <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                <button type="submit" class="btn-confirm-delete">Delete</button>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
+const htmlElement = document.documentElement;
+const storageKey = 'remainwith-theme';
+
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+}
+
+function setTheme(theme) {
+    htmlElement.setAttribute('data-theme', theme);
+}
+
+// Load saved theme on page load
+const savedTheme = getCookie(storageKey);
+if (savedTheme) {
+    setTheme(savedTheme);
+}
+
 function editEntry(id) {
     const card = document.querySelector(`.entry-card[data-id="${id}"]`);
     const viewDiv = card.querySelector('.entry-view');
@@ -417,6 +577,30 @@ function cancelEdit(id) {
     viewDiv.style.display = 'block';
     editForm.style.display = 'none';
 }
+
+const deleteModal = document.getElementById('deleteModal');
+const deleteForm = document.getElementById('deleteForm');
+
+function openDeleteModal(id) {
+    deleteForm.action = `/journal/delete/${id}`;
+    deleteModal.classList.add('active');
+}
+
+function closeDeleteModal() {
+    deleteModal.classList.remove('active');
+}
+
+deleteModal.addEventListener('click', (e) => {
+    if (e.target === deleteModal) {
+        closeDeleteModal();
+    }
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && deleteModal.classList.contains('active')) {
+        closeDeleteModal();
+    }
+});
 </script>
 </body>
 </html>

@@ -479,7 +479,98 @@
             .icon-btn { padding: 0.5rem; }
             .action-btn { padding: 0.5rem 0; }
         }
-        
+        /* --- Profile Menu --- */
+.profile-menu {
+    position: relative;
+}
+
+.profile-trigger {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+}
+
+/* Dropdown Card */
+.profile-dropdown {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 12px);
+    width: 240px;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    padding: 0.5rem;
+    z-index: 50;
+
+    opacity: 0;
+    transform: translateY(-8px);
+    pointer-events: none;
+    transition: all 0.25s ease;
+}
+
+/* Visible state */
+.profile-dropdown.open {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.profile-dropdown-header {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--divider);
+    margin-bottom: 0.25rem;
+}
+
+.profile-dropdown-header strong {
+    display: block;
+    font-family: var(--font-sans);
+    font-size: 0.95rem;
+}
+
+.profile-email {
+    font-size: 0.8rem;
+    color: var(--text-subtle);
+}
+
+/* Menu Items */
+.profile-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0.75rem;
+    font-size: 0.9rem;
+    color: var(--text-main);
+    text-decoration: none;
+    border-radius: var(--radius-md);
+    background: none;
+    border: none;
+    width: 100%;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.profile-item:hover {
+    background: var(--divider);
+    color: var(--primary);
+}
+
+.profile-item.danger {
+    color: #c2410c;
+}
+
+.profile-item.danger:hover {
+    background: rgba(194,65,12,0.08);
+}
+
+/* Divider */
+.profile-divider {
+    height: 1px;
+    background: var(--divider);
+    margin: 0.4rem 0;
+}
+
     </style>
 </head>
 <body>
@@ -518,7 +609,44 @@
                     <span class="material-symbols-outlined">book</span>
                     <span class="btn-text">Journal</span>
                 </a>
-                <div class="profile-pic-sm" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCaI3uBIWwC1noJFyIk3WzdR7lE7FuvDxtMu1QujzaYmKoVrakvYTPQFDQHcrkBkRh032COVx_l63E38Y9ndt3--8u44XMd-sdfXVp6dIx86kaLSbo7H79rcBRUtG9RJ2YTKOEy48i7TMejv4uszIFENN3lNitzaunaswSgjCWEevSSrqm6rXrgwBM2J0hkeh9-6pWMFbgLqRvDBv95uWLpVWZ6kjJLtW8_OLT0hX8ktgSZUucU__dea8pVH4M-yCdPcVMmIKPnVkzW');"></div>
+                <div class="profile-menu">
+    <button class="profile-trigger" id="profileTrigger" aria-label="Open profile menu">
+        <div class="profile-pic-sm" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCaI3uBIWwC1noJFyIk3WzdR7lE7FuvDxtMu1QujzaYmKoVrakvYTPQFDQHcrkBkRh032COVx_l63E38Y9ndt3--8u44XMd-sdfXVp6dIx86kaLSbo7H79rcBRUtG9RJ2YTKOEy48i7TMejv4uszIFENN3lNitzaunaswSgjCWEevSSrqm6rXrgwBM2J0hkeh9-6pWMFbgLqRvDBv95uWLpVWZ6kjJLtW8_OLT0hX8ktgSZUucU__dea8pVH4M-yCdPcVMmIKPnVkzW');"></div>
+    </button>
+
+    <!-- Profile Dropdown -->
+    <div class="profile-dropdown" id="profileDropdown">
+        <div class="profile-dropdown-header">
+            <strong>Aswani</strong>
+        </div>
+
+        <a href="/profile" class="profile-item">
+            <span class="material-symbols-outlined">person</span>
+            Profile
+        </a>
+
+        <a href="/settings" class="profile-item">
+            <span class="material-symbols-outlined">settings</span>
+            Settings
+        </a>
+
+        <a href="/about" class="profile-item">
+            <span class="material-symbols-outlined">info</span>
+            About Remainwith
+        </a>
+
+        <div class="profile-divider"></div>
+
+        <form action="/logout" method="POST">
+            <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+            <button type="submit" class="profile-item danger">
+                <span class="material-symbols-outlined">logout</span>
+                Log out
+            </button>
+        </form>
+    </div>
+</div>
+
             </div>
         </header>
 
@@ -573,7 +701,7 @@
                     </div>
                     <p class="db-desc">Gather around the fire. Warmth in numbers.</p>
                     <div class="db-actions">
-                        <a href="/campfire/join" class="btn-primary" style="text-align:center;">Enter Campfire</a>
+                        <a href="/campfire" class="btn-primary" style="text-align:center;">Enter Campfire</a>
                         <a href="/campfire/about" class="btn-secondary-link" style="text-align:center;">How does it work?</a>
                     </div>
                 </div>
@@ -660,8 +788,20 @@
             const themeSelect = document.getElementById('theme-select');
             const storageKey = 'remainwith-theme';
 
+            function getCookie(name) {
+                const value = `; ${document.cookie}`;
+                const parts = value.split(`; ${name}=`);
+                if (parts.length === 2) return parts.pop().split(';').shift();
+            }
+
+            function setCookie(name, value, days) {
+                const expires = new Date();
+                expires.setTime(expires.getTime() + (days * 24 * 60 * 60 * 1000));
+                document.cookie = name + '=' + value + ';expires=' + expires.toUTCString() + ';path=/';
+            }
+
             function loadTheme() {
-                const savedTheme = localStorage.getItem(storageKey);
+                const savedTheme = getCookie(storageKey);
                 if (savedTheme) {
                     setTheme(savedTheme);
                 } else {
@@ -673,7 +813,7 @@
             function setTheme(theme) {
                 htmlElement.setAttribute('data-theme', theme);
                 if(themeSelect) themeSelect.value = theme;
-                localStorage.setItem(storageKey, theme);
+                setCookie(storageKey, theme, 7);
             }
 
             loadTheme();
@@ -684,6 +824,22 @@
                 });
             }
         })();
+
+    (function () {
+        const trigger = document.getElementById("profileTrigger");
+        const dropdown = document.getElementById("profileDropdown");
+
+        trigger.addEventListener("click", (e) => {
+            e.stopPropagation();
+            dropdown.classList.toggle("open");
+        });
+
+        document.addEventListener("click", () => {
+            dropdown.classList.remove("open");
+        });
+    })();
+
+
     </script>
 </body>
 </html>

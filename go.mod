@@ -3,11 +3,13 @@ module Remainwith
 go 1.25.5
 
 require (
+	github.com/coder/websocket v1.8.14
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/joho/godotenv v1.5.1
 	github.com/justinas/nosurf v1.2.0
 	golang.org/x/crypto v0.46.0
+	golang.org/x/time v0.14.0
 )
 
 require (

@@ -2,8 +2,11 @@ package main
 
 import (
 	"Remainwith/config"
+	"Remainwith/internal/about"
+	"Remainwith/internal/chat"
 	"Remainwith/internal/handler"
 	"Remainwith/internal/message"
+	"Remainwith/internal/ws"
 	"log"
 	"net/http"
 )
@@ -16,6 +19,9 @@ func main() {
 	if err := config.InitDB(); err != nil {
 		log.Fatal("Database connection failed:", err)
 	}
+
+	// Initialize websocket hub
+	hub := ws.NewHub()
 
 	router := http.NewServeMux()
 
@@ -47,6 +53,15 @@ func main() {
 	router.Handle("POST /journal/delete/{id}", handler.JWTMiddleware(handler.CSRFMiddleware()(http.HandlerFunc(message.DeleteJournalHandler))))
 
 	router.HandleFunc("POST /logout", handler.LogoutHandler)
+
+	router.Handle("GET /about", http.HandlerFunc(about.AboutpageHandler))
+
+	router.Handle("GET /campfire", http.HandlerFunc(chat.CampfirePageHandler))
+
+	router.Handle("GET /campfire/chat", http.HandlerFunc(chat.ChatPageHandler))
+
+	// Websocket routes
+	router.HandleFunc("/ws", hub.HandleConnection)
 
 	logger := handler.Logger(router)
 	srv := &http.Server{

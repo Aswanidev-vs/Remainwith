@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>About · Remainwith</title>
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&family=Noto+Sans:wght@400;500;700&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined&display=swap" rel="stylesheet"/>
+
+  <style>
+/* ===============================
+   THEME VARIABLES
+================================ */
+:root {
+    --font-display: "Newsreader", serif;
+    --font-sans: "Noto Sans", sans-serif;
+
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+
+    --primary: #7d8471;
+    --bg-body: #f7f7f7;
+    --card-bg: #ffffff;
+    --card-border: #e7e5e4;
+
+    --text-main: #292524;
+    --text-muted: #57534e;
+    --text-subtle: #a8a29e;
+    --divider: #f5f5f4;
+}
+
+/* ===============================
+   BASE RESET
+================================ */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: var(--bg-body);
+    color: var(--text-main);
+    font-family: var(--font-display);
+    line-height: 1.6;
+}
+
+/* ===============================
+   LAYOUT
+================================ */
+.app-container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.feed-container {
+    width: 100%;
+    max-width: 640px;
+    padding: 0 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+/* ===============================
+   HEADER
+================================ */
+.app-header {
+    width: 100%;
+    max-width: 56rem;
+    padding: 1.5rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.logo-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    color: inherit;
+}
+
+.logo-text {
+    font-size: 1.4rem;
+    font-weight: 700;
+}
+
+.btn-link {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: none;
+    border: none;
+    font-family: var(--font-sans);
+    color: var(--text-muted);
+    cursor: pointer;
+    text-decoration: none;
+}
+
+.btn-link:hover {
+    color: var(--primary);
+}
+
+/* ===============================
+   GREETING / HERO
+================================ */
+.greeting-section {
+    text-align: center;
+    padding-top: 1rem;
+}
+
+.greeting-title {
+    font-size: 2rem;
+    font-weight: 600;
+}
+
+.greeting-subtitle {
+    font-size: 1.1rem;
+    font-style: italic;
+    color: var(--text-muted);
+}
+
+/* ===============================
+   CARDS
+================================ */
+.journal-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+}
+
+.card-content {
+    font-size: 1.05rem;
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+}
+
+@media (min-width: 640px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.dashboard-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: var(--radius-lg);
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.db-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.db-title {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.db-desc {
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* ===============================
+   FOOTER
+================================ */
+.app-footer {
+    padding: 2.5rem 0;
+    text-align: center;
+    font-style: italic;
+    color: var(--text-subtle);
+}
+
+/* ===============================
+   ICON FIX
+================================ */
+.material-symbols-outlined {
+    font-size: 20px;
+    vertical-align: middle;
+}
+</style>
+
+</head>
+
+<body>
+<div class="app-container">
+
+    <!-- Header (same as dashboard, simplified) -->
+    <header class="app-header">
+        <a href="/" class="logo-group">
+            <img src="/assets/Remainwith_logov1.png" alt="Remainwith logo" width="42" height="42">
+            <h1 class="logo-text">Remainwith</h1>
+        </a>
+
+        <div class="header-actions">
+            <a href="/" class="btn-link">
+                <span class="material-symbols-outlined">arrow_back</span>
+                <span class="btn-text">Back</span>
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="feed-container">
+
+        <!-- Hero -->
+        <section class="greeting-section">
+            <h2 class="greeting-title">About Remainwith</h2>
+            <p class="greeting-subtitle">
+                A place to exist without performing.
+            </p>
+        </section>
+
+        <!-- About Card -->
+        <section class="journal-card">
+            <div class="card-content">
+                <p>
+                    Remainwith is a quiet social space designed for presence, not pressure.
+                </p>
+                <br>
+                <p>
+                    It was created for moments when you don’t want to explain yourself,
+                    fix yourself, or impress anyone — only to be here, as you are.
+                </p>
+                <br>
+                <p>
+                    No followers. No likes chasing attention.
+                    Just shared stillness, soft words, and the reassurance that
+                    someone else is also sitting with you.
+                </p>
+            </div>
+        </section>
+
+        <!-- Philosophy -->
+        <section class="dashboard-grid">
+
+            <div class="dashboard-card">
+                <div class="db-header">
+                    <span class="material-symbols-outlined">self_improvement</span>
+                    <span class="db-title">Presence over performance</span>
+                </div>
+                <p class="db-desc">
+                    You don’t need to be productive, interesting, or strong here.
+                    Showing up quietly is enough.
+                </p>
+            </div>
+
+            <div class="dashboard-card">
+                <div class="db-header">
+                    <span class="material-symbols-outlined">groups</span>
+                    <span class="db-title">Together, gently</span>
+                </div>
+                <p class="db-desc">
+                    Sometimes connection doesn’t need conversation.
+                    Being near is already meaningful.
+                </p>
+            </div>
+
+            <div class="dashboard-card">
+                <div class="db-header">
+                    <span class="material-symbols-outlined">lock</span>
+                    <span class="db-title">Privacy by design</span>
+                </div>
+                <p class="db-desc">
+                    No public metrics. No algorithmic pressure.
+                    Your thoughts remain yours.
+                </p>
+            </div>
+
+            <div class="dashboard-card">
+                <div class="db-header">
+                    <span class="material-symbols-outlined">nightlight</span>
+                    <span class="db-title">Slow technology</span>
+                </div>
+                <p class="db-desc">
+                    Remainwith is intentionally unhurried —
+                    built to calm, not stimulate.
+                </p>
+            </div>
+
+        </section>
+
+        <!-- Origin -->
+        <section class="journal-card">
+            <div class="card-content">
+                <p>
+                    Remainwith was born from the realization that
+                    most online spaces demand something from us —
+                    attention, identity, reaction.
+                </p>
+                <br>
+                <p>
+                    This space asks for nothing.
+                </p>
+                <br>
+                <p>
+                    It exists for the tired, the quiet,
+                    the reflective, and the hopeful —
+                    for anyone who wants to remain,
+                    without being alone.
+                </p>
+            </div>
+        </section>
+
+        <!-- Footer Message -->
+        <footer class="app-footer">
+            <p>You don’t have to move on. You can stay.</p>
+        </footer>
+
+    </main>
+</div>
+</body>
+</html>

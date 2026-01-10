@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Campfire · Remainwith</title>
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com" rel="preconnect"/>
+  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&amp;family=Noto+Sans:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+
+  <style>
+    /* ==================================================
+       Remainwith Theme Variables (shared with dashboard)
+       ================================================== */
+
+    :root {
+      --font-display: "Newsreader", serif;
+      --font-sans: "Noto Sans", sans-serif;
+      --radius-md: 0.5rem;
+      --radius-lg: 0.75rem;
+      --radius-full: 9999px;
+    }
+
+    /* 1. LIGHT THEME (Default) */
+    html[data-theme="light"] {
+      --primary: #7d8471;
+      --bg-body: #f7f7f7;
+      --card-bg: #ffffff;
+      --card-border: #e7e5e4;
+      --text-main: #292524;
+      --text-muted: #57534e;
+      --text-subtle: #a8a29e;
+      --divider: #f5f5f4;
+      --stone-200: #e7e5e4;
+    }
+
+    /* 2. DARK THEME */
+    html[data-theme="dark"] {
+      --primary: #9ca38f;
+      --bg-body: #191a18;
+      --card-bg: #1c1917;
+      --card-border: #292524;
+      --text-main: #e7e5e4;
+      --text-muted: #a8a29e;
+      --text-subtle: #78716c;
+      --divider: #292524;
+      --stone-200: #292524;
+    }
+
+    /* 3. SEPIA THEME */
+    html[data-theme="sepia"] {
+      --primary: #8a7356;
+      --bg-body: #f4ecd8;
+      --card-bg: #fdf6e3;
+      --card-border: #e6dcc6;
+      --text-main: #433422;
+      --text-muted: #746351;
+      --text-subtle: #a89984;
+      --divider: #e6dcc6;
+      --stone-200: #dccfb8;
+    }
+
+    /* 4. FOREST THEME */
+    html[data-theme="forest"] {
+      --primary: #76a881;
+      --bg-body: #1a211e;
+      --card-bg: #222b26;
+      --card-border: #2f3b34;
+      --text-main: #dcece1;
+      --text-muted: #8ca392;
+      --text-subtle: #56695e;
+      --divider: #2f3b34;
+      --stone-200: #2f3b34;
+    }
+
+    /* ==================================================
+       Global Styling
+       ================================================== */
+
+    * { box-sizing: border-box; }
+
+    body.campfire-page {
+      margin: 0;
+      background: var(--bg-body);
+      color: var(--text-main);
+      font-family: var(--font-display);
+      min-height: 100vh;
+      position: relative; /* For absolute positioning of back link */
+    }
+
+    /* ==================================================
+       Navigation / Back Link
+       ================================================== */
+    .back-link {
+      position: absolute;
+      top: 1.5rem;
+      left: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: color 0.2s ease, transform 0.2s ease;
+      z-index: 10;
+    }
+
+    .back-link:hover {
+      color: var(--primary);
+      transform: translateX(-3px);
+    }
+
+    .back-link .material-symbols-outlined {
+      font-size: 1.25rem;
+    }
+
+    /* ==================================================
+       Main Container
+       ================================================== */
+
+    .app-container {
+      max-width: 64rem;
+      margin: 0 auto;
+      padding: 4rem 1rem; /* Top padding ensures space from back button */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ==================================================
+       Header Section
+       ================================================== */
+
+    .campfire-header {
+      text-align: center;
+      margin-bottom: 3rem;
+      animation: fadeIn 0.8s ease-out;
+    }
+
+    .campfire-header h1 {
+      font-size: 2.4rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      letter-spacing: -0.02em;
+      margin-top: 0;
+    }
+
+    .campfire-header p {
+      max-width: 34rem;
+      margin: 0 auto;
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      font-style: italic;
+      line-height: 1.5;
+    }
+
+    /* ==================================================
+       Options Grid (Cards)
+       ================================================== */
+
+    .option-buttons {
+      display: grid;
+      grid-template-columns: 1fr; /* Default mobile: 1 column */
+      gap: 1.5rem;
+      width: 100%;
+      max-width: 800px;
+    }
+
+    @media (min-width: 640px) {
+      .option-buttons {
+        grid-template-columns: 1fr 1fr; /* Tablet/Desktop: 2 columns */
+      }
+    }
+
+    .option-button {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-lg);
+      padding: 2.5rem 1.5rem;
+      text-decoration: none;
+      color: var(--text-main);
+
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 0.9rem;
+
+      transition: transform 0.35s ease,
+                  box-shadow 0.35s ease,
+                  border-color 0.35s ease;
+
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .option-button:hover {
+      transform: translateY(-3px);
+      border-color: var(--primary);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.08);
+    }
+
+    .option-button:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 4px;
+    }
+
+    .button-icon {
+      font-size: 2.6rem;
+      line-height: 1;
+      margin-bottom: 0.5rem;
+    }
+
+    .button-text {
+      font-size: 1.15rem;
+      font-weight: 700;
+      font-family: var(--font-sans);
+    }
+
+    .button-subtitle {
+      font-size: 0.92rem;
+      color: var(--text-subtle);
+      font-style: italic;
+      line-height: 1.4;
+    }
+
+    /* ==================================================
+       Animations & Mobile adjustments
+       ================================================== */
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 640px) {
+      .back-link {
+        top: 1rem;
+        left: 1rem;
+      }
+      .app-container {
+        padding-top: 5rem; /* Extra space on mobile */
+      }
+      .campfire-header h1 {
+        font-size: 2rem;
+      }
+    }
+  </style>
+</head>
+
+<body class="campfire-page">
+
+  <!-- Fixed Dashboard Link (Top Left) -->
+  <a href="/dashboard" class="back-link">
+    <span class="material-symbols-outlined">arrow_back</span>
+    Back to Dashboard
+  </a>
+
+  <div class="app-container">
+
+    <header class="campfire-header">
+      <h1>Campfire</h1>
+      <p>
+        A quiet place to gather, reflect, and speak freely.
+        No noise. No rush. Just presence.
+      </p>
+    </header>
+
+    <section class="option-buttons">
+      <!-- Chat Option -->
+      <a href="/campfire/chat" class="option-button chat-button">
+        <div class="button-icon">💬</div>
+        <div class="button-text">Join a Conversation</div>
+        <div class="button-subtitle">
+          Step into an ongoing discussion and listen or share
+        </div>
+      </a>
+
+      <!-- Video Option -->
+      <a href="/campfire/video" class="option-button video-button">
+        <div class="button-icon">🔥</div>
+        <div class="button-text">Start a Campfire</div>
+        <div class="button-subtitle">
+          Begin a new space for voices and connection
+        </div>
+      </a>
+    </section>
+
+  </div>
+
+  <script>
+    const htmlElement = document.documentElement;
+    const storageKey = 'remainwith-theme';
+
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+
+    function setTheme(theme) {
+        htmlElement.setAttribute('data-theme', theme);
+    }
+
+    // Load saved theme on page load
+    const savedTheme = getCookie(storageKey);
+    if (savedTheme) {
+        setTheme(savedTheme);
+    }
+  </script>
+</body>
+</html>
