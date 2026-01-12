@@ -26,13 +26,17 @@ func DashboardHandler(w http.ResponseWriter, r *http.Request) {
 		name = "User" // Fallback if name not found
 	}
 
+	sessionID, _ := claims["session_id"].(string)
+
 	// Data to pass to template
 	data := struct {
 		Name      string
 		CSRFToken string
+		SessionID string
 	}{
 		Name:      name,
 		CSRFToken: nosurf.Token(r),
+		SessionID: sessionID,
 	}
 	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
 	w.Header().Set("Pragma", "no-cache")

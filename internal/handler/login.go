@@ -2,6 +2,9 @@ package handler
 
 import (
 	"Remainwith/db"
+	"crypto/rand"
+	"encoding/hex"
+	"fmt"
 	"html/template"
 	"net/http"
 	"time"
@@ -87,11 +90,19 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	randomBytes := make([]byte, 16)
+	if _, err := rand.Read(randomBytes); err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+	sessionID := hex.EncodeToString(randomBytes)
+
 	claims := jwt.MapClaims{
-		"user_id": user.ID,
-		"email":   user.Email,
-		"name":    user.Name,
-		"exp":     time.Now().Add(24 * time.Hour).Unix(),
+		"user_id":    user.ID,
+		"email":      user.Email,
+		"name":       user.Name,
+		"session_id": sessionID,
+		"exp":        time.Now().Add(24 * time.Hour).Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -108,6 +119,18 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		Expires:  time.Now().Add(7 * 24 * time.Hour),
 		HttpOnly: true,
+		Secure:   false, // MUST be false for localhost
+		SameSite: http.SameSiteStrictMode,
+	})
+
+	// Set client-side session data cookie for per-tab logout
+	sessionData := fmt.Sprintf("%v|%s|%s", user.ID, sessionID, user.Email)
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_data",
+		Value:    sessionData,
+		Path:     "/",
+		Expires:  time.Now().Add(7 * 24 * time.Hour),
+		HttpOnly: false, // Allow JavaScript access for per-tab management
 		Secure:   false, // MUST be false for localhost
 		SameSite: http.SameSiteStrictMode,
 	})

@@ -65,7 +65,7 @@ func main() {
 
 	router.Handle("GET /campfire", http.HandlerFunc(chat.CampfirePageHandler))
 
-	router.Handle("GET /campfire/chat", http.HandlerFunc(chat.ChatPageHandler))
+	router.Handle("GET /campfire/chat", handler.JWTMiddleware(http.HandlerFunc(chat.ChatPageHandler)))
 
 	// Interests API routes
 	router.HandleFunc("GET /api/interests", handler.GetInterestsHandler)
@@ -78,6 +78,8 @@ func main() {
 
 	// Websocket routes
 	router.HandleFunc("/ws", hub.HandleConnection)
+
+	router.Handle("/profile", handler.JWTMiddleware(handler.CSRFMiddleware()(http.HandlerFunc(handler.ProfilePageHandler))))
 
 	logger := handler.Logger(router)
 	srv := &http.Server{

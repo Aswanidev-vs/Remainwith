@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>My Profile - Remainwith</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+
+    <style>
+    :root {
+        --font-display: "Newsreader", serif;
+        --font-sans: "Noto Sans", sans-serif;
+
+        --radius-md: 0.5rem;
+        --radius-lg: 0.75rem;
+        --container-width: 1024px;
+        --shadow-soft: 0 4px 20px -2px rgba(45, 58, 48, 0.04);
+    }
+
+    /* 1. LIGHT THEME (Default) */
+    html[data-theme="light"] {
+        --primary: #7d8471;
+        --primary-light: rgba(125, 132, 113, 0.08);
+        --primary-hover: #6b715f;
+        --bg-body: #f7f7f7;
+        --card-bg: #ffffff;
+        --card-border: #e7e5e4;
+        --text-main: #292524;
+        --text-muted: #57534e;
+        --text-subtle: #a8a29e;
+        --divider: #f5f5f4;
+    }
+
+    /* 2. DARK THEME */
+    html[data-theme="dark"] {
+        --primary: #9ca38f;
+        --primary-light: rgba(156, 163, 143, 0.08);
+        --primary-hover: #8a907f;
+        --bg-body: #191a18;
+        --card-bg: #1c1917;
+        --card-border: #292524;
+        --text-main: #e7e5e4;
+        --text-muted: #a8a29e;
+        --text-subtle: #78716c;
+        --divider: #292524;
+    }
+
+    /* 3. SEPIA THEME */
+    html[data-theme="sepia"] {
+        --primary: #8a7356;
+        --primary-light: rgba(138, 117, 86, 0.08);
+        --primary-hover: #7a6a4e;
+        --bg-body: #f4ecd8;
+        --card-bg: #fdf6e3;
+        --card-border: #e6dcc6;
+        --text-main: #433422;
+        --text-muted: #746351;
+        --text-subtle: #a89984;
+        --divider: #e6dcc6;
+    }
+
+    /* 4. FOREST THEME */
+    html[data-theme="forest"] {
+        --primary: #76a881;
+        --primary-light: rgba(118, 168, 129, 0.08);
+        --primary-hover: #659c73;
+        --bg-body: #1a211e;
+        --card-bg: #222b26;
+        --card-border: #2f3b34;
+        --text-main: #dcece1;
+        --text-muted: #8ca392;
+        --text-subtle: #56695e;
+        --divider: #2f3b34;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+        font-family: var(--font-sans);
+        background: var(--bg-body);
+        color: var(--text-main);
+        min-height: 100vh;
+        overflow-x: hidden;
+    }
+
+    /* --- Layout Grid --- */
+    .app-layout {
+        display: grid;
+        grid-template-columns: 1fr;
+        max-width: var(--container-width);
+        margin: 0 auto;
+        padding: 1.5rem;
+        gap: 2rem;
+    }
+
+    @media (min-width: 768px) {
+        .app-layout {
+            grid-template-columns: 260px 1fr;
+            padding: 3rem 2rem;
+            align-items: start;
+        }
+    }
+
+    /* --- Sidebar (Navigation & Context) --- */
+    .sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+    }
+
+    @media (min-width: 768px) {
+        .sidebar {
+            position: sticky;
+            top: 3rem;
+        }
+    }
+
+    .brand {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        color: var(--text-main);
+        text-decoration: none;
+        margin-bottom: 0.5rem;
+    }
+
+    .brand-icon {
+        color: var(--primary);
+        font-size: 2rem;
+    }
+
+    .brand-text {
+        font-weight: 700;
+        font-size: 1.25rem;
+        letter-spacing: -0.02em;
+    }
+
+    .nav-links {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+        border-radius: var(--radius-sm);
+        color: var(--text-muted);
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    .nav-item:hover {
+        background: white;
+        color: var(--primary);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+
+    .nav-item.active {
+        background: var(--card-bg);
+        color: var(--text-main);
+        font-weight: 700;
+        box-shadow: var(--shadow-soft);
+    }
+
+    /* --- Main Profile Area --- */
+    .profile-area {
+        display: flex;
+        flex-direction: column;
+        gap: 2rem;
+        width: 100%;
+    }
+
+    .profile-header {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-main);
+    }
+
+    /* Profile Card */
+    .profile-card {
+        background: var(--card-bg);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-soft);
+        padding: 1.5rem;
+        border: 1px solid white;
+    }
+
+    .user-info {
+        margin-bottom: 1.5rem;
+    }
+
+    .user-name {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-main);
+        margin-bottom: 0.5rem;
+    }
+
+    .user-email {
+        font-size: 1rem;
+        color: var(--text-muted);
+    }
+
+    .interests-section {
+        border-top: 1px solid var(--card-border);
+        padding-top: 1.5rem;
+    }
+
+    .interests-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+    }
+
+    .interests-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--text-main);
+    }
+
+    .btn-edit {
+        background: none;
+        border: none;
+        color: var(--primary);
+        cursor: pointer;
+        font-size: 0.9rem;
+        padding: 0.5rem;
+        border-radius: 0.25rem;
+        transition: background 0.2s;
+    }
+
+    .btn-edit:hover {
+        background: var(--primary-light);
+    }
+
+    .interests-display {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .interest-tag {
+        background: var(--primary-light);
+        color: var(--primary);
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.9rem;
+        font-weight: 500;
+    }
+
+    .no-interests {
+        color: var(--text-muted);
+        font-style: italic;
+    }
+
+    .interests-form {
+        display: none;
+    }
+
+    .interests-form.active {
+        display: block;
+    }
+
+    .interests-input {
+        width: 100%;
+        border: 1px solid var(--card-border);
+        border-radius: var(--radius-sm);
+        padding: 0.75rem;
+        font-family: var(--font-sans);
+        font-size: 1rem;
+        color: var(--text-main);
+        background: transparent;
+        margin-bottom: 1rem;
+        outline: none;
+        transition: border-color 0.2s;
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .category-group {
+        margin-bottom: 1.5rem;
+    }
+    .category-title {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--text-muted);
+        margin-bottom: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .chip-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .chip-option {
+        background: transparent;
+        border: 1px solid var(--card-border);
+        color: var(--text-main);
+        padding: 0.4rem 0.9rem;
+        border-radius: 2rem;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        user-select: none;
+    }
+    .chip-option:hover {
+        border-color: var(--primary);
+    }
+    .chip-option.selected {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+    }
+    html[data-theme="dark"] .chip-option.selected {
+        color: var(--bg-body);
+    }
+
+    .interests-input:focus {
+        border-color: var(--primary);
+    }
+
+    .interests-input::placeholder {
+        color: var(--text-subtle);
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .btn-save {
+        background: var(--primary);
+        color: white;
+        border: none;
+        padding: 0.6rem 1.5rem;
+        border-radius: 2rem;
+        font-weight: 700;
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .btn-save:hover {
+        background: var(--primary-hover);
+    }
+
+    .btn-cancel {
+        background: transparent;
+        border: 1px solid var(--card-border);
+        color: var(--text-main);
+        padding: 0.6rem 1.2rem;
+        border-radius: 2rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .btn-cancel:hover {
+        background: var(--divider);
+    }
+
+    .material-symbols-outlined {
+        font-size: 1rem !important;
+    }
+
+    /* Mobile Nav Toggle */
+    .mobile-menu-btn {
+        display: none;
+    }
+
+    @media (max-width: 768px) {
+        .mobile-menu-btn {
+            display: block;
+            background: none;
+            border: none;
+            color: var(--text-main);
+        }
+    }
+    </style>
+</head>
+
+<body>
+
+<div class="app-layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <a href="/" class="brand">
+                <span class="brand-text">Remainwith</span>
+            </a>
+            <button class="mobile-menu-btn">
+                <span class="material-symbols-outlined">menu</span>
+            </button>
+        </div>
+
+        <nav class="nav-links">
+            <a href="/dashboard" class="nav-item">
+                <span class="material-symbols-outlined">home</span>
+                Home
+            </a>
+            
+            <a href="/profile" class="nav-item active">
+                <span class="material-symbols-outlined">person</span>
+                Profile
+            </a>
+        </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="profile-area">
+
+        <h1 class="profile-header">My Profile</h1>
+
+        {{if .Error}}
+        <div class="error-message" style="background: #fee; color: #c33; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; border: 1px solid #fcc;">
+            {{.Error}}
+        </div>
+        {{end}}
+
+        <!-- Profile Card -->
+        <div class="profile-card">
+            <div class="user-info">
+                <div class="user-name">{{.Name}}</div>
+                <div class="user-email">{{.Email}}</div>
+            </div>
+
+            <div class="interests-section">
+                <div class="interests-header">
+                    <div class="interests-title">Interests</div>
+                    <button class="btn-edit" onclick="toggleEditInterests()">
+                        <span class="material-symbols-outlined">edit</span>
+                        Edit
+                    </button>
+                </div>
+
+                <div id="interests-display" class="interests-display" {{if not .UserInterests}}style="display:none;"{{end}}>
+                    {{range $index, $interest := .UserInterests}}
+                        <span class="interest-tag">{{$interest}}</span>
+                    {{end}}
+                </div>
+
+                <form id="interests-form" class="interests-form {{if not .UserInterests}}active{{end}}" action="/profile" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                    <input type="hidden" name="interests" id="interests-hidden" value="{{range $index, $interest := .UserInterests}}{{if $index}},{{end}}{{$interest}}{{end}}">
+                    <input type="hidden" name="user_email" value="{{.Email}}">
+                    <input type="hidden" name="user_id" value="{{.UserID}}">
+                    <input type="hidden" name="session_id" value="{{.SessionID}}">
+                    
+                    <div class="category-group">
+                        <div class="category-title">🧠 How You’ve Been Feeling</div>
+                        <div class="chip-grid">
+                            <div class="chip-option" onclick="toggleInterest(this, 'Anxiety')">Anxiety</div>
+                            <div class="chip-option" onclick="toggleInterest(this, 'Overthinking')">Overthinking</div>
+                            <div class="chip-option" onclick="toggleInterest(this, 'Stress')">Stress</div>
+                            <div class="chip-option" onclick="toggleInterest(this, 'Loneliness')">Loneliness</div>
+                            <div class="chip-option" onclick="toggleInterest(this, 'Emotional exhaustion')">Emotional exhaustion</div>
+                            <div class="chip-option" onclick="toggleInterest(this, 'Calm & clarity')">Calm & clarity</div>
+                            <div class="chip-option" onclick="toggleInterest(this, 'Gratitude')">Gratitude</div>
+                        </div>
+                    </div>
+
+                    <div class="category-group">
+                        <div class="category-title">🎯 What You’re Working On</div>
+                        <div class="chip-grid">
+                            <div class="chip-option" onclick="toggleInterest(this, 'Self-discipline')">Self-discipline</div>
+                            <div class="chip-option" onclick="toggleInterest(this, 'Staying consistent')">Staying consistent</div>
+                            <div class="chip-option" onclick="toggleInterest(this, 'Finding motivation')">Finding motivation</div>
+                            <div class="chip-option" onclick="toggleInterest(this, 'Breaking a habit')">Breaking a habit</div>
+                            <div class="chip-option" onclick="toggleInterest(this, 'Improving focus')">Improving focus</div>
+                            <div class="chip-option" onclick="toggleInterest(this, 'Building confidence')">Building confidence</div>
+                        </div>
+                    </div>
+
+                    <div class="category-group">
+                        <div class="category-title">🧍 Life Situations</div>
+                        <div class="chip-grid">
+                            <div class="chip-option" onclick="toggleInterest(this, 'Student life')">Student life</div>
+                            <div class="chip-option" onclick="toggleInterest(this, 'Career confusion')">Career confusion</div>
+                            <div class="chip-option" onclick="toggleInterest(this, 'Relationship struggles')">Relationship struggles</div>
+                            <div class="chip-option" onclick="toggleInterest(this, 'Family pressure')">Family pressure</div>
+                            <div class="chip-option" onclick="toggleInterest(this, 'Living alone')">Living alone</div>
+                            <div class="chip-option" onclick="toggleInterest(this, 'Feeling stuck')">Feeling stuck</div>
+                        </div>
+                    </div>
+
+                    <div class="category-group">
+                        <div class="category-title">🌱 Reflection & Meaning</div>
+                        <div class="chip-grid">
+                            <div class="chip-option" onclick="toggleInterest(this, 'Self-reflection')">Self-reflection</div>
+                            <div class="chip-option" onclick="toggleInterest(this, 'Finding purpose')">Finding purpose</div>
+                            <div class="chip-option" onclick="toggleInterest(this, 'Letting go')">Letting go</div>
+                            <div class="chip-option" onclick="toggleInterest(this, 'Acceptance')">Acceptance</div>
+                            <div class="chip-option" onclick="toggleInterest(this, 'Mindfulness')">Mindfulness</div>
+                            <div class="chip-option" onclick="toggleInterest(this, 'Understanding myself better')">Understanding myself better</div>
+                        </div>
+                    </div>
+
+                    <div class="category-group">
+                        <div class="category-title">🌙 Time & Energy States</div>
+                        <div class="chip-grid">
+                            <div class="chip-option" onclick="toggleInterest(this, 'Late-night thoughts')">Late-night thoughts</div>
+                            <div class="chip-option" onclick="toggleInterest(this, 'Low-energy days')">Low-energy days</div>
+                            <div class="chip-option" onclick="toggleInterest(this, 'Need encouragement')">Need encouragement</div>
+                            <div class="chip-option" onclick="toggleInterest(this, 'Quiet reflection')">Quiet reflection</div>
+                            <div class="chip-option" onclick="toggleInterest(this, 'Morning motivation')">Morning motivation</div>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button class="btn-save" type="submit">Save Interests</button>
+                        {{if .UserInterests}}<button class="btn-cancel" type="button" onclick="cancelEditInterests()">Cancel</button>{{end}}
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script>
+// --- Session Manager (Per-Tab) ---
+(function() {
+    // Generate unique tab ID
+    const tabId = 'tab_' + Math.random().toString(36).substr(2, 9);
+    const sessionKey = 'remainwith_session_' + tabId;
+    const authCookieName = 'auth_token';
+
+    // Store session data in localStorage for this tab
+    function storeSession() {
+        const authToken = getCookie(authCookieName);
+        if (authToken) {
+            localStorage.setItem(sessionKey, JSON.stringify({
+                token: authToken,
+                timestamp: Date.now(),
+                tabId: tabId
+            }));
+        }
+    }
+
+    // Check if this tab has a valid session
+    function hasValidSession() {
+        const sessionData = localStorage.getItem(sessionKey);
+        if (!sessionData) return false;
+
+        try {
+            const session = JSON.parse(sessionData);
+            const authToken = getCookie(authCookieName);
+
+            // Session is valid if token matches and is recent (within 24 hours)
+            return authToken === session.token &&
+                   (Date.now() - session.timestamp) < (24 * 60 * 60 * 1000);
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // Clear session for this tab only
+    function clearSession() {
+        localStorage.removeItem(sessionKey);
+        // Don't clear the global cookie - let other tabs handle their own sessions
+    }
+
+    // Enhanced logout that only affects this tab
+    function logout() {
+        clearSession();
+        // Redirect to login without clearing global cookie
+        window.location.href = '/login';
+    }
+
+    // Intercept logout forms
+    document.addEventListener('DOMContentLoaded', function() {
+        const logoutForms = document.querySelectorAll('form[action="/logout"]');
+        logoutForms.forEach(form => {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                logout();
+            });
+        });
+    });
+
+    // Store session on page load
+    storeSession();
+
+    // Clean up old sessions periodically
+    setInterval(() => {
+        const keys = Object.keys(localStorage);
+        keys.forEach(key => {
+            if (key.startsWith('remainwith_session_')) {
+                try {
+                    const session = JSON.parse(localStorage.getItem(key));
+                    if ((Date.now() - session.timestamp) > (24 * 60 * 60 * 1000)) {
+                        localStorage.removeItem(key);
+                    }
+                } catch (e) {
+                    localStorage.removeItem(key);
+                }
+            }
+        });
+    }, 60000); // Clean every minute
+})();
+
+const htmlElement = document.documentElement;
+const storageKey = 'remainwith-theme';
+
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+}
+
+function setTheme(theme) {
+    htmlElement.setAttribute('data-theme', theme);
+}
+
+// Load saved theme on page load
+const savedTheme = getCookie(storageKey);
+if (savedTheme) {
+    setTheme(savedTheme);
+}
+
+function toggleEditInterests() {
+    const display = document.getElementById('interests-display');
+    const form = document.getElementById('interests-form');
+    display.style.display = 'none';
+    form.classList.add('active');
+}
+
+function cancelEditInterests() {
+    const display = document.getElementById('interests-display');
+    const form = document.getElementById('interests-form');
+    display.style.display = 'flex';
+    form.classList.remove('active');
+}
+
+const selectedInterests = new Set();
+
+function initInterests() {
+    const hiddenInput = document.getElementById('interests-hidden');
+    if (hiddenInput && hiddenInput.value) {
+        hiddenInput.value.split(',').forEach(i => {
+            if(i.trim()) selectedInterests.add(i.trim());
+        });
+    }
+    updateChipVisuals();
+}
+
+function toggleInterest(element, name) {
+    if (selectedInterests.has(name)) {
+        selectedInterests.delete(name);
+    } else {
+        if (selectedInterests.size >= 5) {
+            alert("You can select up to 5 interests.");
+            return;
+        }
+        selectedInterests.add(name);
+    }
+    updateHiddenInput();
+    updateChipVisuals();
+}
+
+function updateHiddenInput() {
+    document.getElementById('interests-hidden').value = Array.from(selectedInterests).join(',');
+}
+
+function updateChipVisuals() {
+    document.querySelectorAll('.chip-option').forEach(chip => {
+        const name = chip.innerText.trim();
+        if (selectedInterests.has(name)) chip.classList.add('selected');
+        else chip.classList.remove('selected');
+    });
+}
+
+</script>
+</body>
+</html>

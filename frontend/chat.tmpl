@@ -187,6 +187,37 @@
     }
 
     /* ==================================================
+       Suggested Users Section
+       ================================================== */
+    .suggested-users-section {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--divider);
+      background: var(--card-bg);
+    }
+
+    .suggested-users-section h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 0.75rem;
+    }
+
+    .suggested-users-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .suggested-user {
+      background: var(--primary);
+      color: var(--primary-fg);
+      padding: 0.25rem 0.75rem;
+      border-radius: var(--radius-full);
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+
+    /* ==================================================
        Messages Area
        ================================================== */
     .messages-viewport {
@@ -405,8 +436,8 @@
           <span class="material-symbols-outlined">arrow_back</span>
         </a>
         <div class="header-info">
-          <h1>Campfire</h1>
-          <p>Online • 4 members</p>
+          <h1>Campfire Chat</h1>
+          <p>Connect with like-minded people</p>
         </div>
       </div>
       <div class="header-actions">
@@ -414,31 +445,21 @@
       </div>
     </header>
 
+    {{if .SuggestedUsers}}
+    <!-- Suggested Users Section -->
+    <section class="suggested-users-section">
+      <h3>People with similar interests</h3>
+      <div class="suggested-users-list">
+        {{range .SuggestedUsers}}
+        <span class="suggested-user">{{.Name}}</span>
+        {{end}}
+      </div>
+    </section>
+    {{end}}
+
     <!-- Messages Container -->
     <div class="messages-viewport" id="messages">
       <div class="date-divider">Today</div>
-      
-      <!-- Example Initial Message (Other) -->
-      <div class="message">
-        <div class="avatar">SJ</div>
-        <div>
-          <span class="author-name">Sarah Jenkins</span>
-          <div class="bubble">
-            Has anyone seen the new updates to the library? The lighting looks amazing.
-            <div class="meta">10:02 AM</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Example Initial Message (Self) -->
-      <div class="message own">
-        <div class="avatar">Me</div>
-        <div class="bubble">
-          I was just there! It feels so much cozier now.
-          <div class="meta">10:05 AM <span class="material-symbols-outlined" style="font-size:12px">done_all</span></div>
-        </div>
-      </div>
-      
     </div>
 
     <!-- Input Area -->
@@ -526,11 +547,6 @@
         messageInput.value = '';
         messageInput.style.height = 'auto'; // Reset height
         messageInput.focus();
-
-        // Simulate a reply for UI demonstration
-        setTimeout(() => {
-           addMessage("This is an automated reply to show the 'Other' bubble style.", false);
-        }, 1500);
       }
     }
 

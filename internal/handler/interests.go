@@ -6,13 +6,11 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-
-	"github.com/golang-jwt/jwt/v5"
 )
 
 // CheckOnboardingHandler returns whether the onboarding dialog should be shown.
 func CheckOnboardingHandler(w http.ResponseWriter, r *http.Request) {
-	userID := getUserIDFromContext(r)
+	userID := GetUserIDFromContext(r)
 	if userID == 0 {
 		log.Println("CheckOnboarding: User ID not found in context")
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -46,7 +44,7 @@ func SaveInterestsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID := getUserIDFromContext(r)
+	userID := GetUserIDFromContext(r)
 	if userID == 0 {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -75,16 +73,10 @@ func SaveInterestsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // Helper to extract UserID from context (assuming JWTMiddleware sets it)
-func getUserIDFromContext(r *http.Request) int {
-	// This depends on how contextWithUser stores data.
-	// Try "user" key first (common convention)
-	claims, ok := r.Context().Value("user").(jwt.MapClaims)
+func GetUserIDFromContext(r *http.Request) int {
+	claims, ok := UserFromContext(r.Context())
 	if !ok {
-		// Try "claims" key
-		claims, ok = r.Context().Value("claims").(jwt.MapClaims)
-		if !ok {
-			return 0
-		}
+		return 0
 	}
 
 	// Try to get user_id as float64 (standard JSON number)

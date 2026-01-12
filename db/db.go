@@ -288,6 +288,29 @@ func GetAllInterests(ctx context.Context) ([]Interest, error) {
 	return interests, nil
 }
 
+// GetUserInterests retrieves the names of interests selected by a user.
+func GetUserInterests(ctx context.Context, userID int) ([]string, error) {
+	if config.DB == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+
+	rows, err := config.DB.Query(ctx, "SELECT i.name FROM interests i JOIN user_interests ui ON i.id = ui.interest_id WHERE ui.user_id = $1", userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var interests []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, err
+		}
+		interests = append(interests, name)
+	}
+	return interests, nil
+}
+
 // SaveUserInterests saves the selected interests for a user.
 // It clears existing interests first to allow for updates.
 func SaveUserInterests(ctx context.Context, userID int, interestIDs []int) error {
@@ -420,8 +443,7 @@ func SeedInterests(ctx context.Context) error {
 	interests := []struct {
 		name     string
 		category string
-	}{
-		// 🧠 How You’ve Been Feeling
+	}{ // 🧠 How You’ve Been Feeling
 		{"Anxiety", "🧠 How You’ve Been Feeling"},
 		{"Overthinking", "🧠 How You’ve Been Feeling"},
 		{"Stress", "🧠 How You’ve Been Feeling"},
