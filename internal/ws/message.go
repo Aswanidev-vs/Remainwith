@@ -15,10 +15,11 @@ func NewMessageHandler() *MessageHandler {
 	return &MessageHandler{}
 }
 
-// ValidateMessage validates a message before broadcasting
+// ValidateMessage validates a message before sending
 func (mh *MessageHandler) ValidateMessage(msg *models.Message) error {
-	if msg.SenderID == "" {
-		return ErrEmptySenderID
+	// SenderID is set from auth, so no need to check empty
+	if msg.ReceiverID == "" {
+		return ErrEmptyReceiverID
 	}
 	if msg.Content == "" {
 		return ErrEmptyContent
@@ -53,9 +54,10 @@ func (mh *MessageHandler) DeserializeMessage(data []byte) (models.Message, error
 
 // Error types for message validation
 var (
-	ErrEmptySenderID  = &MessageError{"sender ID cannot be empty"}
-	ErrEmptyContent   = &MessageError{"message content cannot be empty"}
-	ErrMessageTooLong = &MessageError{"message content is too long"}
+	ErrEmptySenderID   = &MessageError{"sender ID cannot be empty"}
+	ErrEmptyReceiverID = &MessageError{"receiver ID cannot be empty"}
+	ErrEmptyContent    = &MessageError{"message content cannot be empty"}
+	ErrMessageTooLong  = &MessageError{"message content is too long"}
 )
 
 // MessageError represents a message validation error

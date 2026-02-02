@@ -50,11 +50,10 @@ func ProfilePageHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		interestsStr := r.FormValue("interests")
 		var interests []string
-		if interestsStr != "" {
-			// Split by comma and trim spaces
-			parts := strings.Split(interestsStr, ",")
+		// Handle both multiple input values (checkboxes) and comma-separated strings
+		for _, v := range r.Form["interests"] {
+			parts := strings.Split(v, ",")
 			for _, part := range parts {
 				trimmed := strings.TrimSpace(part)
 				if trimmed != "" {

@@ -5,36 +5,57 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
+	"Remainwith/config"
+	"Remainwith/internal/handler"
 	"Remainwith/internal/models"
 
 	"github.com/coder/websocket"
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/time/rate"
 )
 
 // Hub manages websocket connections and message broadcasting
 type Hub struct {
-	// subscribers holds all active websocket connections
-	subscribers map[*websocket.Conn]struct{}
+	// subscribers holds all active websocket connections with userID
+	subscribers map[*websocket.Conn]int
 	mu          sync.RWMutex
 
-	// broadcast channel for incoming messages
-	broadcast chan models.Message
+	// messages channel for incoming messages
+	messages chan models.Message
 
 	// register/unregister channels for connections
-	register   chan *websocket.Conn
+	register chan struct {
+		conn   *websocket.Conn
+		userID int
+	}
 	unregister chan *websocket.Conn
+}
+
+// getUserName retrieves the user's name by ID
+func getUserName(ctx context.Context, userID int) string {
+	var name string
+	err := config.DB.QueryRow(ctx, "SELECT name FROM users WHERE id = $1", userID).Scan(&name)
+	if err != nil {
+		log.Printf("Error getting user name for ID %d: %v", userID, err)
+		return "Unknown User"
+	}
+	return name
 }
 
 // NewHub creates a new websocket hub
 func NewHub() *Hub {
 	h := &Hub{
-		subscribers: make(map[*websocket.Conn]struct{}),
-		broadcast:   make(chan models.Message, 256),
-		register:    make(chan *websocket.Conn),
-		unregister:  make(chan *websocket.Conn),
+		subscribers: make(map[*websocket.Conn]int),
+		messages:    make(chan models.Message, 10000),
+		register: make(chan struct {
+			conn   *websocket.Conn
+			userID int
+		}),
+		unregister: make(chan *websocket.Conn),
 	}
 	go h.run()
 	return h
@@ -44,57 +65,106 @@ func NewHub() *Hub {
 func (h *Hub) run() {
 	for {
 		select {
-		case conn := <-h.register:
+		case reg := <-h.register:
 			h.mu.Lock()
-			h.subscribers[conn] = struct{}{}
+			h.subscribers[reg.conn] = reg.userID
 			h.mu.Unlock()
-			log.Printf("Client connected. Total subscribers: %d", len(h.subscribers))
+			log.Printf("Client connected for user %d. Total subscribers: %d", reg.userID, len(h.subscribers))
 
 		case conn := <-h.unregister:
-			h.mu.Lock()
-			if _, ok := h.subscribers[conn]; ok {
-				delete(h.subscribers, conn)
-				conn.Close(websocket.StatusNormalClosure, "unregistered")
-			}
-			h.mu.Unlock()
+			// Use the helper to cleanly remove and close the connection
+			h.removeSubscriber(conn)
 			log.Printf("Client disconnected. Total subscribers: %d", len(h.subscribers))
 
-		case msg := <-h.broadcast:
+		case msg := <-h.messages:
 			h.mu.RLock()
-			for conn := range h.subscribers {
-				go func(c *websocket.Conn, m models.Message) {
-					ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-					defer cancel()
+			targetID, _ := strconv.Atoi(msg.ReceiverID)
+			senderID, _ := strconv.Atoi(msg.SenderID)
+			isBroadcast := msg.ReceiverID == "all"
 
-					data, err := json.Marshal(m)
-					if err != nil {
-						log.Printf("Error marshaling message: %v", err)
-						return
-					}
+			for conn, userID := range h.subscribers {
+				if (isBroadcast || userID == targetID) && userID != senderID {
+					go func(c *websocket.Conn, m models.Message) {
+						ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+						defer cancel()
 
-					err = c.Write(ctx, websocket.MessageText, data)
-					if err != nil {
-						log.Printf("Error writing to websocket: %v", err)
-						h.unregister <- c
-					}
-				}(conn, msg)
+						// Ensure SenderName is set for group messages
+						if m.IsGroup && m.SenderName == "" {
+							m.SenderName = getUserName(ctx, senderID)
+						}
+
+						data, err := json.Marshal(m)
+						if err != nil {
+							log.Printf("Error marshaling message: %v", err)
+							return
+						}
+
+						err = c.Write(ctx, websocket.MessageText, data)
+						if err != nil {
+							log.Printf("Error writing to websocket: %v", err)
+							// Remove the faulty subscriber and close its connection
+							h.removeSubscriber(c)
+						}
+					}(conn, msg)
+				}
 			}
 			h.mu.RUnlock()
 		}
 	}
 }
 
-// Broadcast sends a message to all connected clients
-func (h *Hub) Broadcast(msg models.Message) {
+// removeSubscriber safely deletes a subscriber from the map and closes the connection.
+// It ensures the connection is closed exactly once.
+func (h *Hub) removeSubscriber(conn *websocket.Conn) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if _, ok := h.subscribers[conn]; ok {
+		delete(h.subscribers, conn)
+		// Close the connection; ignore error if already closed.
+		_ = conn.Close(websocket.StatusNormalClosure, "unregistered")
+	}
+}
+
+// SendMessage sends a message to the specified receiver
+func (h *Hub) SendMessage(msg models.Message) {
 	select {
-	case h.broadcast <- msg:
+	case h.messages <- msg:
 	default:
-		log.Println("Broadcast channel full, dropping message")
+		log.Println("Messages channel full, dropping message")
 	}
 }
 
 // HandleConnection handles a new websocket connection
 func (h *Hub) HandleConnection(w http.ResponseWriter, r *http.Request) {
+	// Authenticate user
+	token := r.URL.Query().Get("token")
+	if token == "" {
+		if c, err := r.Cookie("auth_token"); err == nil {
+			token = c.Value
+		}
+	}
+
+	if token == "" {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	claims := &jwt.MapClaims{}
+	tkn, err := jwt.ParseWithClaims(token, claims, func(token *jwt.Token) (interface{}, error) {
+		return handler.JWTKey, nil
+	})
+	if err != nil || !tkn.Valid {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	userIDFloat, ok := (*claims)["user_id"].(float64)
+	if !ok {
+		http.Error(w, "Invalid token", http.StatusUnauthorized)
+		return
+	}
+	userID := int(userIDFloat)
+
 	conn, err := websocket.Accept(w, r, &websocket.AcceptOptions{
 		OriginPatterns: []string{"*"}, // Allow all origins for development
 	})
@@ -103,8 +173,26 @@ func (h *Hub) HandleConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Register the connection
-	h.register <- conn
+	// Register the connection with userID
+	h.register <- struct {
+		conn   *websocket.Conn
+		userID int
+	}{conn: conn, userID: userID}
+
+	// Start a keep‑alive ping goroutine (optional but improves reliability)
+	go func() {
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				// Send a ping; ignore error – if it fails, the read loop will handle closure
+				_ = conn.Ping(context.Background())
+			case <-r.Context().Done():
+				return
+			}
+		}
+	}()
 
 	// Handle incoming messages with rate limiting
 	limiter := rate.NewLimiter(rate.Every(time.Millisecond*100), 10)
@@ -115,8 +203,11 @@ func (h *Hub) HandleConnection(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	// Read messages from client
+	mh := NewMessageHandler()
 	for {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		// Set a generous read timeout. The 30s ping handler will keep the connection
+		// alive. This timeout is to detect a dead connection where pongs are not received.
+		ctx, cancel := context.WithTimeout(context.Background(), 75*time.Second)
 
 		_, data, err := conn.Read(ctx)
 		cancel()
@@ -143,12 +234,23 @@ func (h *Hub) HandleConnection(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
+		// Set senderID from authenticated user
+		msg.SenderID = strconv.Itoa(userID)
+
+		// Set sender name
+		msg.SenderName = getUserName(r.Context(), userID)
+
 		// Set timestamp if not provided
 		if msg.CreatedAt.IsZero() {
 			msg.CreatedAt = time.Now()
 		}
 
-		// Broadcast the message
-		h.Broadcast(msg)
+		if err := mh.ValidateMessage(&msg); err != nil {
+			log.Printf("Invalid message: %v", err)
+			continue
+		}
+
+		// Send the message to receiver
+		h.SendMessage(msg)
 	}
 }

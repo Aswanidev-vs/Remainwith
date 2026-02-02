@@ -10,6 +10,7 @@ import (
 
 type ChatPageData struct {
 	SuggestedUsers []db.Userinfo
+	UserID         int
 }
 
 func ChatPageHandler(w http.ResponseWriter, r *http.Request) {
@@ -33,6 +34,7 @@ func ChatPageHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := ChatPageData{
+		UserID:         userID,
 		SuggestedUsers: suggestedUsers,
 	}
 
