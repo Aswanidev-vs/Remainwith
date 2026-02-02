@@ -334,8 +334,9 @@
       display: block;
       color: var(--text-muted);
     }
-    
-    .message.own .author-name { display: none; } /* Hide own name */
+
+    .message.own .author-name { display: none; } /* Hide own name for private messages */
+    .message.own.group .author-name { display: block; } /* Show "You" for group messages */
 
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(10px); }
@@ -465,18 +466,47 @@
     <!-- Input Area -->
     <div class="input-area">
       <div class="input-wrapper">
-        <textarea
-          id="messageInput"
-          placeholder="Type a message..."
-          rows="1"
-          oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'"
-        ></textarea>
-        <button class="send-btn" id="sendButton">
-          <span class="material-symbols-outlined">send</span>
-        </button>
+      <select id="receiverSelect" required>
+        <option value="">Select a user to message</option>
+        <option value="all">Group Chat</option>
+        {{range .SuggestedUsers}}
+        <option value="{{.ID}}">{{.Name}}</option>
+        {{end}}
+      </select>
+      <textarea
+        id="messageInput"
+        placeholder="Type a message..."
+        rows="1"
+        oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'"
+      ></textarea>
+      <button class="send-btn" id="sendButton">
+        <span class="material-symbols-outlined">send</span>
+      </button>
       </div>
     </div>
-  </div>
+    </div>
+
+    <style>
+    #receiverSelect {
+      background: transparent;
+      border: none;
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      font-size: 0.9rem;
+      padding: 0.5rem 0.75rem;
+      cursor: pointer;
+      outline: none;
+    }
+
+    #receiverSelect option {
+      background: var(--card-bg);
+      color: var(--text-main);
+    }
+
+    #receiverSelect:hover {
+      opacity: 0.8;
+    }
+    </style>
 
   <script>
     const htmlElement = document.documentElement;
@@ -501,20 +531,73 @@
     const messageInput = document.getElementById('messageInput');
     const sendButton = document.getElementById('sendButton');
     const messagesContainer = document.getElementById('messages');
+    const receiverSelect = document.getElementById('receiverSelect');
+    const userID = {{.UserID}};
+
+    // WebSocket connection
+    let ws = null;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
 
     // Auto-scroll to bottom on load
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-    function addMessage(content, isOwn = true) {
+    function connectWebSocket() {
+      if (ws && ws.readyState === WebSocket.OPEN) return;
+
+      ws = new WebSocket(`ws://localhost:8080/ws`);
+
+      ws.onopen = function(event) {
+        console.log('WebSocket connected');
+        reconnectAttempts = 0;
+      };
+
+      ws.onmessage = function(event) {
+        try {
+          const message = JSON.parse(event.data);
+          console.log('Received message:', message); // Debug logging
+          const isOwn = message.SenderID === userID.toString();
+          addMessage(message, isOwn); // Add received message
+        } catch (e) {
+          console.error('Error parsing message:', e);
+        }
+      };
+
+      ws.onclose = function(event) {
+        console.log('WebSocket disconnected');
+        if (reconnectAttempts < maxReconnectAttempts) {
+          reconnectAttempts++;
+          setTimeout(connectWebSocket, 1000 * reconnectAttempts);
+        }
+      };
+
+      ws.onerror = function(error) {
+        console.error('WebSocket error:', error);
+      };
+    }
+
+    function addMessage(message, isOwn = true, messageId = null) {
+      const content = typeof message === 'string' ? message : message.Content;
+      const isGroup = typeof message === 'object' && message.IsGroup;
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      
+
       const messageDiv = document.createElement('div');
       messageDiv.className = isOwn ? 'message own' : 'message';
+      if (isGroup) messageDiv.classList.add('group');
+      if (messageId) messageDiv.id = `msg-${messageId}`;
 
       // Avatar logic
       const avatarLabel = isOwn ? 'Me' : 'G';
-      const authorName = isOwn ? '' : '<span class="author-name">Guest</span>';
-      
+      let authorName = '';
+      if (isGroup) {
+        authorName = isOwn ? '<span class="author-name">You</span>' : `<span class="author-name">${message.SenderName || 'Guest'}</span>`;
+      } else if (!isOwn) {
+        authorName = '<span class="author-name">Guest</span>';
+      }
+
+      // Status icon: clock for pending, check for sent
+      const statusIcon = isOwn ? '<span class="material-symbols-outlined status-icon" style="font-size:12px">schedule</span>' : '';
+
       // Structure logic
       const innerContent = `
         <div class="avatar">${avatarLabel}</div>
@@ -523,8 +606,8 @@
           <div class="bubble">
             ${content}
             <div class="meta">
-                ${time} 
-                ${isOwn ? '<span class="material-symbols-outlined" style="font-size:12px">schedule</span>' : ''}
+                ${time}
+                ${statusIcon}
             </div>
           </div>
         </div>
@@ -532,23 +615,80 @@
 
       messageDiv.innerHTML = innerContent;
       messagesContainer.appendChild(messageDiv);
-      
+
       // Smooth scroll to bottom
       messagesContainer.scrollTo({
         top: messagesContainer.scrollHeight,
         behavior: 'smooth'
       });
+
+      return messageDiv;
+    }
+
+    function updateMessageStatus(messageElement, success = true) {
+      const statusIcon = messageElement.querySelector('.status-icon');
+      if (statusIcon) {
+        statusIcon.textContent = success ? 'done' : 'error';
+        statusIcon.style.color = success ? 'var(--primary)' : '#ff6b6b';
+      }
+    }
+
+    function sendMessage(content, receiverID) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        console.error('WebSocket not connected');
+        return false;
+      }
+
+      const message = {
+        SenderID: userID.toString(),
+        ReceiverID: receiverID,
+        Content: content,
+        IsGroup: receiverID === 'all',
+        CreatedAt: new Date().toISOString()
+      };
+
+      try {
+        ws.send(JSON.stringify(message));
+        return true;
+      } catch (e) {
+        console.error('Error sending message:', e);
+        return false;
+      }
     }
 
     function handleSend() {
       const content = messageInput.value.trim();
-      if (content) {
-        addMessage(content, true); // Add own message
-        messageInput.value = '';
-        messageInput.style.height = 'auto'; // Reset height
-        messageInput.focus();
+      const receiverID = receiverSelect.value;
+      if (!content || !receiverID) return;
+
+      // Create message object for UI
+      const messageObj = {
+        Content: content,
+        IsGroup: receiverID === 'all'
+      };
+
+      // Add message to UI immediately with pending status
+      const messageElement = addMessage(messageObj, true);
+
+      // Send via WebSocket
+      const sent = sendMessage(content, receiverID);
+
+      if (sent) {
+        // Update status to sent after a brief delay to show the transition
+        setTimeout(() => updateMessageStatus(messageElement, true), 100);
+      } else {
+        // Show error status
+        setTimeout(() => updateMessageStatus(messageElement, false), 100);
       }
+
+      // Clear input
+      messageInput.value = '';
+      messageInput.style.height = 'auto';
+      messageInput.focus();
     }
+
+    // Connect to WebSocket when page loads
+    connectWebSocket();
 
     sendButton.addEventListener('click', handleSend);
 
