@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Video Call · Remainwith</title>
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com" rel="preconnect"/>
+  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&amp;family=Noto+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+  <!-- No external WebRTC library needed, using native WebRTC -->
+
+  <style>
+    /* ==================================================
+       Remainwith Theme Variables (Consistent with Chat)
+       ================================================== */
+    :root {
+      --font-display: "Newsreader", serif;
+      --font-sans: "Noto Sans", sans-serif;
+      --radius-sm: 0.375rem;
+      --radius-md: 0.5rem;
+      --radius-lg: 1rem;
+      --radius-xl: 1.5rem;
+      --radius-full: 9999px;
+      
+      --header-height: 70px;
+      --control-bar-height: 80px;
+    }
+
+    /* Themes */
+    html[data-theme="light"] { --bg-body: #f3f4f1; --text-main: #292524; }
+    html[data-theme="dark"] { --bg-body: #191a18; --text-main: #e7e5e4; }
+    html[data-theme="sepia"] { --bg-body: #f4ecd8; --text-main: #433422; }
+    html[data-theme="forest"] { --bg-body: #1a211e; --text-main: #dcece1; }
+
+    /* ==================================================
+       Layout & Base
+       ================================================== */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #000; /* Video calls usually default to black background */
+      color: #fff;
+      font-family: var(--font-sans);
+      height: 100dvh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* ==================================================
+       Header (Overlay)
+       ================================================== */
+    .call-header {
+        height: var(--header-height);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 1.5rem;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 20;
+        background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
+        pointer-events: none; /* Let clicks pass through to video */
+    }
+
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        pointer-events: auto;
+    }
+
+    .back-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        color: rgba(255,255,255,0.8);
+        text-decoration: none;
+        background: rgba(255,255,255,0.1);
+        backdrop-filter: blur(4px);
+        transition: all 0.2s;
+    }
+    .back-btn:hover { background: rgba(255,255,255,0.2); color: #fff; }
+
+    .participant-info h2 {
+        font-family: var(--font-display);
+        font-size: 1.1rem;
+        font-weight: 500;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    }
+    .participant-info p {
+        font-size: 0.8rem;
+        opacity: 0.8;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    }
+
+    /* ==================================================
+       Video Stage
+       ================================================== */
+    .video-stage {
+        flex: 1;
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    #remoteVideo {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        background: #111;
+    }
+
+    #localVideo {
+        position: absolute;
+        bottom: 100px; /* Space for controls */
+        right: 1.5rem;
+        width: 120px;
+        height: 160px;
+        object-fit: cover;
+        border-radius: var(--radius-lg);
+        border: 2px solid rgba(255,255,255,0.1);
+        background: #222;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        transition: all 0.3s ease;
+        z-index: 10;
+        transform: scaleX(-1); /* Mirror local video */
+    }
+
+    /* Status / Loading State */
+    .status-overlay {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        z-index: 5;
+        pointer-events: none;
+    }
+    .status-icon {
+        font-size: 48px;
+        margin-bottom: 1rem;
+        animation: pulse 2s infinite;
+        opacity: 0.7;
+    }
+    @keyframes pulse { 0% { opacity: 0.4; } 50% { opacity: 0.8; } 100% { opacity: 0.4; } }
+
+    /* ==================================================
+       Controls Bar
+       ================================================== */
+    .controls-bar {
+        height: var(--control-bar-height);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1.5rem;
+        padding-bottom: 1.5rem;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 20;
+        background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+    }
+
+    .control-btn.pin-active {
+        background: #10b981;
+        color: white;
+    }
+
+    .control-btn {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        border: none;
+        background: rgba(255,255,255,0.15);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        backdrop-filter: blur(10px);
+        transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    
+    .control-btn .material-symbols-outlined { font-size: 24px; }
+
+    .control-btn:hover {
+        background: rgba(255,255,255,0.25);
+        transform: scale(1.05);
+    }
+    
+    .control-btn.toggled-off {
+        background: #fff;
+        color: #000;
+    }
+    
+    .control-btn.danger {
+        background: #ef4444;
+        color: white;
+    }
+    .control-btn.danger:hover {
+        background: #dc2626;
+        transform: scale(1.1);
+    }
+
+    @media (max-width: 600px) {
+        #localVideo { width: 90px; height: 120px; bottom: 90px; right: 1rem; }
+        .control-btn { width: 48px; height: 48px; }
+    }
+  </style>
+</head>
+<body>
+
+    <!-- Header Overlay -->
+    <header class="call-header">
+        <div class="header-left">
+            <a href="/campfire" class="back-btn" aria-label="End call and go back">
+                <span class="material-symbols-outlined">arrow_back</span>
+            </a>
+            <div class="participant-info">
+                <h2 id="remoteName">Campfire Call</h2>
+                <p id="callStatus">Connecting...</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Video Stage -->
+    <div class="video-stage">
+        <div class="status-overlay" id="statusOverlay">
+            <span class="material-symbols-outlined status-icon">sensors</span>
+            <p>Waiting for others to join...</p>
+        </div>
+        <video id="remoteVideo" autoplay playsinline></video>
+        <video id="localVideo" autoplay playsinline muted></video>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls-bar">
+        <button class="control-btn" id="btnMic" onclick="toggleMic()">
+            <span class="material-symbols-outlined">mic</span>
+        </button>
+        
+        <button class="control-btn danger" id="btnEnd" onclick="endCall()">
+            <span class="material-symbols-outlined">call_end</span>
+        </button>
+        
+        <button class="control-btn" id="btnCam" onclick="toggleCam()">
+            <span class="material-symbols-outlined">videocam</span>
+        </button>
+    </div>
+
+    <script>
+        // --- Theme Logic (Read-only for consistency) ---
+        const storageKey = 'remainwith-theme';
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+        const savedTheme = getCookie(storageKey);
+        if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+
+        // --- Native WebRTC Video Call Logic ---
+        const localVideo = document.getElementById('localVideo');
+        const remoteVideo = document.getElementById('remoteVideo');
+        const statusOverlay = document.getElementById('statusOverlay');
+        const callStatus = document.getElementById('callStatus');
+        const btnMic = document.getElementById('btnMic');
+        const btnCam = document.getElementById('btnCam');
+
+        let localStream = null;
+        let pc = null; // Peer connection to SFU
+        let sfuWs = null; // WebSocket for SFU (WebRTC signaling)
+        let roomWs = null; // WebSocket for room management
+        let roomID = null;
+
+        // Get user info from backend
+        const userID = {{.UserID}};
+        const userName = "{{.UserName}}";
+
+        // WebRTC configuration
+        const rtcConfig = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+            ]
+        };
+
+        async function startLocalStream() {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                localVideo.srcObject = localStream;
+                console.log('Local stream started');
+            } catch (err) {
+                console.error("Error accessing media devices:", err);
+                alert("Could not access camera or microphone. Please check permissions.");
+            }
+        }
+
+        async function createOrJoinRoom() {
+            try {
+                const roomName = 'campfire-call';
+
+                // Create room
+                const createResponse = await fetch('/api/video/create-room', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ room_name: roomName })
+                });
+
+                if (!createResponse.ok) {
+                    throw new Error('Failed to create room');
+                }
+
+                const createData = await createResponse.json();
+                roomID = createData.room_id;
+
+                // Join room
+                const joinResponse = await fetch('/api/video/join-room', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        room_name: roomName,
+                        participant_name: userName,
+                        participant_identity: userID.toString()
+                    })
+                });
+
+                if (!joinResponse.ok) {
+                    throw new Error('Failed to join room');
+                }
+
+                // Connect to WebSockets
+                connectWebSockets();
+
+            } catch (error) {
+                console.error('Error setting up room:', error);
+                callStatus.textContent = 'Connection failed';
+                statusOverlay.innerHTML = `
+                    <span class="material-symbols-outlined status-icon" style="color: #ef4444;">error</span>
+                    <p>Failed to connect. Please try again.</p>
+                `;
+            }
+        }
+
+        function connectWebSockets() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+
+            // Connect to SFU for WebRTC signaling
+            const sfuUrl = `${protocol}//${window.location.host}/ws/sfu?client_id=${userID}&room_id=${roomID}`;
+            sfuWs = new WebSocket(sfuUrl);
+
+            sfuWs.onopen = async () => {
+                console.log('SFU WebSocket connected');
+                // Create peer connection
+                pc = new RTCPeerConnection(rtcConfig);
+                // Add local tracks
+                if (localStream) {
+                    localStream.getTracks().forEach(track => {
+                        pc.addTrack(track, localStream);
+                    });
+                }
+                // Handle remote tracks
+                pc.ontrack = (event) => {
+                    console.log('Received remote track');
+                    if (event.streams[0]) {
+                        remoteVideo.srcObject = event.streams[0];
+                        remoteVideo.style.display = 'block';
+                        statusOverlay.style.display = 'none';
+                    }
+                };
+                // Handle ICE candidates
+                pc.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        sendSFUMessage({
+                            type: 'candidate',
+                            candidate: {
+                                candidate: event.candidate.candidate,
+                                sdpMid: event.candidate.sdpMid,
+                                sdpMLineIndex: event.candidate.sdpMLineIndex
+                            }
+                        });
+                    }
+                };
+                updateStatus('Connected');
+            };
+
+            sfuWs.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                handleSFUMessage(msg);
+            };
+
+            sfuWs.onclose = () => {
+                console.log('SFU WebSocket closed');
+                callStatus.textContent = 'Disconnected';
+            };
+
+            sfuWs.onerror = (error) => {
+                console.error('SFU WebSocket error:', error);
+            };
+
+            // Connect to signaling for room management
+            const signalingUrl = `${protocol}//${window.location.host}/ws/signaling?user_id=${userID}&room_id=${roomID}`;
+            roomWs = new WebSocket(signalingUrl);
+
+            roomWs.onopen = () => {
+                console.log('Room WebSocket connected');
+                // Send join message
+                sendRoomMessage({
+                    type: 'join'
+                });
+            };
+
+            roomWs.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                handleRoomMessage(msg);
+            };
+
+            roomWs.onclose = () => {
+                console.log('Room WebSocket closed');
+            };
+
+            roomWs.onerror = (error) => {
+                console.error('Room WebSocket error:', error);
+            };
+        }
+
+        function sendSFUMessage(msg) {
+            if (sfuWs && sfuWs.readyState === WebSocket.OPEN) {
+                sfuWs.send(JSON.stringify(msg));
+            }
+        }
+
+        function sendRoomMessage(msg) {
+            if (roomWs && roomWs.readyState === WebSocket.OPEN) {
+                roomWs.send(JSON.stringify(msg));
+            }
+        }
+
+        function handleSFUMessage(msg) {
+            switch (msg.type) {
+                case 'offer':
+                    handleOffer(msg);
+                    break;
+                case 'answer':
+                    handleAnswer(msg);
+                    break;
+                case 'candidate':
+                    handleCandidate(msg);
+                    break;
+            }
+        }
+
+        function handleRoomMessage(msg) {
+            // Handle room management messages (mute_status, camera_status, etc.)
+            console.log('Room message:', msg);
+        }
+
+
+
+        async function handleAnswer(msg) {
+            if (pc) {
+                await pc.setRemoteDescription(new RTCSessionDescription({
+                    type: 'answer',
+                    sdp: msg.answer
+                }));
+            }
+        }
+
+        async function handleCandidate(msg) {
+            if (pc) {
+                await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
+            }
+        }
+
+
+
+        function updateStatus(status) {
+            callStatus.textContent = status;
+            if (status === 'Connected') {
+                statusOverlay.style.display = 'none';
+            }
+        }
+
+        function toggleMic() {
+            if (!localStream) return;
+            const audioTrack = localStream.getAudioTracks()[0];
+            if (audioTrack) {
+                audioTrack.enabled = !audioTrack.enabled;
+                btnMic.classList.toggle('toggled-off', !audioTrack.enabled);
+                btnMic.querySelector('span').textContent = audioTrack.enabled ? 'mic' : 'mic_off';
+
+                sendRoomMessage({
+                    type: 'mute',
+                    data: !audioTrack.enabled
+                });
+            }
+        }
+
+        function toggleCam() {
+            if (!localStream) return;
+            const videoTrack = localStream.getVideoTracks()[0];
+            if (videoTrack) {
+                videoTrack.enabled = !videoTrack.enabled;
+                btnCam.classList.toggle('toggled-off', !videoTrack.enabled);
+                btnCam.querySelector('span').textContent = videoTrack.enabled ? 'videocam' : 'videocam_off';
+
+                sendRoomMessage({
+                    type: 'camera_toggle',
+                    data: !videoTrack.enabled
+                });
+            }
+        }
+
+
+
+        function endCall() {
+            // Close peer connection
+            if (pc) {
+                pc.close();
+            }
+
+            // Close WebSockets
+            if (sfuWs) {
+                sfuWs.close();
+            }
+            if (roomWs) {
+                roomWs.close();
+            }
+
+            // Stop local stream
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+
+            window.location.href = '/campfire';
+        }
+
+        // Initialize
+        async function init() {
+            await startLocalStream();
+            await createOrJoinRoom();
+        }
+
+        init();
+    </script>
+</body>
+</html>

@@ -23,6 +23,7 @@
       --radius-md: 0.5rem;
       --radius-lg: 1rem;
       --radius-xl: 1.5rem;
+      --radius-full: 9999px;
       
       /* Shared spacing */
       --header-height: 70px;
@@ -103,6 +104,7 @@
       --bubble-self: #76a881;
       --bubble-self-text: #111a15;
       --bubble-other: #222b26;
+      
     }
 
     /* ==================================================
@@ -179,12 +181,32 @@
     .header-info p {
       font-size: 0.85rem;
       color: var(--text-muted);
+      transition: color 0.3s ease;
     }
 
-    .header-actions span {
-      color: var(--text-muted);
-      cursor: pointer;
+    .header-actions {
+      position: relative; /* For menu positioning */
     }
+    .theme-selector-wrapper { position: relative; display: inline-flex; align-items: center; width: fit-content; }
+    .icon-palette {
+        position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+        font-size: 18px !important; color: var(--text-muted); pointer-events: none; z-index: 2;
+    }
+    .theme-select {
+        appearance: none; -webkit-appearance: none; cursor: pointer;
+        background-color: var(--card-bg); color: var(--text-main);
+        border: 1px solid var(--card-border); border-radius: var(--radius-full);
+        padding: 0.6rem 2.5rem 0.6rem 38px;
+        font-size: 0.9rem; font-family: var(--font-sans); font-weight: 500;
+        transition: all 0.2s ease-in-out; z-index: 1;
+
+    }
+    .icon-chevron {
+        position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+        font-size: 20px !important; color: var(--text-muted); pointer-events: none; z-index: 2;
+    }
+    .theme-select:hover { border-color: var(--primary); background-color: var(--divider); }
+    .theme-selector-wrapper:hover .material-symbols-outlined { color: var(--primary); }
 
     /* ==================================================
        Suggested Users Section
@@ -204,17 +226,33 @@
 
     .suggested-users-list {
       display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
+      gap: 0.75rem;
+      overflow-x: auto; /* Allow horizontal scrolling on mobile */
+      padding-bottom: 0.5rem; /* Space for scrollbar */
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none; /* Firefox */
+    }
+    .suggested-users-list::-webkit-scrollbar {
+      display: none; /* Chrome, Safari */
     }
 
     .suggested-user {
-      background: var(--primary);
-      color: var(--primary-fg);
-      padding: 0.25rem 0.75rem;
+      background: var(--card-bg);
+      color: var(--text-muted);
+      padding: 0.35rem 1rem;
       border-radius: var(--radius-full);
       font-size: 0.85rem;
       font-weight: 500;
+      border: 1px solid var(--card-border);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      flex-shrink: 0; /* Prevent buttons from shrinking */
+    }
+    .suggested-user:hover, .suggested-user.active {
+      background: var(--primary);
+      color: var(--primary-fg);
+      border-color: var(--primary);
+      transform: translateY(-1px);
     }
 
     /* ==================================================
@@ -308,6 +346,29 @@
       border-bottom-right-radius: 4px; /* Asymmetric shape */
     }
 
+    /* Bubble tails for classic chat look */
+    .bubble::before {
+      content: '';
+      position: absolute;
+      bottom: 0px;
+      width: var(--bubble-tail-size);
+      height: 20px;
+    }
+
+    .message:not(.own) .bubble::before {
+      left: -5px;
+      background: var(--bubble-other);
+      border-bottom-right-radius: 15px 10px;
+      border-left: 1px solid var(--card-border);
+      border-bottom: 1px solid var(--card-border);
+    }
+
+    .message.own .bubble::before {
+      right: -5px;
+      background: var(--bubble-self);
+      border-bottom-left-radius: 15px 10px;
+    }
+
     .meta {
       display: flex;
       align-items: center;
@@ -347,9 +408,47 @@
        Input Area
        ================================================== */
     .input-area {
-      padding: 1rem 1.5rem 1.5rem 1.5rem;
+      padding: 0.75rem 1.5rem 1.5rem 1.5rem;
       background: var(--bg-body);
       border-top: 1px solid var(--divider);
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .recipient-picker {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.25rem 0.5rem 0.25rem 1rem;
+      background: var(--input-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-full);
+      font-size: 0.9rem;
+      box-shadow: var(--shadow-sm);
+    }
+    .recipient-picker .material-symbols-outlined {
+      font-size: 18px;
+      color: var(--text-subtle);
+    }
+    #receiverSelect {
+      flex-grow: 1;
+      background: transparent;
+      border: none;
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      cursor: pointer;
+      outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+      padding: 0.4rem;
+    }
+    #receiverSelect:invalid {
+      color: var(--text-subtle);
+    }
+    #receiverSelect option {
+      background: var(--card-bg);
+      color: var(--text-main);
     }
 
     .input-wrapper {
@@ -438,11 +537,20 @@
         </a>
         <div class="header-info">
           <h1>Campfire Chat</h1>
-          <p>Connect with like-minded people</p>
+          <p id="online-status">Connecting...</p>
         </div>
       </div>
       <div class="header-actions">
-        <span class="material-symbols-outlined">more_vert</span>
+        <div class="theme-selector-wrapper">
+            <span class="material-symbols-outlined icon-palette">palette</span>
+            <select class="theme-select" id="theme-select" aria-label="Select Theme">
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+                <option value="sepia">Sepia</option>
+                <option value="forest">Forest</option>
+            </select>
+            <span class="material-symbols-outlined icon-chevron">expand_more</span>
+        </div>
       </div>
     </header>
 
@@ -452,7 +560,7 @@
       <h3>People with similar interests</h3>
       <div class="suggested-users-list">
         {{range .SuggestedUsers}}
-        <span class="suggested-user">{{.Name}}</span>
+        <button class="suggested-user" data-user-id="{{.ID}}" data-user-name="{{.Name}}">{{.Name}}</button>
         {{end}}
       </div>
     </section>
@@ -465,14 +573,17 @@
 
     <!-- Input Area -->
     <div class="input-area">
+      <div class="recipient-picker">
+        <span class="material-symbols-outlined">alternate_email</span>
+        <select id="receiverSelect" required>
+          <option value="" disabled selected>Choose a recipient...</option>
+          <option value="all">Campfire (Group Chat)</option>
+          {{range .SuggestedUsers}}
+          <option value="{{.ID}}">{{.Name}}</option>
+          {{end}}
+        </select>
+      </div>
       <div class="input-wrapper">
-      <select id="receiverSelect" required>
-        <option value="">Select a user to message</option>
-        <option value="all">Group Chat</option>
-        {{range .SuggestedUsers}}
-        <option value="{{.ID}}">{{.Name}}</option>
-        {{end}}
-      </select>
       <textarea
         id="messageInput"
         placeholder="Type a message..."
@@ -484,29 +595,7 @@
       </button>
       </div>
     </div>
-    </div>
-
-    <style>
-    #receiverSelect {
-      background: transparent;
-      border: none;
-      color: var(--text-main);
-      font-family: var(--font-sans);
-      font-size: 0.9rem;
-      padding: 0.5rem 0.75rem;
-      cursor: pointer;
-      outline: none;
-    }
-
-    #receiverSelect option {
-      background: var(--card-bg);
-      color: var(--text-main);
-    }
-
-    #receiverSelect:hover {
-      opacity: 0.8;
-    }
-    </style>
+  </div>
 
   <script>
     const htmlElement = document.documentElement;
@@ -518,20 +607,39 @@
         if (parts.length === 2) return parts.pop().split(';').shift();
     }
 
-    function setTheme(theme) {
-        htmlElement.setAttribute('data-theme', theme);
+    function setCookie(name, value, days) {
+        let expires = "";
+        if (days) {
+            const date = new Date();
+            date.setTime(date.getTime() + (days*24*60*60*1000));
+            expires = "; expires=" + date.toUTCString();
+        }
+        document.cookie = name + "=" + (value || "")  + expires + "; path=/";
     }
 
-    // Load saved theme on page load (Logic unchanged)
-    const savedTheme = getCookie(storageKey);
-    if (savedTheme) {
-        setTheme(savedTheme);
+    const themeSelect = document.getElementById('theme-select');
+
+    function setTheme(theme) {
+        htmlElement.setAttribute('data-theme', theme);
+        if (themeSelect) themeSelect.value = theme;
     }
+
+    function loadTheme() {
+        const savedTheme = getCookie(storageKey);
+        if (savedTheme) {
+            setTheme(savedTheme);
+        } else {
+            const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            setTheme(systemDark ? 'dark' : 'light');
+        }
+    }
+    loadTheme();
 
     const messageInput = document.getElementById('messageInput');
     const sendButton = document.getElementById('sendButton');
     const messagesContainer = document.getElementById('messages');
     const receiverSelect = document.getElementById('receiverSelect');
+    const suggestedUserButtons = document.querySelectorAll('.suggested-user');
     const userID = {{.UserID}};
 
     // WebSocket connection
@@ -545,7 +653,10 @@
     function connectWebSocket() {
       if (ws && ws.readyState === WebSocket.OPEN) return;
 
-      ws = new WebSocket(`ws://localhost:8080/ws`);
+      // Use the current page's protocol and host for WebSocket connection
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws`;
+      ws = new WebSocket(wsUrl);
 
       ws.onopen = function(event) {
         console.log('WebSocket connected');
@@ -555,7 +666,13 @@
       ws.onmessage = function(event) {
         try {
           const message = JSON.parse(event.data);
-          console.log('Received message:', message); // Debug logging
+          console.log('Received data:', message); // Debug logging
+
+          if (message.type === 'user_count_update') {
+            updateOnlineCount(message.count);
+            return;
+          }
+
           const isOwn = message.SenderID === userID.toString();
           addMessage(message, isOwn); // Add received message
         } catch (e) {
@@ -576,23 +693,50 @@
       };
     }
 
+    function updateOnlineCount(count) {
+        const statusElement = document.getElementById('online-status');
+        if (!statusElement) return;
+
+        if (count > 1) {
+            statusElement.textContent = `${count} people online`;
+            statusElement.style.color = 'var(--primary)';
+        } else if (count === 1) {
+            statusElement.textContent = `You're the only one here`;
+            statusElement.style.color = 'var(--text-muted)';
+        } else {
+            statusElement.textContent = `Connecting...`;
+            statusElement.style.color = 'var(--text-subtle)';
+        }
+    }
+
+    function getInitials(name) {
+        if (!name || typeof name !== 'string') return '?';
+        const parts = name.trim().split(' ').filter(Boolean);
+        if (parts.length > 1) {
+            return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+        }
+        if (parts.length === 1 && parts[0].length > 1) {
+            return parts[0].substring(0, 2).toUpperCase();
+        }
+        return name.substring(0, 1).toUpperCase();
+    }
+
     function addMessage(message, isOwn = true, messageId = null) {
       const content = typeof message === 'string' ? message : message.Content;
       const isGroup = typeof message === 'object' && message.IsGroup;
       const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const senderName = message.SenderName || 'Guest';
 
       const messageDiv = document.createElement('div');
       messageDiv.className = isOwn ? 'message own' : 'message';
       if (isGroup) messageDiv.classList.add('group');
       if (messageId) messageDiv.id = `msg-${messageId}`;
 
-      // Avatar logic
-      const avatarLabel = isOwn ? 'Me' : 'G';
       let authorName = '';
       if (isGroup) {
-        authorName = isOwn ? '<span class="author-name">You</span>' : `<span class="author-name">${message.SenderName || 'Guest'}</span>`;
+        authorName = isOwn ? '<span class="author-name">You</span>' : `<span class="author-name">${senderName}</span>`;
       } else if (!isOwn) {
-        authorName = '<span class="author-name">Guest</span>';
+        authorName = `<span class="author-name">${senderName}</span>`;
       }
 
       // Status icon: clock for pending, check for sent
@@ -600,7 +744,7 @@
 
       // Structure logic
       const innerContent = `
-        <div class="avatar">${avatarLabel}</div>
+        <div class="avatar">${isOwn ? 'You' : getInitials(senderName)}</div>
         <div>
           ${authorName}
           <div class="bubble">
@@ -698,6 +842,29 @@
         handleSend();
       }
     });
+
+    suggestedUserButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const userId = button.dataset.userId;
+        receiverSelect.value = userId;
+
+        // Update active state for visual feedback
+        suggestedUserButtons.forEach(btn => btn.classList.remove('active'));
+        button.classList.add('active');
+
+        // Optional: give focus to input
+        messageInput.focus();
+      });
+    });
+
+    // Theme Switcher Logic
+    if (themeSelect) {
+      themeSelect.addEventListener('change', (e) => {
+            const theme = e.target.value;
+            setTheme(theme);
+            setCookie(storageKey, theme, 365); // Save theme choice for 1 year
+      });
+    }
   </script>
 </body>
 </html>
