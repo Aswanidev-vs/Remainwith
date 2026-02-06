@@ -10,12 +10,14 @@ import (
 
 // CreateRoom creates a new room for video calls
 func CreateRoom(ctx context.Context, roomName string, hostID, hostName string) (*signaling.Room, error) {
+	log.Printf("Video.CreateRoom called with roomName='%s', hostID='%s'", roomName, hostID)
 	rm := signaling.GetRoomManager()
 	room := rm.CreateRoom(roomName, hostID, hostName)
 	if room == nil {
+		log.Printf("Video.CreateRoom: failed to create room")
 		return nil, errors.New("failed to create room")
 	}
-	log.Printf("Created room: %s", room.ID)
+	log.Printf("Video.CreateRoom: success - room.ID=%s, room.Name=%s", room.ID, room.Name)
 	return room, nil
 }
 

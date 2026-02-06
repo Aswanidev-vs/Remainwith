@@ -1,0 +1,8 @@
+2026/02/06 20:47:06 Connected to PostgreSQL successfully!
+2026/02/06 20:47:06 Server listening on http://localhost:8081
+2026/02/06 20:49:52 Connected to PostgreSQL successfully!
+2026/02/06 20:49:52 Server listening on http://localhost:8080
+exit status 0xc000013a
+2026/02/06 20:56:56 Connected to PostgreSQL successfully!
+2026/02/06 20:56:56 Server listening on http://localhost:8080
+exit status 0xc000013a

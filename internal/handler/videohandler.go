@@ -111,15 +111,16 @@ func JoinRoomHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid JSON", http.StatusBadRequest)
 		return
 	}
-	token, err := video.JoinRoom(req.RoomName, req.ParticipantName, req.ParticipantIdentity)
+	roomID, err := video.JoinRoom(req.RoomName, req.ParticipantName, req.ParticipantIdentity)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
-		"token": token,
+		"room_id": roomID,
 	})
+
 }
 
 func ListParticipantsHandler(w http.ResponseWriter, r *http.Request) {

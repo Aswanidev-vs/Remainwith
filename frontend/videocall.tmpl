@@ -123,6 +123,17 @@
         background: #111;
     }
 
+    /* Dynamic remote video elements for multiple participants */
+    video[id^="video-"] {
+        object-fit: cover;
+        background: #111;
+        position: absolute;
+        z-index: 5;
+        top: 0;
+        left: 0;
+        display: block;
+    }
+
     #localVideo {
         position: absolute;
         bottom: 100px; /* Space for controls */
@@ -216,11 +227,197 @@
         transform: scale(1.1);
     }
 
+    /* ==================================================
+       Room Selection Dialog
+       ================================================== */
+    .room-dialog {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.85);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        backdrop-filter: blur(8px);
+    }
+
+    .room-dialog-content {
+        background: var(--bg-body, #f3f4f1);
+        color: var(--text-main, #292524);
+        padding: 2.5rem;
+        border-radius: var(--radius-xl);
+        max-width: 420px;
+        width: 90%;
+        text-align: center;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    }
+
+    .room-dialog-content h2 {
+        font-family: var(--font-display);
+        font-size: 1.75rem;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+    }
+
+    .room-dialog-subtitle {
+        color: #666;
+        margin-bottom: 2rem;
+        font-size: 0.95rem;
+    }
+
+    .room-section {
+        margin-bottom: 1.5rem;
+    }
+
+    .room-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        width: 100%;
+        padding: 1rem 1.5rem;
+        border: none;
+        border-radius: var(--radius-lg);
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .room-btn .material-symbols-outlined {
+        font-size: 20px;
+    }
+
+    .create-btn {
+        background: #10b981;
+        color: white;
+    }
+    .create-btn:hover {
+        background: #059669;
+        transform: translateY(-1px);
+    }
+
+    .join-btn {
+        background: #3b82f6;
+        color: white;
+    }
+    .join-btn:hover {
+        background: #2563eb;
+        transform: translateY(-1px);
+    }
+
+    .divider {
+        display: flex;
+        align-items: center;
+        text-align: center;
+        margin: 1.5rem 0;
+        color: #888;
+        font-size: 0.875rem;
+    }
+    .divider::before,
+    .divider::after {
+        content: '';
+        flex: 1;
+        border-bottom: 1px solid #ddd;
+    }
+    .divider::before { margin-right: 1rem; }
+    .divider::after { margin-left: 1rem; }
+
+    .room-input {
+        width: 100%;
+        padding: 0.875rem 1rem;
+        border: 2px solid #e5e5e5;
+        border-radius: var(--radius-md);
+        font-size: 1.25rem;
+        text-align: center;
+        letter-spacing: 0.25em;
+        margin-bottom: 1rem;
+        transition: border-color 0.2s;
+    }
+    .room-input:focus {
+        outline: none;
+        border-color: #3b82f6;
+    }
+
+    .room-id-display {
+        margin-top: 1.5rem;
+        padding: 1.5rem;
+        background: #f0fdf4;
+        border: 2px dashed #10b981;
+        border-radius: var(--radius-lg);
+    }
+
+    .room-id-box {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        margin: 1rem 0;
+    }
+
+    .room-id-text {
+        font-family: 'Courier New', monospace;
+        font-size: 2rem;
+        font-weight: 700;
+        color: #059669;
+        letter-spacing: 0.15em;
+    }
+
+    .copy-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border: none;
+        background: #10b981;
+        color: white;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .copy-btn:hover {
+        background: #059669;
+    }
+
+    .room-hint {
+        font-size: 0.875rem;
+        color: #666;
+        margin-bottom: 1rem;
+    }
+
+    .enter-room-btn {
+        width: 100%;
+        padding: 0.875rem;
+        border: none;
+        background: #059669;
+        color: white;
+        border-radius: var(--radius-md);
+        font-size: 1rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .enter-room-btn:hover {
+        background: #047857;
+    }
+
+    .join-section {
+        display: flex;
+        flex-direction: column;
+    }
+
     @media (max-width: 600px) {
         #localVideo { width: 90px; height: 120px; bottom: 90px; right: 1rem; }
         .control-btn { width: 48px; height: 48px; }
+        .room-dialog-content { padding: 1.5rem; }
+        .room-id-text { font-size: 1.5rem; }
     }
   </style>
+
 </head>
 <body>
 
@@ -237,8 +434,48 @@
         </div>
     </header>
 
+    <!-- Room Selection Dialog -->
+    <div class="room-dialog" id="roomDialog">
+        <div class="room-dialog-content">
+            <h2>Video Call</h2>
+            <p class="room-dialog-subtitle">Create a new room or join an existing one</p>
+            
+            <div class="room-section">
+                <button class="room-btn create-btn" onclick="createRoom()">
+                    <span class="material-symbols-outlined">add_circle</span>
+                    Create Room
+                </button>
+                <div class="room-id-display" id="createdRoomId" style="display: none;">
+                    <p>Your Room ID:</p>
+                    <div class="room-id-box">
+                        <span id="roomIdText" class="room-id-text"></span>
+                        <button class="copy-btn" onclick="copyRoomId()" title="Copy to clipboard">
+                            <span class="material-symbols-outlined">content_copy</span>
+                        </button>
+                    </div>
+                    <p class="room-hint">Share this ID with others to join</p>
+                    <button class="enter-room-btn" onclick="enterCreatedRoom()">
+                        Enter Room
+                    </button>
+                </div>
+            </div>
+            
+            <div class="divider">or</div>
+            
+            <div class="room-section">
+                <div class="join-section">
+                    <input type="text" id="joinRoomId" class="room-input" placeholder="Enter 6-digit Room ID" maxlength="6">
+                    <button class="room-btn join-btn" onclick="joinRoom()">
+                        <span class="material-symbols-outlined">login</span>
+                        Join Room
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Video Stage -->
-    <div class="video-stage">
+    <div class="video-stage" id="videoStage" style="display: none;">
         <div class="status-overlay" id="statusOverlay">
             <span class="material-symbols-outlined status-icon">sensors</span>
             <p>Waiting for others to join...</p>
@@ -246,6 +483,7 @@
         <video id="remoteVideo" autoplay playsinline></video>
         <video id="localVideo" autoplay playsinline muted></video>
     </div>
+
 
     <!-- Controls -->
     <div class="controls-bar">
@@ -280,60 +518,743 @@
         const callStatus = document.getElementById('callStatus');
         const btnMic = document.getElementById('btnMic');
         const btnCam = document.getElementById('btnCam');
+        const roomDialog = document.getElementById('roomDialog');
+        const videoStage = document.getElementById('videoStage');
+        const createdRoomIdDiv = document.getElementById('createdRoomId');
+        const roomIdText = document.getElementById('roomIdText');
+        const joinRoomIdInput = document.getElementById('joinRoomId');
 
         let localStream = null;
         let pc = null; // Peer connection to SFU
         let sfuWs = null; // WebSocket for SFU (WebRTC signaling)
         let roomWs = null; // WebSocket for room management
         let roomID = null;
+        let generatedRoomId = null;
+        let isConnecting = false;
+        let reconnectAttempts = 0;
+        const MAX_RECONNECT_ATTEMPTS = 3;
+        
+        // Port forwarding detection
+        const isPortForwarded = window.location.protocol === 'http:' || 
+                              window.location.hostname === 'localhost' || 
+                              window.location.hostname === '127.0.0.1' ||
+                              window.location.hostname.includes('.app.github.dev'); // VS Code tunnels
+        
+        // Map to track remote video elements by participant (using stable participant ID)
+        const remoteVideos = new Map(); // participantID -> {element, stream, tracks, audioTrack, videoTrack}
+        // Track which streams we've already processed to avoid duplicates
+        const processedStreams = new Set();
+        // Map of stream IDs to participant IDs for grouping tracks
+        const streamToParticipant = new Map();
+        // Counter for participant IDs to ensure consistency
+        let participantCounter = 0;
+
+        
+        // Connection state tracking
+        let connectionState = 'new'; // new, connecting, connected, disconnected, failed
+
+
 
         // Get user info from backend
         const userID = {{.UserID}};
         const userName = "{{.UserName}}";
 
-        // WebRTC configuration
+        // WebRTC configuration with STUN and TURN servers
+        // Enhanced configuration for VS Code port forwarding and restrictive NATs
+        // For port forwarding, we rely heavily on TURN servers since direct P2P is blocked
         const rtcConfig = {
             iceServers: [
+                // TURN servers FIRST - these work through port forwarding
+                // OpenRelay (free, public TURN servers)
+                {
+                    urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443', 'turn:openrelay.metered.ca:443?transport=tcp'],
+                    username: 'openrelayproject',
+                    credential: 'openrelayproject'
+                },
+                // Additional TURN server options for reliability
+                {
+                    urls: 'turn:45.33.52.3:3478?transport=tcp',
+                    username: 'webrtc',
+                    credential: 'webrtc'
+                },
+                // STUN servers as fallback (less reliable with port forwarding)
                 { urls: 'stun:stun.l.google.com:19302' },
-                { urls: 'stun:stun1.l.google.com:19302' }
-            ]
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun.cloudflare.com:3478' }
+            ],
+            // ICE candidate policies for port forwarding
+            iceTransportPolicy: 'all', // Try all candidates (host, srflx, relay)
+            // Bundle: Use single transport for all media (important for forwarding)
+            bundlePolicy: 'max-bundle',
+            // RTCP mux: Share transport (important for conserving connections)
+            rtcpMuxPolicy: 'require',
+            // ICE pool size
+            iceCandidatePoolSize: 10
         };
 
-        async function startLocalStream() {
+
+        // Video constraints for optimal streaming (fixes video packet issues)
+        const videoConstraints = {
+            width: { ideal: 1280, min: 640 },
+            height: { ideal: 720, min: 480 },
+            frameRate: { ideal: 30, min: 15 }
+        };
+        
+        const audioConstraints = {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+        };
+
+        // Generate a 6-digit room ID
+        function generateRoomId() {
+            return Math.floor(100000 + Math.random() * 900000).toString();
+        }
+
+        // Create a new room
+        async function createRoom() {
+            generatedRoomId = generateRoomId();
+            roomIdText.textContent = generatedRoomId;
+            createdRoomIdDiv.style.display = 'block';
+            console.log('Generated room ID:', generatedRoomId);
+        }
+
+        // Copy room ID to clipboard
+        async function copyRoomId() {
             try {
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                localVideo.srcObject = localStream;
-                console.log('Local stream started');
+                await navigator.clipboard.writeText(generatedRoomId);
+                const copyBtn = document.querySelector('.copy-btn');
+                copyBtn.innerHTML = '<span class="material-symbols-outlined">check</span>';
+                setTimeout(() => {
+                    copyBtn.innerHTML = '<span class="material-symbols-outlined">content_copy</span>';
+                }, 2000);
             } catch (err) {
-                console.error("Error accessing media devices:", err);
-                alert("Could not access camera or microphone. Please check permissions.");
+                console.error('Failed to copy:', err);
+                // Fallback: select text
+                const range = document.createRange();
+                range.selectNode(roomIdText);
+                window.getSelection().removeAllRanges();
+                window.getSelection().addRange(range);
             }
         }
 
+        // Enter the created room
+        async function enterCreatedRoom() {
+            if (!generatedRoomId) return;
+            roomID = generatedRoomId;
+            await startVideoCall();
+        }
+
+        // Join an existing room
+        async function joinRoom() {
+            const enteredId = joinRoomIdInput.value.trim();
+            if (!enteredId || enteredId.length !== 6 || !/^\d{6}$/.test(enteredId)) {
+                alert('Please enter a valid 6-digit room ID');
+                return;
+            }
+            roomID = enteredId;
+            await startVideoCall();
+        }
+
+        // Start the video call after room selection
+        async function startVideoCall() {
+            // Hide dialog, show video stage
+            roomDialog.style.display = 'none';
+            videoStage.style.display = 'flex';
+            
+            // Update header
+            document.querySelector('.participant-info h2').textContent = 'Room: ' + roomID;
+            
+            // Start local stream first
+            await startLocalStream();
+            
+            // Create peer connection before connecting WebSocket
+            createPeerConnection();
+            
+            // Now connect to room and WebSockets
+            await createOrJoinRoom();
+        }
+        
+        // Create peer connection early, before WebSocket connection
+        function createPeerConnection() {
+            if (pc) {
+                pc.close();
+            }
+            
+            console.log('Creating peer connection with config:', rtcConfig);
+            pc = new RTCPeerConnection(rtcConfig);
+            console.log('Peer connection created');
+            
+            // DO NOT add transceivers upfront - let tracks create them
+            // Adding recvonly transceivers conflicts with local track sending
+            
+            // Add local tracks if available (for sending to SFU)
+            if (localStream) {
+                console.log('Adding local tracks to peer connection...');
+                localStream.getTracks().forEach(track => {
+                    try {
+                        const sender = pc.addTrack(track, localStream);
+                        console.log('✓ Added ' + track.kind + ' track');
+                        
+                        // Monitor video packets specifically
+                        if (track.kind === 'video') {
+                            console.log('📹 Video track added - starting packet monitor');
+                            const videoPacketMonitor = setInterval(() => {
+                                pc.getStats(sender).then(stats => {
+                                    stats.forEach(report => {
+                                        if (report.type === 'outbound-rtp' && report.kind === 'video') {
+                                            const totalKbps = (report.bytesSent * 8 / 1000).toFixed(2);
+                                            if (report.bytesSent > 0) {
+                                                console.log('✓ Video packets: ' + report.bytesSent + ' bytes, ' + report.framesEncoded + ' frames encoded');
+                                            } else {
+                                                console.warn('⚠️  Video track created but NO packets being sent!');
+                                                console.warn('   This means video is not actually flowing to server');
+                                                console.warn('   Check: 1) Camera permissions  2) Browser console for errors  3) Firewall');
+                                            }
+                                        }
+                                    });
+                                });
+                            }, 2000);
+                            
+                            sender.track.onended = () => {
+                                clearInterval(videoPacketMonitor);
+                                console.warn('Video track ended');
+                            };
+                        }
+                    } catch (e) {
+                        console.error('Failed to add track to PC:', e);
+                    }
+                });
+            } else {
+                console.warn('⚠️ No local stream available yet - tracks will be added later');
+            }
+
+            
+            // Handle remote tracks - create new video elements for each remote participant
+            pc.ontrack = (event) => {
+                console.log('=== REMOTE TRACK RECEIVED ===');
+                console.log('Track kind:', event.track.kind);
+                console.log('Track ID:', event.track.id);
+                console.log('Track enabled:', event.track.enabled);
+                console.log('Stream count:', event.streams.length);
+                console.log('Current remote video count:', remoteVideos.size);
+                
+                if (event.streams.length > 0) {
+                    console.log('Stream ID:', event.streams[0].id);
+                    console.log('Stream tracks:', event.streams[0].getTracks().length);
+                    event.streams[0].getTracks().forEach(t => {
+                        console.log('  - Track:', t.kind, t.id, 'enabled:', t.enabled);
+                    });
+                }
+                
+                const stream = event.streams[0];
+                const track = event.track;
+                
+                if (!stream) {
+                    console.warn('No stream associated with track:', track.id);
+                    return;
+                }
+                
+                // Create a unique key for this track
+                const trackKey = `${stream.id}-${track.kind}-${track.id}`;
+                
+                // Check if we've already processed this exact track
+                if (processedStreams.has(trackKey)) {
+                    console.log('Already processing track:', trackKey);
+                    return;
+                }
+                processedStreams.add(trackKey);
+                
+                // Safety check - ensure we're not creating too many video elements
+                if (remoteVideos.size >= 10) {
+                    console.warn('⚠️ Too many video elements created:', remoteVideos.size, '- possible bug in participant grouping');
+                }
+                
+                handleRemoteTrack(stream, track, trackKey);
+            };
+
+
+
+
+            // Handle ICE candidates - send immediately
+            pc.onicecandidate = (event) => {
+                if (event.candidate && sfuWs && sfuWs.readyState === WebSocket.OPEN) {
+                    sendSFUMessage({
+                        type: 'candidate',
+                        candidate: {
+                            candidate: event.candidate.candidate,
+                            sdpMid: event.candidate.sdpMid,
+                            sdpMLineIndex: event.candidate.sdpMLineIndex
+                        }
+                    });
+                }
+            };
+            
+            // Handle connection state changes
+            pc.onconnectionstatechange = () => {
+                console.log('Connection state:', pc.connectionState);
+                connectionState = pc.connectionState;
+                
+                if (pc.connectionState === 'connected') {
+                    updateStatus('Connected');
+                    statusOverlay.style.display = 'none';
+                    reconnectAttempts = 0; // Reset reconnect attempts on success
+                    
+                    // Check if local tracks are being sent
+                    console.log('Checking local track senders...');
+                    const senders = pc.getSenders();
+                    console.log('Number of senders:', senders.length);
+                    
+                    senders.forEach((sender, index) => {
+                        if (sender.track) {
+                            console.log(`Sender ${index}:`, {
+                                kind: sender.track.kind,
+                                id: sender.track.id,
+                                enabled: sender.track.enabled,
+                                readyState: sender.track.readyState
+                            });
+                            
+                            // Monitor sender stats
+                            pc.getStats(sender).then(stats => {
+                                stats.forEach(report => {
+                                    if (report.type === 'outbound-rtp') {
+                                        console.log(`Outbound RTP (${sender.track.kind}):`, {
+                                            bytesSent: report.bytesSent,
+                                            packetsSent: report.packetsSent,
+                                            framesEncoded: report.framesEncoded,
+                                            qualityLimitation: report.qualityLimitation
+                                        });
+                                        
+                                        if (report.bytesSent === 0 && report.packetsSent === 0) {
+                                            console.warn(`⚠️  ${sender.track.kind.toUpperCase()} track not sending data! Check firewall/network.`);
+                                            if (isPortForwarded) {
+                                                console.warn('ℹ️  Using port forwarding - ensure TURN relay is being used, not direct connection.');
+                                            }
+                                        } else {
+                                            console.log(`✓ ${sender.track.kind.toUpperCase()} track is sending data`);
+                                        }
+                                    }
+                                });
+                            });
+                        }
+                    });
+                    
+                } else if (pc.connectionState === 'connecting') {
+                    updateStatus('Connecting...');
+                } else if (pc.connectionState === 'failed') {
+                    console.error('Connection failed');
+                    updateStatus('Connection failed - retrying...');
+                    handleConnectionFailure();
+                } else if (pc.connectionState === 'disconnected') {
+                    updateStatus('Disconnected');
+                    // Don't immediately reconnect, wait to see if it recovers
+                    setTimeout(() => {
+                        if (pc && pc.connectionState === 'disconnected') {
+                            handleConnectionFailure();
+                        }
+                    }, 5000);
+                }
+            };
+            
+            // Handle ICE connection state changes
+            pc.oniceconnectionstatechange = () => {
+                console.log('ICE connection state:', pc.iceConnectionState);
+                
+                // Log ICE connection details
+                pc.getStats().then(stats => {
+                    stats.forEach(report => {
+                        if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+                            console.log('Active ICE candidate pair:', {
+                                local: report.localCandidateId ? stats.get(report.localCandidateId)?.candidate : 'unknown',
+                                remote: report.remoteCandidateId ? stats.get(report.remoteCandidateId)?.candidate : 'unknown',
+                                currentRoundTripTime: report.currentRoundTripTime,
+                                availableOutgoingBitrate: report.availableOutgoingBitrate
+                            });
+                        }
+                    });
+                });
+                
+                // Warn if using host candidate (direct connection) instead of relay
+                if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+                    pc.getStats().then(stats => {
+                        let isUsingRelay = false;
+                        stats.forEach(report => {
+                            if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+                                const localCand = stats.get(report.localCandidateId);
+                                if (localCand && (localCand.candidateType === 'relay' || localCand.candidateType === 'prflx')) {
+                                    isUsingRelay = true;
+                                }
+                            }
+                        });
+                        
+                        if (!isUsingRelay) {
+                            console.warn('⚠️  Using direct connection (not relay). If media doesn\'t flow through port forwarding, this may be an issue.');
+                            console.log('📡 For port forwarding, prefer TURN relay candidates. Ensure TURN servers are configured.');
+                        } else {
+                            console.log('✓ Using TURN relay candidate (good for port forwarding)');
+                        }
+                    });
+                }
+            };
+            
+            console.log('Peer connection created');
+        }
+        
+        // Handle remote track - create video element
+        function handleRemoteTrack(stream, track, trackKey) {
+            const streamId = stream.id;
+            
+            console.log('=== HANDLING REMOTE TRACK ===');
+            console.log('Track kind:', track.kind, '| Stream ID:', streamId.substring(0, 8) + '...');
+            console.log('Current participants:', remoteVideos.size);
+            
+            // SMART GROUPING: Try to match audio and video from same peer
+            let participantId = streamToParticipant.get(streamId);
+            
+            if (!participantId) {
+                // New stream - check if it should pair with existing unmatched participant
+                let unmatchedParticipant = null;
+                
+                for (let [pId, videoData] of remoteVideos) {
+                    const hasAudio = videoData.audioTrack !== null;
+                    const hasVideo = videoData.videoTrack !== null;
+                    
+                    if (track.kind === 'video' && hasAudio && !hasVideo) {
+                        console.log('✓ Pairing video WITH existing audio!');
+                        unmatchedParticipant = pId;
+                        break;
+                    } else if (track.kind === 'audio' && hasVideo && !hasAudio) {
+                        console.log('✓ Pairing audio WITH existing video!');
+                        unmatchedParticipant = pId;
+                        break;
+                    }
+                }
+                
+                if (unmatchedParticipant) {
+                    participantId = unmatchedParticipant;
+                    streamToParticipant.set(streamId, participantId);
+                } else {
+                    participantId = 'participant-' + (++participantCounter);
+                    streamToParticipant.set(streamId, participantId);
+                    console.log('✓ Created NEW participant');
+                }
+            }
+            
+            // Hide the static remoteVideo element when we get actual remote tracks
+            const staticRemoteVideo = document.getElementById('remoteVideo');
+            if (staticRemoteVideo) {
+                staticRemoteVideo.style.display = 'none';
+            }
+            
+            // Use stable participant ID to group all tracks from same peer
+            let videoData = remoteVideos.get(participantId);
+            let videoEl;
+            
+            if (!videoData) {
+                console.log('Creating new video element for participant:', participantId);
+                
+                // Create new video element for this participant
+                videoEl = document.createElement('video');
+                videoEl.id = 'video-' + participantId;
+                videoEl.autoplay = true;
+                videoEl.playsinline = true;
+                videoEl.muted = false; // Ensure audio is not muted for remote videos
+                
+                // Apply base styles for video element
+                videoEl.style.objectFit = 'cover';
+                videoEl.style.background = '#111';
+                videoEl.style.borderRadius = 'var(--radius-lg)';
+                videoEl.style.zIndex = '5';
+                videoEl.style.position = 'absolute';
+                videoEl.style.top = '0';
+                videoEl.style.left = '0';
+                
+                // Store in our map with metadata
+                videoData = {
+                    element: videoEl,
+                    stream: stream,
+                    tracks: new Set([track.id]),
+                    audioTrack: track.kind === 'audio' ? track : null,
+                    videoTrack: track.kind === 'video' ? track : null,
+                    participantId: participantId
+                };
+                remoteVideos.set(participantId, videoData);
+                console.log('Stored video data, total participants:', remoteVideos.size);
+                
+                // Add to video stage (before the status overlay)
+                const videoStage = document.querySelector('.video-stage');
+                videoStage.insertBefore(videoEl, statusOverlay);
+                console.log('Inserted video element into DOM');
+                
+                // Handle stream ending
+                stream.onremovetrack = (e) => {
+                    console.log('Track ended:', e.track.kind);
+                    const videoData = remoteVideos.get(participantId);
+                    if (videoData) {
+                        videoData.tracks.delete(e.track.id);
+                        if (e.track.kind === 'audio') videoData.audioTrack = null;
+                        if (e.track.kind === 'video') videoData.videoTrack = null;
+                        
+                        if (videoData.tracks.size === 0) {
+                            checkAndCleanupRemoteVideo(participantId);
+                        }
+                    }
+                };
+                
+                // Update layout after adding element
+                updateVideoLayout();
+                console.log('Updated video layout');
+            } else {
+                // Add track to existing video element for this participant
+                console.log('Adding', track.kind, 'track to existing element');
+                videoData.tracks.add(track.id);
+                
+                // Update track references
+                if (track.kind === 'audio') {
+                    videoData.audioTrack = track;
+                } else if (track.kind === 'video') {
+                    videoData.videoTrack = track;
+                }
+                
+                videoEl = videoData.element;
+            }
+            
+            // Set the stream as the source - intelligently merge if needed
+            if (videoEl) {
+                const existingStream = videoEl.srcObject;
+                if (existingStream && existingStream.id !== stream.id) {
+                    // Different streams - merge tracks
+                    console.log('Merging tracks from different streams');
+                    try {
+                        stream.getTracks().forEach(t => {
+                            const exists = existingStream.getTracks().find(et => et.id === t.id);
+                            if (!exists) {
+                                existingStream.addTrack(t);
+                            }
+                        });
+                    } catch (e) {
+                        console.log('Merge failed:', e.message);
+                        videoEl.srcObject = stream;
+                    }
+                } else {
+                    videoEl.srcObject = stream;
+                }
+                
+                // Ensure playback
+                videoEl.play().catch(err => console.warn('Play failed:', err.message));
+            }
+            
+            // Update UI
+            statusOverlay.style.display = 'none';
+            updateStatus('Connected - ' + remoteVideos.size + ' participant(s)');
+            console.log('✓ Track complete. Participants:', remoteVideos.size);
+        }
+
+        // Update video layout based on number of participants
+        function updateVideoLayout() {
+            const count = remoteVideos.size + 1; // +1 for local video
+            
+            remoteVideos.forEach((videoData, participantId) => {
+                const videoEl = videoData.element;
+                
+                if (count <= 2) {
+                    // One remote participant - full screen
+                    videoEl.style.width = '100%';
+                    videoEl.style.height = '100%';
+                    videoEl.style.position = 'absolute';
+                    videoEl.style.top = '0';
+                    videoEl.style.left = '0';
+                    videoEl.style.objectFit = 'cover';
+                    videoEl.style.zIndex = '5';
+                    videoEl.style.borderRadius = '0';
+                } else {
+                    // Multiple participants - grid layout
+                    videoEl.style.width = '50%';
+                    videoEl.style.height = '50%';
+                    videoEl.style.position = 'absolute';
+                    videoEl.style.objectFit = 'cover';
+                    videoEl.style.zIndex = '5';
+                    videoEl.style.borderRadius = '0';
+                    
+                    // Position based on index
+                    const index = Array.from(remoteVideos.keys()).indexOf(participantId);
+                    const row = Math.floor(index / 2);
+                    const col = index % 2;
+                    videoEl.style.top = (row * 50) + '%';
+                    videoEl.style.left = (col * 50) + '%';
+                }
+            });
+        }
+
+
+        
+        // Check if all tracks ended and cleanup
+        function checkAndCleanupRemoteVideo(participantId) {
+            const videoData = remoteVideos.get(participantId);
+            if (!videoData) return;
+            
+            const videoEl = videoData.element;
+            const stream = videoData.stream;
+            
+            // Check if all tracks in the stream have ended
+            const allTracksEnded = stream.getTracks().every(t => t.readyState === 'ended');
+            if (allTracksEnded) {
+                console.log('Removing video element for participant:', participantId);
+                videoEl.remove();
+                remoteVideos.delete(participantId);
+                
+                // Also clean up the stream mapping
+                streamToParticipant.forEach((pId, streamId) => {
+                    if (pId === participantId) {
+                        streamToParticipant.delete(streamId);
+                    }
+                });
+                
+                // Update layout for remaining participants
+                updateVideoLayout();
+                
+                // Show status if no more remote videos
+                if (remoteVideos.size === 0) {
+                    // Show the static remoteVideo again when no participants
+                    const staticRemoteVideo = document.getElementById('remoteVideo');
+                    if (staticRemoteVideo) {
+                        staticRemoteVideo.style.display = 'block';
+                    }
+                    statusOverlay.style.display = 'block';
+                    statusOverlay.querySelector('p').textContent = 'Waiting for others to join...';
+                    updateStatus('Waiting for others...');
+                } else {
+                    updateStatus('Connected - ' + remoteVideos.size + ' participant(s)');
+                }
+            }
+        }
+
+
+        
+        // Handle connection failure with retry
+        function handleConnectionFailure() {
+            if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                reconnectAttempts++;
+                console.log(`Reconnect attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`);
+                
+                // Close existing connection
+                if (pc) {
+                    pc.close();
+                }
+                
+                // Recreate peer connection
+                createPeerConnection();
+                
+                // Reconnect WebSocket if needed
+                if (sfuWs && sfuWs.readyState !== WebSocket.OPEN) {
+                    connectWebSockets();
+                }
+            } else {
+                updateStatus('Connection failed - please refresh');
+                statusOverlay.innerHTML = `
+                    <span class="material-symbols-outlined status-icon" style="color: #ef4444;">error</span>
+                    <p>Connection failed. Please refresh the page.</p>
+                `;
+                statusOverlay.style.display = 'block';
+            }
+        }
+
+
+        async function startLocalStream() {
+            try {
+                console.log('Requesting user media...');
+                localStream = await navigator.mediaDevices.getUserMedia({ 
+    video: videoConstraints, 
+    audio: audioConstraints 
+});
+                localVideo.srcObject = localStream;
+                console.log('Local stream started with', localStream.getTracks().length, 'tracks');
+                
+                // Log each track
+                localStream.getTracks().forEach(track => {
+                    console.log('Local track:', {
+                        kind: track.kind,
+                        id: track.id,
+                        enabled: track.enabled,
+                        readyState: track.readyState,
+                        settings: track.getSettings ? track.getSettings() : 'N/A'
+                    });
+                });
+                
+                // If peer connection already exists, add tracks to it
+                if (pc) {
+                    console.log('Adding tracks to existing peer connection');
+                    localStream.getTracks().forEach(track => {
+                        // Check if track is already added
+                        const senders = pc.getSenders();
+                        const alreadyAdded = senders.some(s => s.track && s.track.id === track.id);
+                        if (!alreadyAdded) {
+                            console.log('Adding track to existing PC:', track.kind);
+                            try {
+                                const sender = pc.addTrack(track, localStream);
+                                console.log('✓ Added ' + track.kind + ' track');
+                                
+                                // Monitor video packets specifically
+                                if (track.kind === 'video') {
+                                    console.log('📹 Video track added - starting packet monitor');
+                                    const videoPacketMonitor = setInterval(() => {
+                                        pc.getStats(sender).then(stats => {
+                                            stats.forEach(report => {
+                                                if (report.type === 'outbound-rtp' && report.kind === 'video') {
+                                                    const totalKbps = (report.bytesSent * 8 / 1000).toFixed(2);
+                                                    if (report.bytesSent > 0) {
+                                                        console.log('✓ Video packets: ' + report.bytesSent + ' bytes, ' + report.framesEncoded + ' frames encoded');
+                                                    } else {
+                                                        console.warn('⚠️  Video track created but NO packets being sent!');
+                                                        console.warn('   This means video is not actually flowing to server');
+                                                        console.warn('   Check: 1) Camera permissions  2) Browser console for errors  3) Firewall');
+                                                    }
+                                                }
+                                            });
+                                        });
+                                    }, 2000);
+                                    
+                                    sender.track.onended = () => {
+                                        clearInterval(videoPacketMonitor);
+                                        console.warn('Video track ended');
+                                    };
+                                }
+                            } catch (e) {
+                                console.error('Failed to add track to PC:', e);
+                            }
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error("Error accessing media devices:", err);
+                alert("Could not access camera or microphone. Please check permissions. Error: " + err.message);
+            }
+        }
+
+
         async function createOrJoinRoom() {
             try {
-                const roomName = 'campfire-call';
-
-                // Create room
+                // Create room with the generated/joined ID
                 const createResponse = await fetch('/api/video/create-room', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ room_name: roomName })
+                    body: JSON.stringify({ room_name: roomID })
                 });
 
-                if (!createResponse.ok) {
-                    throw new Error('Failed to create room');
+                let roomIdFromCreate = null;
+                if (createResponse.ok) {
+                    const createData = await createResponse.json();
+                    roomIdFromCreate = createData.room_id;
+                    console.log('Room created or exists:', roomIdFromCreate);
                 }
-
-                const createData = await createResponse.json();
-                roomID = createData.room_id;
 
                 // Join room
                 const joinResponse = await fetch('/api/video/join-room', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        room_name: roomName,
+                        room_name: roomID,
                         participant_name: userName,
                         participant_identity: userID.toString()
                     })
@@ -342,6 +1263,11 @@
                 if (!joinResponse.ok) {
                     throw new Error('Failed to join room');
                 }
+
+                const joinData = await joinResponse.json();
+                roomID = joinData.room_id || roomIdFromCreate;
+                
+                console.log('Joined room:', roomID);
 
                 // Connect to WebSockets
                 connectWebSockets();
@@ -356,46 +1282,25 @@
             }
         }
 
+
+
         function connectWebSockets() {
+            if (isConnecting) return;
+            isConnecting = true;
+            
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 
             // Connect to SFU for WebRTC signaling
             const sfuUrl = `${protocol}//${window.location.host}/ws/sfu?client_id=${userID}&room_id=${roomID}`;
             sfuWs = new WebSocket(sfuUrl);
 
-            sfuWs.onopen = async () => {
+            sfuWs.onopen = () => {
                 console.log('SFU WebSocket connected');
-                // Create peer connection
-                pc = new RTCPeerConnection(rtcConfig);
-                // Add local tracks
-                if (localStream) {
-                    localStream.getTracks().forEach(track => {
-                        pc.addTrack(track, localStream);
-                    });
-                }
-                // Handle remote tracks
-                pc.ontrack = (event) => {
-                    console.log('Received remote track');
-                    if (event.streams[0]) {
-                        remoteVideo.srcObject = event.streams[0];
-                        remoteVideo.style.display = 'block';
-                        statusOverlay.style.display = 'none';
-                    }
-                };
-                // Handle ICE candidates
-                pc.onicecandidate = (event) => {
-                    if (event.candidate) {
-                        sendSFUMessage({
-                            type: 'candidate',
-                            candidate: {
-                                candidate: event.candidate.candidate,
-                                sdpMid: event.candidate.sdpMid,
-                                sdpMLineIndex: event.candidate.sdpMLineIndex
-                            }
-                        });
-                    }
-                };
-                updateStatus('Connected');
+                isConnecting = false;
+                
+                // Send ready signal to SFU - peer connection is already created
+                sendSFUMessage({ type: 'ready' });
+                console.log('Sent ready signal to SFU');
             };
 
             sfuWs.onmessage = (event) => {
@@ -405,11 +1310,21 @@
 
             sfuWs.onclose = () => {
                 console.log('SFU WebSocket closed');
+                isConnecting = false;
                 callStatus.textContent = 'Disconnected';
+                
+                // Attempt to reconnect after a delay
+                if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                    setTimeout(() => {
+                        console.log('Attempting to reconnect...');
+                        connectWebSockets();
+                    }, 2000);
+                }
             };
 
             sfuWs.onerror = (error) => {
                 console.error('SFU WebSocket error:', error);
+                isConnecting = false;
             };
 
             // Connect to signaling for room management
@@ -436,6 +1351,7 @@
             roomWs.onerror = (error) => {
                 console.error('Room WebSocket error:', error);
             };
+
         }
 
         function sendSFUMessage(msg) {
@@ -467,24 +1383,229 @@
         function handleRoomMessage(msg) {
             // Handle room management messages (mute_status, camera_status, etc.)
             console.log('Room message:', msg);
+            
+            switch (msg.type) {
+                case 'participant_joined':
+                    console.log('Participant joined:', msg.participant_name || msg.participant_id);
+                    // Hide waiting overlay when a participant joins
+                    if (msg.participant_id && msg.participant_id !== userID.toString()) {
+                        statusOverlay.style.display = 'none';
+                        updateStatus('Connected - ' + (msg.participant_name || 'Participant'));
+                    }
+                    break;
+                case 'participant_left':
+                    console.log('Participant left:', msg.participant_id);
+                    // Show waiting overlay if no more participants
+                    if (remoteVideos.size === 0) {
+                        statusOverlay.style.display = 'block';
+                        statusOverlay.querySelector('p').textContent = 'Waiting for others to join...';
+                        updateStatus('Waiting for others...');
+                    }
+                    break;
+                case 'existing_participants':
+                    // Received list of existing participants when joining
+                    console.log('Existing participants:', msg.participants);
+                    if (msg.participants && msg.participants.length > 0) {
+                        // There are already participants in the room
+                        statusOverlay.querySelector('p').textContent = 'Connecting to ' + msg.participants.length + ' participant(s)...';
+                    }
+                    break;
+            }
         }
 
 
 
+
+        async function handleOffer(msg) {
+            if (!pc) {
+                console.error('No peer connection available');
+                return;
+            }
+            
+            try {
+                console.log('Handling offer from SFU, offer length:', msg.offer.length);
+                console.log('Current transceivers:', pc.getTransceivers().length);
+                console.log('Current signaling state:', pc.signalingState);
+                
+                // Check if we need to restart ICE (for renegotiation)
+                const offerDesc = new RTCSessionDescription({
+                    type: 'offer',
+                    sdp: msg.offer
+                });
+                
+                // Set remote description
+                await pc.setRemoteDescription(offerDesc);
+                
+                console.log('Remote description set, creating answer...');
+                
+                // Create answer
+                const answer = await pc.createAnswer();
+                console.log('Created answer, SDP length:', answer.sdp.length);
+                console.log('Answer SDP preview:', answer.sdp.substring(0, 200));
+                
+                // Set local description - this triggers ICE gathering
+                await pc.setLocalDescription(answer);
+                
+                console.log('Local description set, ICE gathering state:', pc.iceGatheringState);
+                
+                // Wait for ICE gathering to complete
+                await waitForIceGathering();
+                
+                // Get the final SDP with ICE candidates
+                const finalAnswer = pc.localDescription;
+                
+                if (!finalAnswer) {
+                    throw new Error('Local description is null after ICE gathering');
+                }
+                
+                console.log('Final answer SDP length:', finalAnswer.sdp.length);
+                console.log('Answer has ice-ufrag:', finalAnswer.sdp.includes('ice-ufrag'));
+                console.log('Answer has ice-pwd:', finalAnswer.sdp.includes('ice-pwd'));
+                console.log('Answer has m-lines:', finalAnswer.sdp.includes('m='));
+                
+                // Validate answer has required ICE credentials
+                if (!finalAnswer.sdp.includes('ice-ufrag') || !finalAnswer.sdp.includes('ice-pwd')) {
+                    console.warn('Answer SDP missing ICE credentials, waiting longer...');
+                    // Wait a bit more and try again
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    
+                    const retryAnswer = pc.localDescription;
+                    if (retryAnswer && retryAnswer.sdp.includes('ice-ufrag')) {
+                        console.log('ICE credentials found after retry');
+                        sendSFUMessage({
+                            type: 'answer',
+                            answer: retryAnswer.sdp
+                        });
+                    } else {
+                        throw new Error('Answer SDP still missing ICE credentials after retry');
+                    }
+                } else {
+                    // Send answer back with complete ICE candidates
+                    sendSFUMessage({
+                        type: 'answer',
+                        answer: finalAnswer.sdp
+                    });
+                }
+                
+                console.log('Sent answer to SFU');
+            } catch (err) {
+                console.error('Error handling offer:', err);
+                // Send error to SFU so it knows something went wrong
+                sendSFUMessage({
+                    type: 'error',
+                    error: err.message
+                });
+            }
+        }
+
+
+        
+        // Wait for ICE gathering to complete using a more reliable method
+        function waitForIceGathering() {
+            return new Promise((resolve) => {
+                // If already complete, resolve immediately
+                if (pc.iceGatheringState === 'complete') {
+                    console.log('ICE gathering already complete');
+                    resolve();
+                    return;
+                }
+                
+                console.log('ICE gathering state:', pc.iceGatheringState);
+                
+                let checkInterval;
+                let timeout;
+                let iceCandidateTimeout;
+                let hasReceivedCandidates = false;
+                
+                const cleanup = () => {
+                    clearInterval(checkInterval);
+                    clearTimeout(timeout);
+                    clearTimeout(iceCandidateTimeout);
+                };
+                
+                // Listen for ICE candidates to ensure we're actually gathering
+                const onIceCandidate = (event) => {
+                    if (event.candidate) {
+                        hasReceivedCandidates = true;
+                        console.log('Received ICE candidate:', event.candidate.candidate.substring(0, 50));
+                    }
+                };
+                
+                pc.addEventListener('icecandidate', onIceCandidate);
+                
+                // Check periodically
+                checkInterval = setInterval(() => {
+                    if (pc.iceGatheringState === 'complete') {
+                        console.log('ICE gathering complete (interval check), had candidates:', hasReceivedCandidates);
+                        cleanup();
+                        pc.removeEventListener('icecandidate', onIceCandidate);
+                        resolve();
+                    }
+                }, 100);
+                
+                // Also listen for the event
+                const onIceGatheringChange = () => {
+                    console.log('ICE gathering state changed to:', pc.iceGatheringState);
+                    if (pc.iceGatheringState === 'complete') {
+                        cleanup();
+                        pc.removeEventListener('icegatheringstatechange', onIceGatheringChange);
+                        pc.removeEventListener('icecandidate', onIceCandidate);
+                        resolve();
+                    }
+                };
+                
+                pc.addEventListener('icegatheringstatechange', onIceGatheringChange);
+                
+                // If we haven't received any candidates within 3 seconds, proceed anyway
+                // This handles cases where the browser doesn't need to gather candidates
+                iceCandidateTimeout = setTimeout(() => {
+                    if (!hasReceivedCandidates && pc.iceGatheringState === 'new') {
+                        console.log('No ICE candidates needed, proceeding');
+                        cleanup();
+                        pc.removeEventListener('icegatheringstatechange', onIceGatheringChange);
+                        pc.removeEventListener('icecandidate', onIceCandidate);
+                        resolve();
+                    }
+                }, 3000);
+                
+                // Hard timeout after 10 seconds
+                timeout = setTimeout(() => {
+                    console.log('ICE gathering timeout - proceeding anyway, state:', pc.iceGatheringState);
+                    cleanup();
+                    pc.removeEventListener('icegatheringstatechange', onIceGatheringChange);
+                    pc.removeEventListener('icecandidate', onIceCandidate);
+                    resolve();
+                }, 10000);
+            });
+        }
+
         async function handleAnswer(msg) {
-            if (pc) {
+
+            if (!pc) return;
+            
+            try {
                 await pc.setRemoteDescription(new RTCSessionDescription({
                     type: 'answer',
                     sdp: msg.answer
                 }));
+                console.log('Received answer from SFU, connection established');
+            } catch (err) {
+                console.error('Error handling answer:', err);
             }
         }
 
+
         async function handleCandidate(msg) {
-            if (pc) {
-                await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
+            if (pc && msg.candidate) {
+                try {
+                    await pc.addIceCandidate(new RTCIceCandidate(msg.candidate));
+                    console.log('Added ICE candidate');
+                } catch (err) {
+                    console.error('Error adding ICE candidate:', err);
+                }
             }
         }
+
 
 
 
@@ -531,31 +1652,82 @@
             // Close peer connection
             if (pc) {
                 pc.close();
+                pc = null;
             }
 
             // Close WebSockets
+            if (sfuWs) {
+                sfuWs.close();
+                sfuWs = null;
+            }
+            if (roomWs) {
+                roomWs.close();
+                roomWs = null;
+            }
+
+            // Stop local stream
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+                localStream = null;
+            }
+
+            // Clean up remote videos
+            remoteVideos.forEach((videoData) => {
+                videoData.element.remove();
+            });
+            remoteVideos.clear();
+            processedStreams.clear();
+
+
+            window.location.href = '/campfire';
+        }
+
+
+        // Handle page unload to clean up resources
+        window.addEventListener('beforeunload', () => {
+            if (pc) {
+                pc.close();
+            }
             if (sfuWs) {
                 sfuWs.close();
             }
             if (roomWs) {
                 roomWs.close();
             }
-
-            // Stop local stream
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
             }
+        });
 
-            window.location.href = '/campfire';
-        }
+        // Debug function - call from console to see current participant status
+        window.debugVideoCall = function() {
+            console.log('=== VIDEO CALL DEBUG INFO ===');
+            console.log('Local stream tracks:', localStream ? localStream.getTracks().length : 'None');
+            console.log('Remote video count:', remoteVideos.size);
+            console.log('Stream to participant mappings:', Array.from(streamToParticipant.entries()));
+            console.log('Remote video elements:');
+            remoteVideos.forEach((videoData, participantId) => {
+                console.log(`  ${participantId}:`, {
+                    element: videoData.element.id,
+                    trackCount: videoData.tracks.size,
+                    streamId: videoData.stream.id,
+                    tracks: Array.from(videoData.stream.getTracks()).map(t => ({ kind: t.kind, id: t.id, enabled: t.enabled }))
+                });
+            });
+            console.log('Processed tracks:', Array.from(processedStreams).length, 'total');
+            console.log('Peer connection state:', pc ? pc.connectionState : 'No PC');
+            console.log('Peer connection senders:', pc ? pc.getSenders().map(s => ({ kind: s.track?.kind, id: s.track?.id })) : 'No PC');
+        };
 
-        // Initialize
-        async function init() {
-            await startLocalStream();
-            await createOrJoinRoom();
+        // Initialize - just setup the dialog, don't start call yet
+        function init() {
+            console.log('Video call initialized - waiting for room selection');
+            console.log('💡 Tip: Use window.debugVideoCall() in console to see current participant count');
         }
 
         init();
+
+
     </script>
 </body>
 </html>

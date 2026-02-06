@@ -114,7 +114,7 @@ func main() {
 		defer ticker.Stop()
 		for range ticker.C {
 			// Clean up inactive SFU rooms
-			// Note: SFU cleanup is handled internally by the SFU implementation
+			sfuServer.CleanupInactiveRooms()
 			// Clean up inactive signaling rooms
 			signaling.GetRoomManager().CleanupInactiveRooms(30 * time.Minute)
 		}
@@ -130,5 +130,6 @@ func main() {
 	}
 
 	log.Println("Server listening on http://localhost:8080")
+
 	log.Fatal(srv.ListenAndServe())
 }

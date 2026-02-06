@@ -190,13 +190,29 @@ func GetRoomManager() *RoomManager {
 	return roomManager
 }
 
-// CreateRoom creates a new room
+// CreateRoom creates a new room or returns existing room with same name
 func (rm *RoomManager) CreateRoom(name, hostID, hostName string) *Room {
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
 
+	log.Printf("RoomManager: CreateRoom called with name='%s', hostID='%s'", name, hostID)
+	log.Printf("RoomManager: Current rooms count: %d", len(rm.rooms))
+
+	// Check if room with this name already exists and is active
+	for id, room := range rm.rooms {
+		log.Printf("RoomManager: Checking room id=%s, name='%s', isActive=%v", id, room.Name, room.IsActive)
+		if room.Name == name && room.IsActive {
+			log.Printf("RoomManager: Found existing active room %s with name '%s' - returning it", room.ID, name)
+			// Update activity timestamp
+			room.UpdateActivity()
+			return room
+		}
+	}
+
+	// Create new room if none exists
 	room := NewRoom(name, hostID, hostName)
 	rm.rooms[room.ID] = room
+	log.Printf("RoomManager: Created new room %s with name '%s' (total rooms: %d)", room.ID, name, len(rm.rooms))
 	return room
 }
 
