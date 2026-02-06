@@ -69,12 +69,14 @@ func (h *Hub) run() {
 			h.mu.Lock()
 			h.subscribers[reg.conn] = reg.userID
 			h.mu.Unlock()
-			log.Printf("Client connected for user %d. Total subscribers: %d", reg.userID, len(h.subscribers))
+			log.Printf("Client connected for user %d. Total subscribers: %d", reg.userID, h.getSubscriberCount())
+			h.broadcastUserCount()
 
 		case conn := <-h.unregister:
-			// Use the helper to cleanly remove and close the connection
-			h.removeSubscriber(conn)
-			log.Printf("Client disconnected. Total subscribers: %d", len(h.subscribers))
+			if h.removeSubscriber(conn) {
+				log.Printf("Client disconnected via unregister channel. Total subscribers: %d", h.getSubscriberCount())
+				h.broadcastUserCount()
+			}
 
 		case msg := <-h.messages:
 			h.mu.RLock()
@@ -102,8 +104,10 @@ func (h *Hub) run() {
 						err = c.Write(ctx, websocket.MessageText, data)
 						if err != nil {
 							log.Printf("Error writing to websocket: %v", err)
-							// Remove the faulty subscriber and close its connection
-							h.removeSubscriber(c)
+							// On write error, remove the subscriber and broadcast the new count.
+							if h.removeSubscriber(c) {
+								h.broadcastUserCount()
+							}
 						}
 					}(conn, msg)
 				}
@@ -113,16 +117,59 @@ func (h *Hub) run() {
 	}
 }
 
+// getSubscriberCount safely returns the number of subscribers.
+func (h *Hub) getSubscriberCount() int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return len(h.subscribers)
+}
+
+// broadcastUserCount sends the current subscriber count to all connected clients.
+func (h *Hub) broadcastUserCount() {
+	h.mu.RLock()
+	count := len(h.subscribers)
+	// Create a copy of connections to use outside the lock
+	subscribersCopy := make([]*websocket.Conn, 0, count)
+	for conn := range h.subscribers {
+		subscribersCopy = append(subscribersCopy, conn)
+	}
+	h.mu.RUnlock()
+
+	countMsg := map[string]interface{}{
+		"type":  "user_count_update",
+		"count": count,
+	}
+	data, err := json.Marshal(countMsg)
+	if err != nil {
+		log.Printf("Error marshaling user count message: %v", err)
+		return
+	}
+
+	for _, conn := range subscribersCopy {
+		go func(c *websocket.Conn) {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := c.Write(ctx, websocket.MessageText, data); err != nil {
+				// The read loop for this connection will likely handle the final disconnect.
+				// We can be proactive and remove it here, which will trigger another broadcast.
+				h.removeSubscriber(c)
+			}
+		}(conn)
+	}
+}
+
 // removeSubscriber safely deletes a subscriber from the map and closes the connection.
-// It ensures the connection is closed exactly once.
-func (h *Hub) removeSubscriber(conn *websocket.Conn) {
+// It returns true if a subscriber was actually removed.
+func (h *Hub) removeSubscriber(conn *websocket.Conn) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if _, ok := h.subscribers[conn]; ok {
 		delete(h.subscribers, conn)
 		// Close the connection; ignore error if already closed.
 		_ = conn.Close(websocket.StatusNormalClosure, "unregistered")
+		return true
 	}
+	return false
 }
 
 // SendMessage sends a message to the specified receiver

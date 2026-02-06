@@ -7,10 +7,13 @@ import (
 	"Remainwith/internal/chat"
 	"Remainwith/internal/handler"
 	"Remainwith/internal/message"
+	"Remainwith/internal/sfu"
+	"Remainwith/internal/signaling"
 	"Remainwith/internal/ws"
 	"context"
 	"log"
 	"net/http"
+	"time"
 )
 
 func main() {
@@ -79,7 +82,43 @@ func main() {
 	// Websocket routes
 	router.HandleFunc("/ws", hub.HandleConnection)
 
+	router.Handle("GET /campfire/video", handler.JWTMiddleware(http.HandlerFunc(handler.VideoHandler)))
+
+	// Signaling WebSocket
+	signalingServer := signaling.NewSignalingServer()
+	router.HandleFunc("/ws/signaling", signalingServer.HandleConnection)
+
+	// SFU WebSocket
+	sfuServer := sfu.New(context.Background(), sfu.DefaultOptions())
+	router.Handle("/ws/sfu", sfuServer)
+
+	// Video API routes
+	router.HandleFunc("POST /api/video/create-room", func(w http.ResponseWriter, r *http.Request) {
+		handler.JWTMiddleware(http.HandlerFunc(handler.CreateRoomHandler)).ServeHTTP(w, r)
+	})
+	router.HandleFunc("POST /api/video/create-room-with-id", func(w http.ResponseWriter, r *http.Request) {
+		handler.JWTMiddleware(http.HandlerFunc(handler.CreateRoomWithIDHandler)).ServeHTTP(w, r)
+	})
+	router.HandleFunc("POST /api/video/join-room", func(w http.ResponseWriter, r *http.Request) {
+		handler.JWTMiddleware(http.HandlerFunc(handler.JoinRoomHandler)).ServeHTTP(w, r)
+	})
+	router.HandleFunc("GET /api/video/participants", func(w http.ResponseWriter, r *http.Request) {
+		handler.JWTMiddleware(http.HandlerFunc(handler.ListParticipantsHandler)).ServeHTTP(w, r)
+	})
+
 	router.Handle("/profile", handler.JWTMiddleware(handler.CSRFMiddleware()(http.HandlerFunc(handler.ProfilePageHandler))))
+
+	// Start session cleanup goroutine
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			// Clean up inactive SFU rooms
+			sfuServer.CleanupInactiveRooms()
+			// Clean up inactive signaling rooms
+			signaling.GetRoomManager().CleanupInactiveRooms(30 * time.Minute)
+		}
+	}()
 
 	logger := handler.Logger(router)
 	srv := &http.Server{
@@ -91,5 +130,6 @@ func main() {
 	}
 
 	log.Println("Server listening on http://localhost:8080")
+
 	log.Fatal(srv.ListenAndServe())
 }
