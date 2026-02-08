@@ -720,6 +720,22 @@ func (s *SFU) handleOffer(client *Client, msg SignalMessage) {
 func (s *SFU) handleAnswer(client *Client, msg SignalMessage) {
 	log.Printf("SFU: Received answer from client %s (len=%d)", client.ID, len(msg.Answer))
 
+	// Log answer SDP directions for debugging
+	if len(msg.Answer) > 0 {
+		// Check for sendrecv direction in answer (client should send AND receive)
+		hasSendRecv := contains(msg.Answer, "a=sendrecv")
+		hasSendOnly := contains(msg.Answer, "a=sendonly")
+		hasRecvOnly := contains(msg.Answer, "a=recvonly")
+		log.Printf("SFU: Answer SDP directions - sendrecv:%v sendonly:%v recvonly:%v", hasSendRecv, hasSendOnly, hasRecvOnly)
+
+		// Log first 500 chars of answer for inspection
+		previewLen := 500
+		if len(msg.Answer) < previewLen {
+			previewLen = len(msg.Answer)
+		}
+		log.Printf("SFU: Answer SDP preview: %s", msg.Answer[:previewLen])
+	}
+
 	signal := transport.SignalMessage{
 		Type: "answer",
 		SDP:  msg.Answer,
@@ -731,6 +747,17 @@ func (s *SFU) handleAnswer(client *Client, msg SignalMessage) {
 	}
 
 	log.Printf("SFU: Answer processed successfully for client %s", client.ID)
+
+	// Verify transceiver directions after answer is applied
+	pc := client.Transport.GetPeerConnection()
+	if pc != nil {
+		trs := pc.GetTransceivers()
+		log.Printf("SFU: After answer, peer connection has %d transceivers", len(trs))
+		for i, tr := range trs {
+			log.Printf("SFU: After answer - Transceiver[%d] kind=%v direction=%v",
+				i, tr.Kind(), tr.Direction())
+		}
+	}
 
 	// Process any pending ICE candidates now that remote description is set
 	s.processPendingCandidates(client)
@@ -841,4 +868,18 @@ func (s *SFU) GetRoomStats(roomID string) (clientCount int, trackCount int) {
 // CleanupInactiveRooms removes rooms with no recent activity
 func (s *SFU) CleanupInactiveRooms() {
 	s.tracksManager.CleanupInactiveRooms()
+}
+
+// contains checks if a string contains a substring
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsAt(s, substr, 0))
+}
+
+func containsAt(s, substr string, start int) bool {
+	for i := start; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }

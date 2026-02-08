@@ -1424,8 +1424,13 @@
             
             try {
                 console.log('Handling offer from SFU, offer length:', msg.offer.length);
-                console.log('Current transceivers:', pc.getTransceivers().length);
+                console.log('Current transceivers before setRemoteDescription:', pc.getTransceivers().length);
                 console.log('Current signaling state:', pc.signalingState);
+                
+                // Log transceiver directions before processing offer
+                pc.getTransceivers().forEach((t, i) => {
+                    console.log(`Transceiver ${i}: direction=${t.direction}, currentDirection=${t.currentDirection}, mid=${t.mid}`);
+                });
                 
                 // Check if we need to restart ICE (for renegotiation)
                 const offerDesc = new RTCSessionDescription({
@@ -1436,12 +1441,48 @@
                 // Set remote description
                 await pc.setRemoteDescription(offerDesc);
                 
-                console.log('Remote description set, creating answer...');
+                console.log('Remote description set');
+                
+                // CRITICAL FIX: Ensure all transceivers are set to sendrecv direction
+                // This allows the client to both send AND receive media
+                pc.getTransceivers().forEach((transceiver, index) => {
+                    console.log(`Setting transceiver ${index} direction to sendrecv (was: ${transceiver.direction})`);
+                    transceiver.direction = 'sendrecv';
+                });
+                
+                // If we have local tracks but no senders, add them now
+                if (localStream) {
+                    const senders = pc.getSenders();
+                    const hasVideoSender = senders.some(s => s.track && s.track.kind === 'video');
+                    const hasAudioSender = senders.some(s => s.track && s.track.kind === 'audio');
+                    
+                    if (!hasVideoSender || !hasAudioSender) {
+                        console.log('Adding missing local tracks to peer connection before creating answer');
+                        localStream.getTracks().forEach(track => {
+                            const isVideo = track.kind === 'video';
+                            const hasSender = isVideo ? hasVideoSender : hasAudioSender;
+                            
+                            if (!hasSender) {
+                                try {
+                                    const sender = pc.addTrack(track, localStream);
+                                    console.log(`✓ Added ${track.kind} track before answer`);
+                                } catch (e) {
+                                    console.error(`Failed to add ${track.kind} track:`, e);
+                                }
+                            }
+                        });
+                    }
+                }
+                
+                console.log('Creating answer with sendrecv transceivers...');
                 
                 // Create answer
                 const answer = await pc.createAnswer();
                 console.log('Created answer, SDP length:', answer.sdp.length);
-                console.log('Answer SDP preview:', answer.sdp.substring(0, 200));
+                
+                // Log the answer SDP to verify direction
+                const directionMatches = answer.sdp.match(/a=(sendrecv|sendonly|recvonly|inactive)/g);
+                console.log('Answer SDP directions:', directionMatches);
                 
                 // Set local description - this triggers ICE gathering
                 await pc.setLocalDescription(answer);
@@ -1488,6 +1529,15 @@
                 }
                 
                 console.log('Sent answer to SFU');
+                
+                // Log final transceiver states
+                setTimeout(() => {
+                    console.log('Final transceiver states:');
+                    pc.getTransceivers().forEach((t, i) => {
+                        console.log(`  Transceiver ${i}: direction=${t.direction}, currentDirection=${t.currentDirection}, mid=${t.mid}`);
+                    });
+                }, 100);
+                
             } catch (err) {
                 console.error('Error handling offer:', err);
                 // Send error to SFU so it knows something went wrong
@@ -1497,6 +1547,7 @@
                 });
             }
         }
+
 
 
         
@@ -1516,6 +1567,7 @@
                 let timeout;
                 let iceCandidateTimeout;
                 let hasReceivedCandidates = false;
+                let candidateCount = 0;
                 
                 const cleanup = () => {
                     clearInterval(checkInterval);
@@ -1527,7 +1579,20 @@
                 const onIceCandidate = (event) => {
                     if (event.candidate) {
                         hasReceivedCandidates = true;
-                        console.log('Received ICE candidate:', event.candidate.candidate.substring(0, 50));
+                        candidateCount++;
+                        console.log(`Received ICE candidate #${candidateCount}:`, event.candidate.candidate.substring(0, 50));
+                        
+                        // Send candidate immediately to SFU
+                        if (sfuWs && sfuWs.readyState === WebSocket.OPEN) {
+                            sendSFUMessage({
+                                type: 'candidate',
+                                candidate: {
+                                    candidate: event.candidate.candidate,
+                                    sdpMid: event.candidate.sdpMid,
+                                    sdpMLineIndex: event.candidate.sdpMLineIndex
+                                }
+                            });
+                        }
                     }
                 };
                 
@@ -1536,7 +1601,7 @@
                 // Check periodically
                 checkInterval = setInterval(() => {
                     if (pc.iceGatheringState === 'complete') {
-                        console.log('ICE gathering complete (interval check), had candidates:', hasReceivedCandidates);
+                        console.log(`ICE gathering complete (interval check), had ${candidateCount} candidates`);
                         cleanup();
                         pc.removeEventListener('icecandidate', onIceCandidate);
                         resolve();
@@ -1547,6 +1612,7 @@
                 const onIceGatheringChange = () => {
                     console.log('ICE gathering state changed to:', pc.iceGatheringState);
                     if (pc.iceGatheringState === 'complete') {
+                        console.log(`ICE gathering complete via event, total candidates: ${candidateCount}`);
                         cleanup();
                         pc.removeEventListener('icegatheringstatechange', onIceGatheringChange);
                         pc.removeEventListener('icecandidate', onIceCandidate);
@@ -1568,16 +1634,17 @@
                     }
                 }, 3000);
                 
-                // Hard timeout after 10 seconds
+                // Hard timeout after 15 seconds (increased from 10s for better reliability)
                 timeout = setTimeout(() => {
-                    console.log('ICE gathering timeout - proceeding anyway, state:', pc.iceGatheringState);
+                    console.log(`ICE gathering timeout after 15s - proceeding anyway, state: ${pc.iceGatheringState}, candidates: ${candidateCount}`);
                     cleanup();
                     pc.removeEventListener('icegatheringstatechange', onIceGatheringChange);
                     pc.removeEventListener('icecandidate', onIceCandidate);
                     resolve();
-                }, 10000);
+                }, 15000);
             });
         }
+
 
         async function handleAnswer(msg) {
 
