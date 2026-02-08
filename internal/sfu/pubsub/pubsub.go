@@ -7,8 +7,10 @@ import (
 	"sync"
 	"time"
 
+	"Remainwith/internal/sfu/jitter"
 	"Remainwith/internal/transport"
 
+	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
 )
 
@@ -94,6 +96,9 @@ type PubSub struct {
 	// Bitrate estimators
 	bitrateEstimators map[string]*BitrateEstimator
 
+	// Jitter buffer for packet loss recovery
+	jitterBuffer *jitter.JitterBuffer
+
 	// Cleanup ticker
 	cleanupTicker *time.Ticker
 	done          chan struct{}
@@ -148,6 +153,7 @@ func New() *PubSub {
 		eventSubscribers:  make(map[string]chan PubTrackEvent),
 		trackReaders:      make(map[string]*TrackReader),
 		bitrateEstimators: make(map[string]*BitrateEstimator),
+		jitterBuffer:      jitter.NewJitterBuffer(),
 		cleanupTicker:     time.NewTicker(30 * time.Second),
 		done:              make(chan struct{}),
 	}
@@ -383,40 +389,104 @@ func (ps *PubSub) notifyEventSubscribers(event PubTrackEvent) {
 
 // forwardTrack forwards RTP packets from a track to all subscribers
 func (ps *PubSub) forwardTrack(clientID, trackID string, reader *TrackReader) {
-	// Generate a unique SSRC for this track to avoid conflicts
-	// Each track gets a deterministic SSRC based on trackID hash
-	trackSSRC := generateTrackSSRC(trackID)
+	// Read first packet to get the original SSRC
+	firstPacket, err := reader.ReadRTP()
+	if err != nil {
+		log.Printf("PubSub: Error reading first RTP from track %s: %v", trackID, err)
+		return
+	}
 
+	// Use the original SSRC from the first packet
+	// DO NOT rewrite SSRC - this breaks video decoding!
+	originalSSRC := firstPacket.SSRC
+	log.Printf("PubSub: Starting track forwarding for %s with SSRC %d", trackID, originalSSRC)
+
+	// Get or create jitter buffer for this track using ORIGINAL SSRC
+	jb := ps.jitterBuffer.GetOrCreateBuffer(originalSSRC)
+
+	// Process first packet
+	ps.processAndForwardPacket(clientID, trackID, firstPacket, jb, originalSSRC)
+
+	// Continue with remaining packets
 	for {
 		packet, err := reader.ReadRTP()
 
 		if err != nil {
 			log.Printf("PubSub: Error reading RTP from track %s: %v", trackID, err)
+			// Clean up jitter buffer when track ends
+			ps.jitterBuffer.RemoveBuffer(originalSSRC)
 			return
 		}
 
+		ps.processAndForwardPacket(clientID, trackID, packet, jb, originalSSRC)
+	}
+}
+
+// processAndForwardPacket processes a single RTP packet and forwards to subscribers
+// Following peer-calls pattern: write the same packet to all subscribers
+func (ps *PubSub) processAndForwardPacket(clientID, trackID string, packet *rtp.Packet, jb *jitter.Buffer, originalSSRC uint32) {
+	// Push packet to jitter buffer for packet loss detection
+	// The jitter buffer tracks sequence numbers and can generate NACKs
+	nackPacket := jb.Push(packet)
+
+	// If jitter buffer detected missing packets, we need to send a NACK
+	// to the source to request retransmission
+	if nackPacket != nil {
+		// Get the source transport to send NACK
 		ps.mu.RLock()
-		subs, ok := ps.subscriptions[clientID][trackID]
+		sourceTransport, ok := ps.publishedTracks[clientID]
 		ps.mu.RUnlock()
 
-		if !ok || len(subs) == 0 {
+		if ok && sourceTransport != nil {
+			// We need to send the NACK to the source
+			// This will be handled by the peer_manager which has access to transports
+			// For now, log it - the peer_manager's RTCP handler will handle NACKs from subscribers
+			if nack, ok := nackPacket.(*rtcp.TransportLayerNack); ok {
+				log.Printf("PubSub: Jitter buffer requesting NACK for %d packets on track %s", len(nack.Nacks), trackID)
+			}
+		}
+	}
+
+	// Get subscribers
+	ps.mu.RLock()
+	tracksMap, ok := ps.subscriptions[clientID]
+	if !ok {
+		ps.mu.RUnlock()
+		return
+	}
+
+	subs, ok := tracksMap[trackID]
+	ps.mu.RUnlock()
+
+	if !ok || len(subs) == 0 {
+		return
+	}
+
+	// Ensure packet has correct SSRC (should already be set from original)
+	packet.Header.SSRC = originalSSRC
+
+	// Marshal the packet once and clone per-subscriber to avoid sharing the same
+	// packet instance across different writers (some writers may mutate the packet).
+	raw, err := packet.Marshal()
+	if err != nil {
+		log.Printf("PubSub: Error marshaling RTP packet for track %s: %v", trackID, err)
+		return
+	}
+
+	for _, sub := range subs {
+		// Unmarshal into a fresh packet instance for each subscriber
+		cloned := &rtp.Packet{}
+		if err := cloned.Unmarshal(raw); err != nil {
+			log.Printf("PubSub: Error unmarshaling RTP packet for subscriber %s: %v", sub.ClientID, err)
 			continue
 		}
 
-		// Rewrite SSRC to our unique track SSRC
-		// This ensures all subscribers see consistent SSRC values
-		originalSSRC := packet.SSRC
-		packet.SSRC = trackSSRC
+		// Ensure cloned packet has the original SSRC
+		cloned.Header.SSRC = originalSSRC
 
-		// Forward to all subscribers
-		for _, sub := range subs {
-			if err := sub.Writer.WriteRTP(packet); err != nil {
-				log.Printf("PubSub: Error writing RTP to subscriber %s: %v", sub.ClientID, err)
-			}
+		if err := sub.Writer.WriteRTP(cloned); err != nil {
+			log.Printf("PubSub: Error writing RTP to subscriber %s: %v", sub.ClientID, err)
 		}
-
-		// Restore original SSRC for logging/debugging if needed
-		packet.SSRC = originalSSRC
 	}
 }
 
@@ -512,8 +582,17 @@ func (ps *PubSub) Terminate(clientID string) {
 	}
 }
 
+// GetJitterStats returns jitter buffer statistics
+func (ps *PubSub) GetJitterStats() map[uint32]struct {
+	Received uint64
+	Lost     uint64
+} {
+	return ps.jitterBuffer.Stats()
+}
+
 // Close closes the PubSub
 func (ps *PubSub) Close() {
 	close(ps.done)
 	ps.cleanupTicker.Stop()
+	ps.jitterBuffer.Clear()
 }

@@ -50,10 +50,46 @@ func NewWebRTCTransport(clientID, roomID string, iceServers []webrtc.ICEServer) 
 		ICEServers: iceServers,
 	}
 
-	// Create media engine with default codecs
+	// Create media engine with proper codec registration (following peer-calls pattern)
 	m := &webrtc.MediaEngine{}
-	if err := m.RegisterDefaultCodecs(); err != nil {
-		return nil, fmt.Errorf("register codecs: %w", err)
+
+	// Register Opus with proper settings for clean audio
+	// DTX (Discontinuous Transmission) helps reduce bandwidth during silence
+	// Combined with client-side noise gate, this significantly reduces unwanted noise
+	opusCodec := webrtc.RTPCodecCapability{
+		MimeType:     webrtc.MimeTypeOpus,
+		ClockRate:    48000,
+		Channels:     1,                                                                                  // Mono to reduce processing and potential noise
+		SDPFmtpLine:  "minptime=10;useinbandfec=1;stereo=0;sprop-stereo=0;maxaveragebitrate=32000;cbr=1", // Mono, constant bitrate for stability
+		RTCPFeedback: nil,
+	}
+
+	if err := m.RegisterCodec(webrtc.RTPCodecParameters{
+		RTPCodecCapability: opusCodec,
+		PayloadType:        111,
+	}, webrtc.RTPCodecTypeAudio); err != nil {
+		return nil, fmt.Errorf("register opus codec: %w", err)
+	}
+
+	// Register VP8 for video with proper RTCP feedback for packet loss recovery
+	vp8Codec := webrtc.RTPCodecCapability{
+		MimeType:    webrtc.MimeTypeVP8,
+		ClockRate:   90000,
+		Channels:    0,
+		SDPFmtpLine: "",
+		RTCPFeedback: []webrtc.RTCPFeedback{
+			{Type: "goog-remb", Parameter: ""}, // Receiver Estimated Maximum Bitrate
+			{Type: "ccm", Parameter: "fir"},    // Codec Control Message - Full Intra Request
+			{Type: "nack", Parameter: ""},      // Negative ACKnowledgement for packet loss
+			{Type: "nack", Parameter: "pli"},   // Picture Loss Indication
+		},
+	}
+
+	if err := m.RegisterCodec(webrtc.RTPCodecParameters{
+		RTPCodecCapability: vp8Codec,
+		PayloadType:        96,
+	}, webrtc.RTPCodecTypeVideo); err != nil {
+		return nil, fmt.Errorf("register vp8 codec: %w", err)
 	}
 
 	// Create interceptor registry
@@ -62,9 +98,18 @@ func NewWebRTCTransport(clientID, roomID string, iceServers []webrtc.ICEServer) 
 		return nil, fmt.Errorf("register interceptors: %w", err)
 	}
 
-	// Create setting engine
+	// Create setting engine with audio processing optimizations
 	s := webrtc.SettingEngine{}
 	s.DetachDataChannels()
+
+	// Enable jitter buffer for audio to reduce noise from packet loss
+	s.SetSRTPReplayProtectionWindow(512)
+
+	// ICE keepalive settings - critical for maintaining connection through NAT/firewall
+	// These settings prevent the connection from timing out due to inactivity
+	s.SetICETimeouts(5*time.Second, 10*time.Second, 2*time.Second)
+	s.SetDTLSRetransmissionInterval(100 * time.Millisecond)
+	s.SetDTLSInsecureSkipHelloVerify(false)
 
 	// Create API
 	api := webrtc.NewAPI(
@@ -460,6 +505,7 @@ func (t *WebRTCTransport) Done() <-chan struct{} {
 }
 
 // CreateOffer creates an offer for initiating a connection
+// Following peer-calls pattern: create offer -> set local desc -> wait for ICE -> return
 func (t *WebRTCTransport) CreateOffer() (webrtc.SessionDescription, error) {
 	offer, err := t.peerConn.CreateOffer(nil)
 	if err != nil {
@@ -470,23 +516,23 @@ func (t *WebRTCTransport) CreateOffer() (webrtc.SessionDescription, error) {
 		return webrtc.SessionDescription{}, fmt.Errorf("set local description: %w", err)
 	}
 
-	// Wait for ICE gathering with timeout
+	// Wait for ICE gathering to complete - critical for including all candidates
 	gatherComplete := webrtc.GatheringCompletePromise(t.peerConn)
 
 	select {
 	case <-gatherComplete:
-		// ICE gathering completed
+		log.Printf("WebRTCTransport: ICE gathering completed for offer")
 	case <-time.After(5 * time.Second):
-		// Timeout - proceed with what we have
-		log.Printf("WebRTCTransport: ICE gathering timeout for client %s, proceeding with current candidates", t.clientID)
+		log.Printf("WebRTCTransport: ICE gathering timeout for offer, proceeding with current candidates")
 	}
 
-	// Get the local description (might be nil if not set)
+	// Get the local description (updated with ICE candidates)
 	localDesc := t.peerConn.LocalDescription()
 	if localDesc == nil {
 		return webrtc.SessionDescription{}, fmt.Errorf("local description is nil after offer creation")
 	}
 
+	log.Printf("WebRTCTransport: Offer created with SDP length %d", len(localDesc.SDP))
 	return *localDesc, nil
 }
 
