@@ -382,10 +382,15 @@ func (ps *PubSub) notifyEventSubscribers(event PubTrackEvent) {
 }
 
 // forwardTrack forwards RTP packets from a track to all subscribers
+// Phase 3: SSRC preservation - we keep the original SSRC to maintain
+// proper stream identification across the SFU
+// Phase 6: No cloning - use direct packet reference for efficiency (peer-calls pattern)
 func (ps *PubSub) forwardTrack(clientID, trackID string, reader *TrackReader) {
-	// Generate a unique SSRC for this track to avoid conflicts
-	// Each track gets a deterministic SSRC based on trackID hash
-	trackSSRC := generateTrackSSRC(trackID)
+	// Phase 7: Check if this is an audio track for noise gate processing
+	isAudioTrack := false
+	if track, ok := ps.publishedTracks[clientID][trackID]; ok {
+		isAudioTrack = track.Kind == "audio"
+	}
 
 	for {
 		packet, err := reader.ReadRTP()
@@ -403,25 +408,81 @@ func (ps *PubSub) forwardTrack(clientID, trackID string, reader *TrackReader) {
 			continue
 		}
 
-		// Rewrite SSRC to our unique track SSRC
-		// This ensures all subscribers see consistent SSRC values
-		originalSSRC := packet.SSRC
-		packet.SSRC = trackSSRC
+		// Phase 3: Preserve original SSRC - do NOT rewrite
+		// The original SSRC is maintained for proper RTP stream identification
+		// This ensures subscribers can properly identify and process streams
 
-		// Forward to all subscribers
+		// Phase 7: Audio noise gate - skip silent audio packets
+		if isAudioTrack && ps.isSilentPacket(packet) {
+			continue
+		}
+
+		// Phase 6: Forward to all subscribers with direct reference (no cloning)
+		// This is the peer-calls pattern - efficient packet forwarding
 		for _, sub := range subs {
+			// Write directly without cloning - the packet is not modified
 			if err := sub.Writer.WriteRTP(packet); err != nil {
 				log.Printf("PubSub: Error writing RTP to subscriber %s: %v", sub.ClientID, err)
 			}
 		}
-
-		// Restore original SSRC for logging/debugging if needed
-		packet.SSRC = originalSSRC
 	}
+}
+
+// isSilentPacket checks if an audio packet is silent (for noise gate)
+// Phase 7: Audio noise gate implementation
+func (ps *PubSub) isSilentPacket(packet *rtp.Packet) bool {
+	// Simple VAD (Voice Activity Detection) based on payload size
+	// In production, use proper Opus DTX detection or energy-based VAD
+
+	// Opus silence packets are typically very small
+	if len(packet.Payload) < 10 {
+		return true
+	}
+
+	// Check for Opus DTX flag (simplified)
+	// Real implementation would parse Opus frame header
+	return false
+}
+
+// AutoSubscribe automatically subscribes all existing subscribers to a new track
+// Phase 7: Auto-subscription for immediate video sharing
+func (ps *PubSub) AutoSubscribe(pubClientID, trackID string, writer transport.TrackLocal, rtcpReader transport.RTCPReader) error {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+
+	// Get all existing subscribers for this room
+	// This is a simplified version - in production, track room membership
+	for subClientID := range ps.eventSubscribers {
+		// Don't subscribe the publisher to their own track
+		if subClientID == pubClientID {
+			continue
+		}
+
+		// Initialize subscriptions map
+		if ps.subscriptions[pubClientID] == nil {
+			ps.subscriptions[pubClientID] = make(map[string]map[string]*Sub)
+		}
+		if ps.subscriptions[pubClientID][trackID] == nil {
+			ps.subscriptions[pubClientID][trackID] = make(map[string]*Sub)
+		}
+
+		// Add subscription
+		ps.subscriptions[pubClientID][trackID][subClientID] = &Sub{
+			ClientID:   subClientID,
+			Writer:     writer,
+			RTCPReader: rtcpReader,
+		}
+
+		log.Printf("PubSub: Auto-subscribed %s to track %s from %s", subClientID, trackID, pubClientID)
+	}
+
+	return nil
 }
 
 // generateTrackSSRC generates a unique SSRC for a track
 // SSRC is a 32-bit value, we use a hash of the trackID
+// Note: Phase 3 - This function is kept for backward compatibility
+// but SSRC rewriting is no longer performed in forwardTrack
 func generateTrackSSRC(trackID string) uint32 {
 	var hash uint32 = 0
 	for i, c := range trackID {
