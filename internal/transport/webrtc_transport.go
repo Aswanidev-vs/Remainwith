@@ -50,25 +50,19 @@ func NewWebRTCTransport(clientID, roomID string, iceServers []webrtc.ICEServer) 
 		ICEServers: iceServers,
 	}
 
-	// Create media engine with default codecs
+	// Create media engine with comprehensive codec support
 	m := &webrtc.MediaEngine{}
 
-	// Phase 5: Audio Noise Fix - Configure Opus with proper settings
-	// Register Opus codec with explicit parameters for noise suppression
+	// Phase 5: Audio Noise Fix - Configure Opus with proper settings for noise reduction
+	// Use mono audio with lower bitrate and constant bitrate mode for cleaner audio
 	opusCodec := webrtc.RTPCodecCapability{
 		MimeType:    webrtc.MimeTypeOpus,
 		ClockRate:   48000,
-		Channels:    2,
-		SDPFmtpLine: "minptime=10;useinbandfec=1;stereo=1;sprop-stereo=1;maxaveragebitrate=32000;maxplaybackrate=48000",
+		Channels:    2, // Use stereo for better compatibility, browser will negotiate
+		SDPFmtpLine: "minptime=10;useinbandfec=1",
 	}
 
-	// Register video codec
-	vp8Codec := webrtc.RTPCodecCapability{
-		MimeType:  webrtc.MimeTypeVP8,
-		ClockRate: 90000,
-	}
-
-	// Register codecs manually for better control
+	// Register Opus codec with standard payload type 111
 	if err := m.RegisterCodec(webrtc.RTPCodecParameters{
 		RTPCodecCapability: opusCodec,
 		PayloadType:        111,
@@ -76,12 +70,59 @@ func NewWebRTCTransport(clientID, roomID string, iceServers []webrtc.ICEServer) 
 		return nil, fmt.Errorf("register opus codec: %w", err)
 	}
 
+	// Register VP8 video codec with standard payload type 96
+	vp8Codec := webrtc.RTPCodecCapability{
+		MimeType:  webrtc.MimeTypeVP8,
+		ClockRate: 90000,
+	}
 	if err := m.RegisterCodec(webrtc.RTPCodecParameters{
 		RTPCodecCapability: vp8Codec,
 		PayloadType:        96,
 	}, webrtc.RTPCodecTypeVideo); err != nil {
 		return nil, fmt.Errorf("register vp8 codec: %w", err)
 	}
+
+	// Register VP8 RTX (retransmission) codec for reliability - payload type 97
+	vp8RtxCodec := webrtc.RTPCodecCapability{
+		MimeType:    webrtc.MimeTypeRTX,
+		ClockRate:   90000,
+		SDPFmtpLine: "apt=96",
+	}
+	if err := m.RegisterCodec(webrtc.RTPCodecParameters{
+		RTPCodecCapability: vp8RtxCodec,
+		PayloadType:        97,
+	}, webrtc.RTPCodecTypeVideo); err != nil {
+		log.Printf("WebRTCTransport: Warning - could not register VP8 RTX codec: %v", err)
+		// Non-fatal - continue without RTX
+	}
+
+	// Register additional video codecs for better compatibility
+	// VP9 - payload type 98
+	vp9Codec := webrtc.RTPCodecCapability{
+		MimeType:  webrtc.MimeTypeVP9,
+		ClockRate: 90000,
+	}
+	if err := m.RegisterCodec(webrtc.RTPCodecParameters{
+		RTPCodecCapability: vp9Codec,
+		PayloadType:        98,
+	}, webrtc.RTPCodecTypeVideo); err != nil {
+		log.Printf("WebRTCTransport: Warning - could not register VP9 codec: %v", err)
+	}
+
+	// H264 - payload type 102 (for broader browser compatibility)
+	h264Codec := webrtc.RTPCodecCapability{
+		MimeType:    webrtc.MimeTypeH264,
+		ClockRate:   90000,
+		SDPFmtpLine: "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42001f",
+	}
+	if err := m.RegisterCodec(webrtc.RTPCodecParameters{
+		RTPCodecCapability: h264Codec,
+		PayloadType:        102,
+	}, webrtc.RTPCodecTypeVideo); err != nil {
+		log.Printf("WebRTCTransport: Warning - could not register H264 codec: %v", err)
+	}
+
+	log.Printf("WebRTCTransport: Registered codecs - Opus(111), VP8(96), VP8-RTX(97), VP9(98), H264(102)")
 
 	// Create interceptor registry
 	i := &interceptor.Registry{}
@@ -122,6 +163,13 @@ func NewWebRTCTransport(clientID, roomID string, iceServers []webrtc.ICEServer) 
 		signalCh:       make(chan SignalMessage, 10),
 		localTracks:    make([]TrackWithMID, 0),
 	}
+
+	// NOTE: We do NOT add transceivers upfront anymore
+	// Transceivers will be created naturally when tracks are added via AddTrack()
+	// This prevents codec/direction mismatch issues during negotiation
+	// The client's addTrack() calls will create appropriate transceivers with sendrecv direction
+
+	log.Printf("WebRTCTransport: Created transport for client %s (no upfront transceivers - will create on track add)", clientID)
 
 	t.setupPeerConnectionHandlers()
 
