@@ -18,6 +18,7 @@ type PubTrack struct {
 	TrackID  string
 	PeerID   string
 	Kind     string
+	RoomID   string
 	Reader   transport.TrackRemote
 }
 
@@ -188,7 +189,7 @@ func (ps *PubSub) cleanup() {
 }
 
 // Pub publishes a track
-func (ps *PubSub) Pub(clientID string, reader *TrackReader) error {
+func (ps *PubSub) Pub(clientID string, roomID string, reader *TrackReader) error {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
@@ -200,16 +201,18 @@ func (ps *PubSub) Pub(clientID string, reader *TrackReader) error {
 		ps.publishedTracks[clientID] = make(map[string]*PubTrack)
 	}
 
-	// Create pub track
+	// Create pub track with room ID
 	pubTrack := &PubTrack{
 		ClientID: clientID,
 		TrackID:  trackID,
 		PeerID:   clientID, // peerID is same as clientID for WebRTC
 		Kind:     track.Track().Kind().String(),
+		RoomID:   roomID,
 		Reader:   track,
 	}
 
 	ps.publishedTracks[clientID][trackID] = pubTrack
+
 	ps.trackReaders[trackID] = reader
 
 	// Initialize bitrate estimator

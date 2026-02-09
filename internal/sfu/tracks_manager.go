@@ -250,3 +250,19 @@ func (tm *TracksManager) cleanupRoom(roomID string, pm *PeerManager) {
 	delete(tm.peerManagers, roomID)
 	delete(tm.roomActivity, roomID)
 }
+
+// GetAllTracks returns all published tracks from all rooms
+// Used to share existing tracks with new participants
+func (tm *TracksManager) GetAllTracks() []pubsub.PubTrack {
+	tm.mu.RLock()
+	defer tm.mu.RUnlock()
+
+	allTracks := make([]pubsub.PubTrack, 0)
+	for _, pm := range tm.peerManagers {
+		if pm.pubsub != nil {
+			tracks := pm.pubsub.Tracks()
+			allTracks = append(allTracks, tracks...)
+		}
+	}
+	return allTracks
+}

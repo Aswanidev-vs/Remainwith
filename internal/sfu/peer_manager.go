@@ -149,7 +149,7 @@ func (pm *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent,
 				// Create done channel for cleanup
 				done := make(chan struct{})
 
-				// Publish track
+				// Publish track with room ID
 				reader := pubsub.NewTrackReader(track, func() {
 					close(done)
 					// Phase 8: Clean up track reader registry
@@ -160,7 +160,7 @@ func (pm *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent,
 				})
 
 				pm.mu.Lock()
-				pm.pubsub.Pub(clientID, reader)
+				pm.pubsub.Pub(clientID, pm.roomID, reader)
 				pm.mu.Unlock()
 
 				// Phase 8: Single RTCP processing - no duplicate readers

@@ -907,6 +907,9 @@ func (s *SFU) sendInitialOffer(client *Client) {
 	// Small delay to ensure everything is ready
 	time.Sleep(100 * time.Millisecond)
 
+	// Share existing tracks from other participants with this new client
+	s.shareExistingTracksWithNewClient(client)
+
 	// Create initial offer
 	offer, err := client.Transport.CreateOffer()
 	if err != nil {
@@ -932,6 +935,44 @@ func (s *SFU) sendInitialOffer(client *Client) {
 	client.mu.Unlock()
 
 	log.Printf("SFU: Sent initial offer to client %s, waiting for answer", client.ID)
+}
+
+// shareExistingTracksWithNewClient shares all existing tracks from other participants with a new client
+func (s *SFU) shareExistingTracksWithNewClient(client *Client) {
+	// Get all published tracks from the tracks manager
+	allTracks := s.tracksManager.GetAllTracks()
+
+	sharedCount := 0
+	for _, track := range allTracks {
+		// Don't share the client's own tracks back to them
+		if track.ClientID == client.ID {
+			continue
+		}
+
+		// Only share tracks from the same room
+		if track.RoomID != client.RoomID {
+			continue
+		}
+
+		log.Printf("SFU: Sharing existing track %s from %s with new client %s",
+			track.TrackID, track.ClientID, client.ID)
+
+		// Add track to the new client - this will trigger renegotiation
+		// We need to do this without holding locks to avoid deadlocks
+		go func(pubTrack pubsub.PubTrack) {
+			// Small stagger to avoid overwhelming the client
+			time.Sleep(50 * time.Millisecond)
+			s.addTrackToClient(client, pubTrack)
+		}(track)
+
+		sharedCount++
+	}
+
+	if sharedCount > 0 {
+		log.Printf("SFU: Shared %d existing tracks with new client %s", sharedCount, client.ID)
+	} else {
+		log.Printf("SFU: No existing tracks to share with new client %s", client.ID)
+	}
 }
 
 // GetRoomStats returns statistics for monitoring
