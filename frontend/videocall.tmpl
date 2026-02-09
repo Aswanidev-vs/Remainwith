@@ -601,11 +601,20 @@
             frameRate: { ideal: 30, min: 15 }
         };
         
+        // Aggressive audio processing to fix echo and robotic sound
         const audioConstraints = {
             echoCancellation: true,
             noiseSuppression: true,
-            autoGainControl: true
+            autoGainControl: true,
+            // Additional constraints for better audio quality
+            sampleRate: 48000,
+            channelCount: 1, // Mono to reduce echo
+            latency: 0.01, // Low latency
+            // Advanced processing
+            voiceIsolation: true,
+            sampleSize: 16
         };
+
 
         // Generate a 6-digit room ID
         function generateRoomId() {
@@ -677,6 +686,7 @@
         }
         
         // Create peer connection early, before WebSocket connection
+        // CRITICAL: Do NOT add tracks here - add them after receiving the offer
         function createPeerConnection() {
             if (pc) {
                 pc.close();
@@ -686,49 +696,10 @@
             pc = new RTCPeerConnection(rtcConfig);
             console.log('Peer connection created');
             
-            // DO NOT add transceivers upfront - let tracks create them
-            // Adding recvonly transceivers conflicts with local track sending
-            
-            // Add local tracks if available (for sending to SFU)
-            if (localStream) {
-                console.log('Adding local tracks to peer connection...');
-                localStream.getTracks().forEach(track => {
-                    try {
-                        const sender = pc.addTrack(track, localStream);
-                        console.log('✓ Added ' + track.kind + ' track');
-                        
-                        // Monitor video packets specifically
-                        if (track.kind === 'video') {
-                            console.log('📹 Video track added - starting packet monitor');
-                            const videoPacketMonitor = setInterval(() => {
-                                pc.getStats(sender).then(stats => {
-                                    stats.forEach(report => {
-                                        if (report.type === 'outbound-rtp' && report.kind === 'video') {
-                                            const totalKbps = (report.bytesSent * 8 / 1000).toFixed(2);
-                                            if (report.bytesSent > 0) {
-                                                console.log('✓ Video packets: ' + report.bytesSent + ' bytes, ' + report.framesEncoded + ' frames encoded');
-                                            } else {
-                                                console.warn('⚠️  Video track created but NO packets being sent!');
-                                                console.warn('   This means video is not actually flowing to server');
-                                                console.warn('   Check: 1) Camera permissions  2) Browser console for errors  3) Firewall');
-                                            }
-                                        }
-                                    });
-                                });
-                            }, 2000);
-                            
-                            sender.track.onended = () => {
-                                clearInterval(videoPacketMonitor);
-                                console.warn('Video track ended');
-                            };
-                        }
-                    } catch (e) {
-                        console.error('Failed to add track to PC:', e);
-                    }
-                });
-            } else {
-                console.warn('⚠️ No local stream available yet - tracks will be added later');
-            }
+            // DO NOT add transceivers or tracks here
+            // We will add tracks AFTER receiving the offer from the server
+            // This ensures proper sendrecv direction negotiation
+
 
             
             // Handle remote tracks - create new video elements for each remote participant
@@ -1088,6 +1059,8 @@
         }
 
 
+
+
         
         // Check if all tracks ended and cleanup
         function checkAndCleanupRemoteVideo(participantId) {
@@ -1423,28 +1396,63 @@
             }
             
             try {
-                console.log('Handling offer from SFU, offer length:', msg.offer.length);
-                console.log('Current transceivers:', pc.getTransceivers().length);
+                console.log('=== HANDLING OFFER FROM SFU ===');
+                console.log('Offer length:', msg.offer.length);
+                console.log('Current transceivers before offer:', pc.getTransceivers().length);
                 console.log('Current signaling state:', pc.signalingState);
                 
-                // Check if we need to restart ICE (for renegotiation)
-                const offerDesc = new RTCSessionDescription({
-                    type: 'offer',
-                    sdp: msg.offer
-                });
+                // CRITICAL: Add local tracks BEFORE setting remote description
+                // This ensures the answer will have sendrecv direction
+                if (localStream) {
+                    console.log('Adding local tracks before handling offer...');
+                    const currentSenders = pc.getSenders();
+                    const currentTrackIds = new Set(currentSenders.map(s => s.track?.id).filter(Boolean));
+                    
+                    localStream.getTracks().forEach(track => {
+                        if (!currentTrackIds.has(track.id)) {
+                            try {
+                                pc.addTrack(track, localStream);
+                                console.log('✓ Added ' + track.kind + ' track to PC');
+                            } catch (e) {
+                                console.error('Failed to add track:', e);
+                            }
+                        } else {
+                            console.log('Track already added:', track.kind);
+                        }
+                    });
+                }
+                
+                console.log('Transceivers after adding tracks:', pc.getTransceivers().length);
                 
                 // Set remote description
-                await pc.setRemoteDescription(offerDesc);
+                console.log('Setting remote description...');
+                await pc.setRemoteDescription(new RTCSessionDescription({
+                    type: 'offer',
+                    sdp: msg.offer
+                }));
+                console.log('✓ Remote description set');
                 
-                console.log('Remote description set, creating answer...');
+                // Log transceiver directions after setting remote description
+                pc.getTransceivers().forEach((tr, i) => {
+                    console.log(`Transceiver[${i}]: kind=${tr.kind}, direction=${tr.direction}, currentDirection=${tr.currentDirection}`);
+                });
                 
                 // Create answer
+                console.log('Creating answer...');
                 const answer = await pc.createAnswer();
-                console.log('Created answer, SDP length:', answer.sdp.length);
-                console.log('Answer SDP preview:', answer.sdp.substring(0, 200));
+                console.log('✓ Created answer');
+                console.log('Answer SDP length:', answer.sdp.length);
+                
+                // Check answer direction
+                const hasSendRecv = answer.sdp.includes('a=sendrecv');
+                const hasRecvOnly = answer.sdp.includes('a=recvonly');
+                const hasSendOnly = answer.sdp.includes('a=sendonly');
+                console.log('Answer directions - sendrecv:', hasSendRecv, 'recvonly:', hasRecvOnly, 'sendonly:', hasSendOnly);
                 
                 // Set local description - this triggers ICE gathering
+                console.log('Setting local description...');
                 await pc.setLocalDescription(answer);
+
                 
                 console.log('Local description set, ICE gathering state:', pc.iceGatheringState);
                 

@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"Remainwith/internal/sfu/jitter"
+	"Remainwith/internal/sfu/recorder"
 	"Remainwith/internal/transport"
 
 	"github.com/pion/rtp"
@@ -94,6 +96,15 @@ type PubSub struct {
 	// Bitrate estimators
 	bitrateEstimators map[string]*BitrateEstimator
 
+	// Audio recorder for recording tracks
+	recorder *recorder.AudioRecorder
+
+	// Recording sessions indexed by trackID
+	recordingSessions map[string]*recorder.RecordingSession
+
+	// Jitter buffers for audio tracks (trackID -> jitter buffer)
+	jitterBuffers map[string]*jitter.JitterBuffer
+
 	// Cleanup ticker
 	cleanupTicker *time.Ticker
 	done          chan struct{}
@@ -148,6 +159,8 @@ func New() *PubSub {
 		eventSubscribers:  make(map[string]chan PubTrackEvent),
 		trackReaders:      make(map[string]*TrackReader),
 		bitrateEstimators: make(map[string]*BitrateEstimator),
+		recordingSessions: make(map[string]*recorder.RecordingSession),
+		jitterBuffers:     make(map[string]*jitter.JitterBuffer),
 		cleanupTicker:     time.NewTicker(30 * time.Second),
 		done:              make(chan struct{}),
 	}
@@ -155,6 +168,59 @@ func New() *PubSub {
 	go ps.cleanupLoop()
 
 	return ps
+}
+
+// EnableRecording enables audio recording with processing
+func (ps *PubSub) EnableRecording(config recorder.RecorderConfig) error {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+
+	if ps.recorder != nil {
+		return fmt.Errorf("recording already enabled")
+	}
+
+	rec, err := recorder.NewAudioRecorder(config)
+	if err != nil {
+		return fmt.Errorf("create audio recorder: %w", err)
+	}
+
+	ps.recorder = rec
+	log.Printf("PubSub: Audio recording enabled with processing")
+	return nil
+}
+
+// DisableRecording disables audio recording
+func (ps *PubSub) DisableRecording() error {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+
+	if ps.recorder == nil {
+		return nil
+	}
+
+	// Stop all active recordings
+	for trackID, session := range ps.recordingSessions {
+		if err := ps.recorder.StopRecording(session.ID); err != nil {
+			log.Printf("PubSub: Error stopping recording for %s: %v", trackID, err)
+		}
+		delete(ps.recordingSessions, trackID)
+	}
+
+	// Close recorder
+	if err := ps.recorder.Close(); err != nil {
+		log.Printf("PubSub: Error closing recorder: %v", err)
+	}
+
+	ps.recorder = nil
+	log.Printf("PubSub: Audio recording disabled")
+	return nil
+}
+
+// IsRecordingEnabled returns true if recording is enabled
+func (ps *PubSub) IsRecordingEnabled() bool {
+	ps.mu.RLock()
+	defer ps.mu.RUnlock()
+	return ps.recorder != nil
 }
 
 // cleanupLoop periodically cleans up stale resources
@@ -214,6 +280,10 @@ func (ps *PubSub) Pub(clientID string, reader *TrackReader) error {
 
 	// Initialize bitrate estimator
 	ps.bitrateEstimators[trackID] = NewBitrateEstimator()
+
+	// Note: Jitter buffer disabled for audio to prevent frequency wave artifacts
+	// Audio now uses direct forwarding for lower latency and better quality
+	log.Printf("PubSub: Track published - clientID: %s, trackID: %s, kind: %s", clientID, trackID, track.Track().Kind().String())
 
 	// Notify subscribers
 	ps.notifyEventSubscribers(PubTrackEvent{
@@ -385,13 +455,91 @@ func (ps *PubSub) notifyEventSubscribers(event PubTrackEvent) {
 // Phase 3: SSRC preservation - we keep the original SSRC to maintain
 // proper stream identification across the SFU
 // Phase 6: No cloning - use direct packet reference for efficiency (peer-calls pattern)
+// Note: All tracks now use direct forwarding to prevent timing artifacts
 func (ps *PubSub) forwardTrack(clientID, trackID string, reader *TrackReader) {
-	// Phase 7: Check if this is an audio track for noise gate processing
+	// Check if this is an audio track
 	isAudioTrack := false
 	if track, ok := ps.publishedTracks[clientID][trackID]; ok {
 		isAudioTrack = track.Kind == "audio"
 	}
 
+	// Use direct forwarding for all tracks (no jitter buffer)
+	// This prevents frequency wave sounds and timing artifacts
+	ps.forwardDirect(clientID, trackID, reader, isAudioTrack)
+}
+
+// forwardAudioWithJitterBuffer forwards audio with jitter buffering to prevent clock drift
+func (ps *PubSub) forwardAudioWithJitterBuffer(clientID, trackID string, reader *TrackReader, jb *jitter.JitterBuffer) {
+	log.Printf("PubSub: Starting jitter-buffered forwarding for audio track %s", trackID)
+
+	// Ticker for reading from jitter buffer at regular intervals (20ms)
+	ticker := time.NewTicker(20 * time.Millisecond)
+	defer ticker.Stop()
+
+	doneCh := make(chan struct{})
+
+	// Goroutine to read packets and push to jitter buffer
+
+	go func() {
+		defer close(doneCh)
+		for {
+			packet, err := reader.ReadRTP()
+			if err != nil {
+				log.Printf("PubSub: Error reading RTP from audio track %s: %v", trackID, err)
+				return
+			}
+
+			// Push to jitter buffer with arrival time
+			if !jb.Push(packet, time.Now()) {
+				log.Printf("PubSub: Jitter buffer full for track %s, dropping packet", trackID)
+			}
+		}
+	}()
+
+	// Main loop: read from jitter buffer at regular intervals
+	for {
+		select {
+		case <-doneCh:
+			return
+		case <-ticker.C:
+			// Pop packet from jitter buffer
+			packet := jb.Pop(time.Now())
+			if packet == nil {
+				// No packet ready yet, continue
+				continue
+			}
+
+			// Get subscribers
+			ps.mu.RLock()
+			subs, ok := ps.subscriptions[clientID][trackID]
+			ps.mu.RUnlock()
+
+			if !ok || len(subs) == 0 {
+				continue
+			}
+
+			// Record audio packet if recording is enabled
+			if ps.recorder != nil {
+
+				if session, ok := ps.recordingSessions[trackID]; ok {
+					if err := ps.recorder.WriteRTP(session.ID, packet); err != nil {
+						log.Printf("PubSub: Error writing RTP to recorder for %s: %v", trackID, err)
+					}
+				}
+			}
+
+			// Forward to all subscribers
+			for _, sub := range subs {
+				if err := sub.Writer.WriteRTP(packet); err != nil {
+					log.Printf("PubSub: Error writing RTP to subscriber %s: %v", sub.ClientID, err)
+				}
+			}
+		}
+	}
+}
+
+// forwardDirect forwards packets directly without jitter buffering (for video)
+func (ps *PubSub) forwardDirect(clientID, trackID string, reader *TrackReader, isAudioTrack bool) {
 	for {
 		packet, err := reader.ReadRTP()
 
@@ -410,38 +558,25 @@ func (ps *PubSub) forwardTrack(clientID, trackID string, reader *TrackReader) {
 
 		// Phase 3: Preserve original SSRC - do NOT rewrite
 		// The original SSRC is maintained for proper RTP stream identification
-		// This ensures subscribers can properly identify and process streams
 
-		// Phase 7: Audio noise gate - skip silent audio packets
-		if isAudioTrack && ps.isSilentPacket(packet) {
-			continue
+		// Record audio packet if recording is enabled
+
+		if isAudioTrack && ps.recorder != nil {
+
+			if session, ok := ps.recordingSessions[trackID]; ok {
+				if err := ps.recorder.WriteRTP(session.ID, packet); err != nil {
+					log.Printf("PubSub: Error writing RTP to recorder for %s: %v", trackID, err)
+				}
+			}
 		}
 
 		// Phase 6: Forward to all subscribers with direct reference (no cloning)
-		// This is the peer-calls pattern - efficient packet forwarding
 		for _, sub := range subs {
-			// Write directly without cloning - the packet is not modified
 			if err := sub.Writer.WriteRTP(packet); err != nil {
 				log.Printf("PubSub: Error writing RTP to subscriber %s: %v", sub.ClientID, err)
 			}
 		}
 	}
-}
-
-// isSilentPacket checks if an audio packet is silent (for noise gate)
-// Phase 7: Audio noise gate implementation
-func (ps *PubSub) isSilentPacket(packet *rtp.Packet) bool {
-	// Simple VAD (Voice Activity Detection) based on payload size
-	// In production, use proper Opus DTX detection or energy-based VAD
-
-	// Opus silence packets are typically very small
-	if len(packet.Payload) < 10 {
-		return true
-	}
-
-	// Check for Opus DTX flag (simplified)
-	// Real implementation would parse Opus frame header
-	return false
 }
 
 // AutoSubscribe automatically subscribes all existing subscribers to a new track
@@ -573,8 +708,25 @@ func (ps *PubSub) Terminate(clientID string) {
 	}
 }
 
+// GetActiveRecordings returns list of active recording track IDs
+func (ps *PubSub) GetActiveRecordings() []string {
+	ps.mu.RLock()
+	defer ps.mu.RUnlock()
+
+	ids := make([]string, 0, len(ps.recordingSessions))
+	for id := range ps.recordingSessions {
+		ids = append(ids, id)
+	}
+	return ids
+}
+
 // Close closes the PubSub
 func (ps *PubSub) Close() {
+	// Stop all recordings
+	if ps.recorder != nil {
+		ps.DisableRecording()
+	}
+
 	close(ps.done)
 	ps.cleanupTicker.Stop()
 }

@@ -160,27 +160,30 @@ func (s *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add transceivers for audio and video to the peer connection
+	// CRITICAL: Use recvonly direction so the client sends media to the SFU
+	// The client will add its tracks and send them to these recvonly transceivers
 	pc := webrtcTransport.GetPeerConnection()
 	if pc != nil {
-		// Add sendrecv transceivers - client will set the actual direction in answer
+		// Add recvonly transceivers - SFU receives from client, client sends to SFU
 		_, err = pc.AddTransceiverFromKind(webrtc.RTPCodecTypeAudio, webrtc.RTPTransceiverInit{
-			Direction: webrtc.RTPTransceiverDirectionSendrecv,
+			Direction: webrtc.RTPTransceiverDirectionRecvonly,
 		})
 		if err != nil {
 			log.Printf("SFU: Failed to add audio transceiver: %v", err)
 		}
 
 		_, err = pc.AddTransceiverFromKind(webrtc.RTPCodecTypeVideo, webrtc.RTPTransceiverInit{
-			Direction: webrtc.RTPTransceiverDirectionSendrecv,
+			Direction: webrtc.RTPTransceiverDirectionRecvonly,
 		})
 		if err != nil {
 			log.Printf("SFU: Failed to add video transceiver: %v", err)
 		}
 
-		log.Printf("SFU: Added sendrecv transceivers for audio and video to client %s", clientID)
+		log.Printf("SFU: Added recvonly transceivers for audio and video to client %s (SFU will receive from client)", clientID)
 	}
 
 	client := &Client{
+
 		ID:                 clientID,
 		RoomID:             roomID,
 		Conn:               conn,
@@ -353,6 +356,7 @@ func (s *SFU) closeClient(client *Client) {
 	s.mu.Lock()
 	delete(s.clients, client.ID)
 	s.mu.Unlock()
+
 	client.Conn.Close()
 	client.Transport.Close()
 	log.Printf("SFU: Closed client %s connection", client.ID)
@@ -375,6 +379,7 @@ func (s *SFU) handlePubTrackEvents(client *Client, eventsCh <-chan pubsub.PubTra
 		}
 
 		// If this is a new track from another peer, add it to this client's peer connection
+
 		if event.Type == pubsub.TrackEventTypeAdd && event.PubTrack.ClientID != client.ID {
 			log.Printf("SFU: Track event received - track %s from %s for client %s, initialConnected=%v",
 				event.PubTrack.TrackID, event.PubTrack.ClientID, client.ID, client.initialConnected)
@@ -555,6 +560,27 @@ func (s *SFU) processRTCP(rtpSender *webrtc.RTPSender) {
 	}
 }
 
+func bytesToInt16(data []byte) []int16 {
+	if len(data)%2 != 0 {
+		data = append(data, 0)
+	}
+	samples := make([]int16, len(data)/2)
+	for i := 0; i < len(data); i += 2 {
+		samples[i/2] = int16(data[i]) | int16(data[i+1])<<8
+	}
+	return samples
+}
+
+// int16ToBytes converts int16 samples to byte buffer (little-endian)
+func int16ToBytes(samples []int16) []byte {
+	data := make([]byte, len(samples)*2)
+	for i, sample := range samples {
+		data[i*2] = byte(sample)
+		data[i*2+1] = byte(sample >> 8)
+	}
+	return data
+}
+
 // rtcpReaderImpl implements RTCPReader for the SFU
 type rtcpReaderImpl struct {
 	sender *webrtc.RTPSender
@@ -654,7 +680,9 @@ func (s *SFU) handleClientMessages(client *Client) {
 		s.mu.Lock()
 		delete(s.clients, client.ID)
 		s.mu.Unlock()
+
 		client.Conn.Close()
+
 		client.Transport.Close()
 		log.Printf("SFU: Client %s disconnected", client.ID)
 	}()
