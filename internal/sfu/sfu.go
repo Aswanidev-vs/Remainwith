@@ -3,6 +3,7 @@ package sfu
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -438,11 +439,14 @@ func (s *SFU) addTrackToClient(client *Client, pubTrack pubsub.PubTrack) {
 	}
 
 	// Create a local track to forward the published track
+	// Use consistent stream ID for all tracks from same participant so audio/video are grouped together
+	streamID := fmt.Sprintf("participant-%s", pubTrack.ClientID)
 	trackToForward, err := webrtc.NewTrackLocalStaticRTP(
 		codecCapability,
 		pubTrack.TrackID,
-		pubTrack.ClientID, // Use publisher's client ID as stream ID for identification
+		streamID, // Consistent stream ID for audio/video grouping
 	)
+
 	if err != nil {
 		log.Printf("SFU: Error creating forward track: %v", err)
 		return
@@ -470,6 +474,10 @@ func (s *SFU) addTrackToClient(client *Client, pubTrack pubsub.PubTrack) {
 		rtcpReader: rtcpReader,
 		rtpSender:  rtpSender,
 	}
+
+	// Use the variables to avoid compiler errors
+	_ = rtcpReader
+	_ = trackLocal
 
 	// Start RTCP processing for this sender
 	go s.processRTCP(rtpSender)
@@ -805,10 +813,13 @@ func (s *SFU) handleAnswer(client *Client, msg SignalMessage) {
 	// Complete any pending track subscriptions now that renegotiation is done
 	s.completePendingSubscriptions(client)
 
-	// If this was the initial connection, process any queued track events
+	// If this was the initial connection, process any queued track events and share existing tracks
 	if wasInitial {
 		s.processQueuedTrackEvents(client)
+		// Share existing tracks from other participants AFTER initial connection is established
+		s.shareExistingTracksWithNewClient(client)
 	}
+
 }
 
 // handleCandidate handles an ICE candidate message
@@ -907,9 +918,6 @@ func (s *SFU) sendInitialOffer(client *Client) {
 	// Small delay to ensure everything is ready
 	time.Sleep(100 * time.Millisecond)
 
-	// Share existing tracks from other participants with this new client
-	s.shareExistingTracksWithNewClient(client)
-
 	// Create initial offer
 	offer, err := client.Transport.CreateOffer()
 	if err != nil {
@@ -958,12 +966,8 @@ func (s *SFU) shareExistingTracksWithNewClient(client *Client) {
 			track.TrackID, track.ClientID, client.ID)
 
 		// Add track to the new client - this will trigger renegotiation
-		// We need to do this without holding locks to avoid deadlocks
-		go func(pubTrack pubsub.PubTrack) {
-			// Small stagger to avoid overwhelming the client
-			time.Sleep(50 * time.Millisecond)
-			s.addTrackToClient(client, pubTrack)
-		}(track)
+		// Process synchronously to avoid race conditions, but release locks first
+		s.addTrackToClient(client, track)
 
 		sharedCount++
 	}
@@ -971,8 +975,9 @@ func (s *SFU) shareExistingTracksWithNewClient(client *Client) {
 	if sharedCount > 0 {
 		log.Printf("SFU: Shared %d existing tracks with new client %s", sharedCount, client.ID)
 	} else {
-		log.Printf("SFU: No existing tracks to share with new client %s", client.ID)
+		log.Printf("SFU: No existing tracks to share with new client %s", sharedCount, client.ID)
 	}
+
 }
 
 // GetRoomStats returns statistics for monitoring
