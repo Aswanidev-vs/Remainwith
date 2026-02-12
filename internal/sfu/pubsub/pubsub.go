@@ -254,7 +254,7 @@ func (ps *PubSub) cleanup() {
 }
 
 // Pub publishes a track
-func (ps *PubSub) Pub(clientID string, reader *TrackReader) error {
+func (ps *PubSub) Pub(clientID string, roomID string, reader *TrackReader) error {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
@@ -272,6 +272,7 @@ func (ps *PubSub) Pub(clientID string, reader *TrackReader) error {
 		TrackID:  trackID,
 		PeerID:   clientID, // peerID is same as clientID for WebRTC
 		Kind:     track.Track().Kind().String(),
+		RoomID:   roomID,
 		Reader:   track,
 	}
 

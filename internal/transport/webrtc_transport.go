@@ -264,7 +264,13 @@ func (t *WebRTCTransport) ClientID() string {
 	return t.clientID
 }
 
+// RoomID returns the room ID
+func (t *WebRTCTransport) RoomID() string {
+	return t.roomID
+}
+
 // Type returns the transport type
+
 func (t *WebRTCTransport) Type() Type {
 	return TypeWebRTC
 }

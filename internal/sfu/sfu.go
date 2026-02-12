@@ -160,26 +160,26 @@ func (s *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add transceivers for audio and video to the peer connection
-	// CRITICAL: Use recvonly direction so the client sends media to the SFU
-	// The client will add its tracks and send them to these recvonly transceivers
+	// CRITICAL: Use sendrecv direction for bidirectional media flow
+	// Client sends to SFU (send), SFU forwards to client (recv)
 	pc := webrtcTransport.GetPeerConnection()
 	if pc != nil {
-		// Add recvonly transceivers - SFU receives from client, client sends to SFU
+		// Add sendrecv transceivers - bidirectional media flow
 		_, err = pc.AddTransceiverFromKind(webrtc.RTPCodecTypeAudio, webrtc.RTPTransceiverInit{
-			Direction: webrtc.RTPTransceiverDirectionRecvonly,
+			Direction: webrtc.RTPTransceiverDirectionSendrecv,
 		})
 		if err != nil {
 			log.Printf("SFU: Failed to add audio transceiver: %v", err)
 		}
 
 		_, err = pc.AddTransceiverFromKind(webrtc.RTPCodecTypeVideo, webrtc.RTPTransceiverInit{
-			Direction: webrtc.RTPTransceiverDirectionRecvonly,
+			Direction: webrtc.RTPTransceiverDirectionSendrecv,
 		})
 		if err != nil {
 			log.Printf("SFU: Failed to add video transceiver: %v", err)
 		}
 
-		log.Printf("SFU: Added recvonly transceivers for audio and video to client %s (SFU will receive from client)", clientID)
+		log.Printf("SFU: Added sendrecv transceivers for audio and video to client %s (bidirectional media flow)", clientID)
 	}
 
 	client := &Client{
@@ -833,10 +833,14 @@ func (s *SFU) handleAnswer(client *Client, msg SignalMessage) {
 	// Complete any pending track subscriptions now that renegotiation is done
 	s.completePendingSubscriptions(client)
 
-	// If this was the initial connection, process any queued track events
+	// If this was the initial connection, process any queued track events and share existing tracks
 	if wasInitial {
 		s.processQueuedTrackEvents(client)
+		// CRITICAL FIX: Share existing tracks from other participants with the new client
+		// This ensures the new participant can see/hear everyone already in the room
+		s.shareExistingTracksWithNewClient(client)
 	}
+
 }
 
 // handleCandidate handles an ICE candidate message
@@ -962,7 +966,42 @@ func (s *SFU) sendInitialOffer(client *Client) {
 	log.Printf("SFU: Sent initial offer to client %s, waiting for answer", client.ID)
 }
 
+// shareExistingTracksWithNewClient shares all existing tracks from other participants with a new client
+func (s *SFU) shareExistingTracksWithNewClient(client *Client) {
+	// Get all published tracks from the tracks manager
+	allTracks := s.tracksManager.GetAllTracks()
+
+	sharedCount := 0
+	for _, track := range allTracks {
+		// Don't share the client's own tracks back to them
+		if track.ClientID == client.ID {
+			continue
+		}
+
+		// Only share tracks from the same room
+		if track.RoomID != client.RoomID {
+			continue
+		}
+
+		log.Printf("SFU: Sharing existing track %s from %s with new client %s",
+			track.TrackID, track.ClientID, client.ID)
+
+		// Add track to the new client - this will trigger renegotiation
+		// Process synchronously to avoid race conditions
+		s.addTrackToClient(client, track)
+
+		sharedCount++
+	}
+
+	if sharedCount > 0 {
+		log.Printf("SFU: Shared %d existing tracks with new client %s", sharedCount, client.ID)
+	} else {
+		log.Printf("SFU: No existing tracks to share with new client %s", client.ID)
+	}
+}
+
 // GetRoomStats returns statistics for monitoring
+
 func (s *SFU) GetRoomStats(roomID string) (clientCount int, trackCount int) {
 	return s.tracksManager.GetRoomStats(roomID)
 }
