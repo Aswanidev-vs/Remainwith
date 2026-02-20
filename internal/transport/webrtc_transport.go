@@ -71,10 +71,18 @@ func NewWebRTCTransport(clientID, roomID string, iceServers []webrtc.ICEServer) 
 	}
 
 	// Register VP8 video codec with standard payload type 96
+	// CRITICAL: Add RTCP feedback for video congestion control and keyframe requests
 	vp8Codec := webrtc.RTPCodecCapability{
 		MimeType:  webrtc.MimeTypeVP8,
 		ClockRate: 90000,
+		RTCPFeedback: []webrtc.RTCPFeedback{
+			{Type: "nack"},
+			{Type: "nack", Parameter: "pli"},
+			{Type: "goog-remb"},
+			{Type: "transport-cc"},
+		},
 	}
+
 	if err := m.RegisterCodec(webrtc.RTPCodecParameters{
 		RTPCodecCapability: vp8Codec,
 		PayloadType:        96,
@@ -191,19 +199,24 @@ func (t *WebRTCTransport) setupPeerConnectionHandlers() {
 
 	// Handle incoming tracks
 	t.peerConn.OnTrack(func(track *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
-		log.Printf("WebRTCTransport: Received track %s from client %s", track.ID(), t.clientID)
+		trackKind := track.Kind().String()
+		trackCodec := track.Codec().MimeType
+		trackID := track.ID()
+		log.Printf("WebRTCTransport: [ONTRACK] Received track %s (kind=%s, codec=%s, ssrc=%d) from client %s",
+			trackID, trackKind, trackCodec, track.SSRC(), t.clientID)
 
 		rtcpReader := &rtcpReaderImpl{receiver: receiver}
 
 		// Safely send to channel, checking if transport is closed
 		select {
 		case <-t.doneCh:
+			log.Printf("WebRTCTransport: [ONTRACK] Transport closed, NOT sending track %s to channel", trackID)
 			return
 		case t.remoteTracksCh <- TrackRemoteWithRTCPReader{
 			TrackRemote: &trackRemoteImpl{track: track},
 			RTCPReader:  rtcpReader,
 		}:
-			// Successfully sent
+			log.Printf("WebRTCTransport: [ONTRACK] SUCCESSFULLY sent track %s (kind=%s) to remoteTracksCh", trackID, trackKind)
 		}
 
 		// Start RTCP processing for this track

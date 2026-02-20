@@ -3,6 +3,7 @@ package sfu
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -160,11 +161,12 @@ func (s *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add transceivers for audio and video to the peer connection
-	// CRITICAL: Use sendrecv direction for bidirectional media flow
-	// Client sends to SFU (send), SFU forwards to client (recv)
+	// CRITICAL: Use sendrecv direction for BIDIRECTIONAL audio/video
+	// This allows both sending AND receiving media between client and SFU
 	pc := webrtcTransport.GetPeerConnection()
 	if pc != nil {
 		// Add sendrecv transceivers - bidirectional media flow
+		// Client sends to SFU AND receives from SFU on same transceiver
 		_, err = pc.AddTransceiverFromKind(webrtc.RTPCodecTypeAudio, webrtc.RTPTransceiverInit{
 			Direction: webrtc.RTPTransceiverDirectionSendrecv,
 		})
@@ -179,7 +181,7 @@ func (s *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			log.Printf("SFU: Failed to add video transceiver: %v", err)
 		}
 
-		log.Printf("SFU: Added sendrecv transceivers for audio and video to client %s (bidirectional media flow)", clientID)
+		log.Printf("SFU: Added sendrecv transceivers for audio and video to client %s (bidirectional media)", clientID)
 	}
 
 	client := &Client{
@@ -267,19 +269,22 @@ func (s *SFU) monitorConnection(client *Client) {
 			client.mu.Lock()
 			inactive := time.Since(client.lastActivity) > 60*time.Second
 			state := client.connectionState
-			client.mu.Unlock()
 
 			if inactive && state != webrtc.PeerConnectionStateClosed {
 				log.Printf("SFU: Client %s inactive for 60 seconds, checking health", client.ID)
-				// Send a keepalive ping via WebSocket
+				// Send a keepalive ping via WebSocket - hold lock during write
 				if err := client.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 					log.Printf("SFU: Failed to ping client %s: %v", client.ID, err)
+					client.mu.Unlock()
+					return
 				}
 			}
+			client.mu.Unlock()
 		case <-client.Transport.Done():
 			return
 		}
 	}
+
 }
 
 // Phase 10: handleConnectionFailure handles connection failures with ICE restart
@@ -364,6 +369,7 @@ func (s *SFU) closeClient(client *Client) {
 
 // handlePubTrackEvents handles track publication events
 func (s *SFU) handlePubTrackEvents(client *Client, eventsCh <-chan pubsub.PubTrackEvent) {
+	log.Printf("SFU: Starting pub track event handler for client %s", client.ID)
 	for event := range eventsCh {
 		// Send event to client via WebSocket
 		msg := PubTrackMessage{
@@ -379,16 +385,15 @@ func (s *SFU) handlePubTrackEvents(client *Client, eventsCh <-chan pubsub.PubTra
 		}
 
 		// If this is a new track from another peer, add it to this client's peer connection
-
 		if event.Type == pubsub.TrackEventTypeAdd && event.PubTrack.ClientID != client.ID {
-			log.Printf("SFU: Track event received - track %s from %s for client %s, initialConnected=%v",
-				event.PubTrack.TrackID, event.PubTrack.ClientID, client.ID, client.initialConnected)
+			log.Printf("SFU: Track ADD event - track %s (kind=%s) from %s for client %s, initialConnected=%v",
+				event.PubTrack.TrackID, event.PubTrack.Kind, event.PubTrack.ClientID, client.ID, client.initialConnected)
 
 			// If initial connection not yet established, queue the track event
 			client.mu.Lock()
 			if !client.initialConnected {
-				log.Printf("SFU: Queuing track %s from %s for later (initial connection pending)",
-					event.PubTrack.TrackID, event.PubTrack.ClientID)
+				log.Printf("SFU: QUEUING track %s from %s for client %s (initial connection pending)",
+					event.PubTrack.TrackID, event.PubTrack.ClientID, client.ID)
 				client.initialTrackEvents = append(client.initialTrackEvents, event)
 				client.mu.Unlock()
 				continue
@@ -396,9 +401,15 @@ func (s *SFU) handlePubTrackEvents(client *Client, eventsCh <-chan pubsub.PubTra
 			client.mu.Unlock()
 
 			// Get the track from the publisher and add it to this client
+			log.Printf("SFU: IMMEDIATELY adding track %s from %s to client %s",
+				event.PubTrack.TrackID, event.PubTrack.ClientID, client.ID)
 			go s.addTrackToClient(client, event.PubTrack)
+		} else if event.Type == pubsub.TrackEventTypeAdd {
+			log.Printf("SFU: Ignoring own track event - track %s from self (%s)",
+				event.PubTrack.TrackID, client.ID)
 		}
 	}
+	log.Printf("SFU: Pub track event handler ENDED for client %s", client.ID)
 }
 
 // processQueuedTrackEvents processes any track events that were queued during initial connection
@@ -424,15 +435,24 @@ func (s *SFU) addTrackToClient(client *Client, pubTrack pubsub.PubTrack) {
 	client.mu.Lock()
 	defer client.mu.Unlock()
 
-	log.Printf("SFU: Adding track %s from %s to client %s", pubTrack.TrackID, pubTrack.ClientID, client.ID)
+	log.Printf("SFU: [ADD TRACK] START - track %s (kind=%s) from %s to client %s", pubTrack.TrackID, pubTrack.Kind, pubTrack.ClientID, client.ID)
+	log.Printf("SFU: [ADD TRACK] Current pending subs count: %d", len(client.pendingSubs))
 
 	// Get codec capability based on track kind
 	var codecCapability webrtc.RTPCodecCapability
 	switch pubTrack.Kind {
 	case "video":
+		// CRITICAL: Add RTCP feedback for video to enable PLI and congestion control
 		codecCapability = webrtc.RTPCodecCapability{
 			MimeType: webrtc.MimeTypeVP8,
+			RTCPFeedback: []webrtc.RTCPFeedback{
+				{Type: "nack"},
+				{Type: "nack", Parameter: "pli"},
+				{Type: "goog-remb"},
+				{Type: "transport-cc"},
+			},
 		}
+		log.Printf("SFU: Creating video track with RTCP feedback (nack, pli, remb, transport-cc)")
 	case "audio":
 		codecCapability = webrtc.RTPCodecCapability{
 			MimeType: webrtc.MimeTypeOpus,
@@ -443,11 +463,15 @@ func (s *SFU) addTrackToClient(client *Client, pubTrack pubsub.PubTrack) {
 	}
 
 	// Create a local track to forward the published track
+	// CRITICAL: Use unique stream ID to avoid collisions
+	// Format: "pub-<publisherID>-<trackID>" to ensure uniqueness
+	streamID := fmt.Sprintf("pub-%s-%s", pubTrack.ClientID, pubTrack.TrackID)
 	trackToForward, err := webrtc.NewTrackLocalStaticRTP(
 		codecCapability,
 		pubTrack.TrackID,
-		pubTrack.ClientID, // Use publisher's client ID as stream ID for identification
+		streamID,
 	)
+
 	if err != nil {
 		log.Printf("SFU: Error creating forward track: %v", err)
 		return
@@ -476,8 +500,14 @@ func (s *SFU) addTrackToClient(client *Client, pubTrack pubsub.PubTrack) {
 		rtpSender:  rtpSender,
 	}
 
-	// Start RTCP processing for this sender
+	log.Printf("SFU: [ADD TRACK] Stored pending sub - track %s, pending count now: %d", pubTrack.TrackID, len(client.pendingSubs))
+
+	// Start RTCP processing for this sender - CRITICAL for video PLI forwarding
 	go s.processRTCP(rtpSender)
+
+	// Log track details for debugging
+	log.Printf("SFU: [ADD TRACK] Created forward track ID=%s, StreamID=%s, Kind=%s for client %s",
+		trackToForward.ID(), trackToForward.StreamID(), trackToForward.Kind(), client.ID)
 
 	// Renegotiate - create and send offer
 	offer, err := client.Transport.CreateOffer()
@@ -511,7 +541,18 @@ func (s *SFU) completePendingSubscriptions(client *Client) {
 	client.mu.Lock()
 	defer client.mu.Unlock()
 
+	log.Printf("SFU: [COMPLETE PENDING] START for client %s, pending count=%d", client.ID, len(client.pendingSubs))
+
+	// Log all pending track IDs
 	for trackID, pending := range client.pendingSubs {
+		log.Printf("SFU: [COMPLETE PENDING] Pending track: %s (kind=%s) from %s",
+			trackID, pending.pubTrack.Kind, pending.pubTrack.ClientID)
+	}
+
+	for trackID, pending := range client.pendingSubs {
+		log.Printf("SFU: [COMPLETE PENDING] Processing track %s (kind=%s) from %s for client %s",
+			trackID, pending.pubTrack.Kind, pending.pubTrack.ClientID, client.ID)
+
 		// Subscribe to the track through the tracks manager
 		// This connects the PubSub system to forward RTP packets to this writer
 		subParams := SubParams{
@@ -522,16 +563,19 @@ func (s *SFU) completePendingSubscriptions(client *Client) {
 		}
 
 		if err := s.tracksManager.Sub(subParams, pending.trackLocal, pending.rtcpReader); err != nil {
-			log.Printf("SFU: Error subscribing to track %s: %v", trackID, err)
+			log.Printf("SFU: [COMPLETE PENDING] ERROR subscribing to track %s: %v", trackID, err)
 			// Remove the track we added
 			client.Transport.GetPeerConnection().RemoveTrack(pending.rtpSender)
 		} else {
-			log.Printf("SFU: Successfully subscribed client %s to track %s from %s", client.ID, trackID, pending.pubTrack.ClientID)
+			log.Printf("SFU: [COMPLETE PENDING] SUCCESS - client %s subscribed to track %s (kind=%s) from %s",
+				client.ID, trackID, pending.pubTrack.Kind, pending.pubTrack.ClientID)
 		}
 
 		// Remove from pending
 		delete(client.pendingSubs, trackID)
 	}
+
+	log.Printf("SFU: [COMPLETE PENDING] END for client %s", client.ID)
 }
 
 // processRTCP processes RTCP packets for a sender
@@ -552,9 +596,13 @@ func (s *SFU) processRTCP(rtpSender *webrtc.RTPSender) {
 		for _, packet := range packets {
 			switch p := packet.(type) {
 			case *rtcp.PictureLossIndication:
-				log.Printf("SFU: Received PLI from subscriber for SSRC %d", p.MediaSSRC)
+				// CRITICAL: PLI received from subscriber - needs to be forwarded to publisher
+				log.Printf("SFU: Received PLI from subscriber for SSRC %d - will forward to publisher", p.MediaSSRC)
 			case *rtcp.ReceiverEstimatedMaximumBitrate:
-				log.Printf("SFU: Received REMB from subscriber: %f", p.Bitrate)
+				log.Printf("SFU: Received REMB from subscriber: %f bps", p.Bitrate)
+			case *rtcp.TransportLayerNack:
+				// NACK packets indicate packet loss - normal for video
+				log.Printf("SFU: Received NACK from subscriber for SSRC %d", p.MediaSSRC)
 			}
 		}
 	}
@@ -833,14 +881,10 @@ func (s *SFU) handleAnswer(client *Client, msg SignalMessage) {
 	// Complete any pending track subscriptions now that renegotiation is done
 	s.completePendingSubscriptions(client)
 
-	// If this was the initial connection, process any queued track events and share existing tracks
+	// If this was the initial connection, process any queued track events
 	if wasInitial {
 		s.processQueuedTrackEvents(client)
-		// CRITICAL FIX: Share existing tracks from other participants with the new client
-		// This ensures the new participant can see/hear everyone already in the room
-		s.shareExistingTracksWithNewClient(client)
 	}
-
 }
 
 // handleCandidate handles an ICE candidate message
@@ -966,42 +1010,7 @@ func (s *SFU) sendInitialOffer(client *Client) {
 	log.Printf("SFU: Sent initial offer to client %s, waiting for answer", client.ID)
 }
 
-// shareExistingTracksWithNewClient shares all existing tracks from other participants with a new client
-func (s *SFU) shareExistingTracksWithNewClient(client *Client) {
-	// Get all published tracks from the tracks manager
-	allTracks := s.tracksManager.GetAllTracks()
-
-	sharedCount := 0
-	for _, track := range allTracks {
-		// Don't share the client's own tracks back to them
-		if track.ClientID == client.ID {
-			continue
-		}
-
-		// Only share tracks from the same room
-		if track.RoomID != client.RoomID {
-			continue
-		}
-
-		log.Printf("SFU: Sharing existing track %s from %s with new client %s",
-			track.TrackID, track.ClientID, client.ID)
-
-		// Add track to the new client - this will trigger renegotiation
-		// Process synchronously to avoid race conditions
-		s.addTrackToClient(client, track)
-
-		sharedCount++
-	}
-
-	if sharedCount > 0 {
-		log.Printf("SFU: Shared %d existing tracks with new client %s", sharedCount, client.ID)
-	} else {
-		log.Printf("SFU: No existing tracks to share with new client %s", client.ID)
-	}
-}
-
 // GetRoomStats returns statistics for monitoring
-
 func (s *SFU) GetRoomStats(roomID string) (clientCount int, trackCount int) {
 	return s.tracksManager.GetRoomStats(roomID)
 }

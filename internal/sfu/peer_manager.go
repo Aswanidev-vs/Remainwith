@@ -115,29 +115,35 @@ func (pm *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent,
 		trackReceiveTimeout := time.NewTimer(15 * time.Second)
 		trackReceived := false
 
+		log.Printf("PeerManager: [TRACK RECEIVER] STARTED for client %s - waiting for tracks from channel", clientID)
+
 		for {
 			select {
 			case trackWithReader := <-remoteTracksCh:
 				trackReceiveTimeout.Stop() // Stop timeout once we receive a track
 				trackReceived = true
 
+				log.Printf("PeerManager: [TRACK RECEIVER] RECEIVED track from channel for client %s", clientID)
+
 				if trackWithReader.TrackRemote == nil {
-					log.Printf("PeerManager: Received nil track from client %s, skipping", clientID)
+					log.Printf("PeerManager: [TRACK RECEIVER] Received nil track from client %s, skipping", clientID)
 					continue
 				}
 				track := trackWithReader.TrackRemote
 				if track.Track() == nil {
-					log.Printf("PeerManager: Received track with nil Track() from client %s, skipping", clientID)
+					log.Printf("PeerManager: [TRACK RECEIVER] Received track with nil Track() from client %s, skipping", clientID)
 					continue
 				}
 				trackID := track.Track().ID()
 				trackKind := track.Track().Kind().String()
 
+				log.Printf("PeerManager: [TRACK RECEIVER] Processing track %s (kind=%s) from client %s", trackID, trackKind, clientID)
+
 				// Phase 8: Check for duplicate track readers
 				pm.mu.Lock()
 				if pm.trackReaders[trackID] {
 					// Already have a reader for this track, skip
-					log.Printf("PeerManager: Duplicate track reader detected for %s, skipping", trackID)
+					log.Printf("PeerManager: [TRACK RECEIVER] DUPLICATE track reader detected for %s, skipping", trackID)
 					pm.mu.Unlock()
 					continue
 				}
@@ -145,7 +151,7 @@ func (pm *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent,
 				pm.trackReaders[trackID] = true
 				pm.mu.Unlock()
 
-				log.Printf("PeerManager: Received remote track %s (%s) from client %s", trackID, trackKind, clientID)
+				log.Printf("PeerManager: [TRACK RECEIVER] Track %s (%s) from client %s - passed duplicate check", trackID, trackKind, clientID)
 
 				// Create done channel for cleanup
 				done := make(chan struct{})
@@ -162,14 +168,15 @@ func (pm *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent,
 
 				// Publish the track - this notifies all subscribers and starts forwarding
 				pm.mu.Lock()
+				log.Printf("PeerManager: [TRACK RECEIVER] Calling pubsub.Pub for track %s (kind=%s) from client %s", trackID, trackKind, clientID)
 				if err := pm.pubsub.Pub(clientID, reader); err != nil {
-					log.Printf("PeerManager: Error publishing track %s: %v", trackID, err)
+					log.Printf("PeerManager: [TRACK RECEIVER] ERROR publishing track %s: %v", trackID, err)
 					pm.mu.Unlock()
 					continue
 				}
 				pm.mu.Unlock()
 
-				log.Printf("PeerManager: Published track %s (%s) from client %s to pubsub", trackID, trackKind, clientID)
+				log.Printf("PeerManager: [TRACK RECEIVER] SUCCESSFULLY published track %s (%s) from client %s to pubsub", trackID, trackKind, clientID)
 
 				// Phase 8: Single RTCP processing - no duplicate readers
 				// Process RTCP for this track only once

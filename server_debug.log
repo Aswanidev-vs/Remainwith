@@ -1,0 +1,219 @@
+2026/02/15 15:49:00 Connected to PostgreSQL successfully!
+2026/02/15 15:49:00 Server listening on http://localhost:8080
+2026/02/15 15:51:51 [::1]:3424 GET /campfire 1.2116ms
+2026/02/15 15:52:07 127.0.0.1:7320 GET /campfire 518µs
+2026/02/15 15:52:09 127.0.0.1:7322 GET /favicon.ico 0s
+2026/02/15 15:52:11 127.0.0.1:7324 GET /campfire 562.6µs
+2026/02/15 15:52:12 127.0.0.1:7326 GET /campfire/video 6.9456ms
+2026/02/15 15:52:15 [::1]:3424 GET /campfire/video 3.2749ms
+2026/02/15 15:52:18 Video.CreateRoom called with roomName='548851', hostID='40'
+2026/02/15 15:52:18 RoomManager: CreateRoom called with name='548851', hostID='40'
+2026/02/15 15:52:18 RoomManager: Current rooms count: 0
+2026/02/15 15:52:18 RoomManager: Created new room 86bdbd30-1132-4905-9726-daec585c3939 with name '548851' (total rooms: 1)
+2026/02/15 15:52:18 Video.CreateRoom: success - room.ID=86bdbd30-1132-4905-9726-daec585c3939, room.Name=548851
+2026/02/15 15:52:18 [::1]:3424 POST /api/video/create-room 0s
+2026/02/15 15:52:18 Participant 40 joined room 86bdbd30-1132-4905-9726-daec585c3939
+2026/02/15 15:52:18 [::1]:3424 POST /api/video/join-room 0s
+2026/02/15 15:52:18 [::1]:3424 GET /favicon.ico 0s
+2026/02/15 15:52:18 WebRTCTransport: Registered codecs - Opus(111), VP8(96), VP8-RTX(97), VP9(98), H264(102)
+2026/02/15 15:52:18 WebRTCTransport: Created transport for client 40 (no upfront transceivers - will create on track add)
+2026/02/15 15:52:18 SFU: Added sendrecv transceivers for audio and video to client 40 (bidirectional media)
+2026/02/15 15:52:18 SFU: Client 40 joined room 86bdbd30-1132-4905-9726-daec585c3939
+2026/02/15 15:52:18 TracksManager: Creating peer manager for room 86bdbd30-1132-4905-9726-daec585c3939
+2026/02/15 15:52:18 SFU: Starting pub track event handler for client 40
+2026/02/15 15:52:18 SFU: Client 40 is ready, sending initial offer
+2026/02/15 15:52:18 User 40 joined room 86bdbd30-1132-4905-9726-daec585c3939
+2026/02/15 15:52:18 [::1]:12514 GET /ws/signaling 513.9µs
+2026/02/15 15:52:23 WebRTCTransport: ICE gathering timeout for client 40, proceeding with current candidates
+2026/02/15 15:52:23 SFU: Created initial offer for client 40 (len=4161)
+2026/02/15 15:52:23 SFU: Sent initial offer to client 40, waiting for answer
+2026/02/15 15:52:23 SFU: Queued ICE candidate for client 40 (remote description not set yet)
+2026/02/15 15:52:23 SFU: Queued ICE candidate for client 40 (remote description not set yet)
+2026/02/15 15:52:23 SFU: Queued ICE candidate for client 40 (remote description not set yet)
+2026/02/15 15:52:23 SFU: Queued ICE candidate for client 40 (remote description not set yet)
+2026/02/15 15:52:24 SFU: Queued ICE candidate for client 40 (remote description not set yet)
+2026/02/15 15:52:24 SFU: Queued ICE candidate for client 40 (remote description not set yet)
+2026/02/15 15:52:28 Video.CreateRoom called with roomName='548851', hostID='22'
+2026/02/15 15:52:28 RoomManager: CreateRoom called with name='548851', hostID='22'
+2026/02/15 15:52:28 RoomManager: Current rooms count: 1
+2026/02/15 15:52:28 RoomManager: Checking room id=86bdbd30-1132-4905-9726-daec585c3939, name='548851', isActive=true
+2026/02/15 15:52:28 RoomManager: Found existing active room 86bdbd30-1132-4905-9726-daec585c3939 with name '548851' - returning it
+2026/02/15 15:52:28 Video.CreateRoom: success - room.ID=86bdbd30-1132-4905-9726-daec585c3939, room.Name=548851
+2026/02/15 15:52:28 127.0.0.1:12714 POST /api/video/create-room 0s
+2026/02/15 15:52:29 Participant 22 joined room 86bdbd30-1132-4905-9726-daec585c3939
+2026/02/15 15:52:29 127.0.0.1:7322 POST /api/video/join-room 0s
+2026/02/15 15:52:29 WebRTCTransport: Registered codecs - Opus(111), VP8(96), VP8-RTX(97), VP9(98), H264(102)
+2026/02/15 15:52:29 WebRTCTransport: Created transport for client 22 (no upfront transceivers - will create on track add)
+2026/02/15 15:52:29 SFU: Added sendrecv transceivers for audio and video to client 22 (bidirectional media)
+2026/02/15 15:52:29 SFU: Client 22 joined room 86bdbd30-1132-4905-9726-daec585c3939
+2026/02/15 15:52:29 SFU: Starting pub track event handler for client 22
+2026/02/15 15:52:29 SFU: Client 22 is ready, sending initial offer
+2026/02/15 15:52:29 User 22 joined room 86bdbd30-1132-4905-9726-daec585c3939
+2026/02/15 15:52:29 127.0.0.1:12714 GET /ws/signaling 0s
+2026/02/15 15:52:33 PeerManager: WARNING - No tracks received from client 40 within 15 seconds. Check if browser is sending media tracks. Media may not work.
+2026/02/15 15:52:34 SFU: Received answer from client 40 (len=2797)
+2026/02/15 15:52:34 SFU: Answer SDP directions - sendrecv:true sendonly:false recvonly:false
+2026/02/15 15:52:34 SFU: Answer SDP preview: v=0
+o=- 8459032344323608522 2 IN IP4 127.0.0.1
+s=-
+t=0 0
+a=group:BUNDLE 0 1
+a=extmap-allow-mixed
+a=msid-semantic: WMS e394f556-f8c6-4306-970e-eb6444194e31
+m=audio 49441 UDP/TLS/RTP/SAVPF 111
+c=IN IP4 120.61.221.216
+a=rtcp:9 IN IP4 0.0.0.0
+a=candidate:786609519 1 udp 2122260223 169.254.195.132 49438 typ host generation 0 network-id 1
+a=candidate:1067575035 1 udp 2122194687 192.168.1.2 49439 typ host generation 0 network-id 2 network-cost 10
+a=candidate:2136708178 1 udp 1685987071 120.
+2026/02/15 15:52:34 SFU: Answer processed successfully for client 40
+2026/02/15 15:52:34 SFU: After answer, peer connection has 2 transceivers
+2026/02/15 15:52:34 SFU: After answer - Transceiver[0] kind=audio direction=sendrecv
+2026/02/15 15:52:34 SFU: After answer - Transceiver[1] kind=video direction=sendrecv
+2026/02/15 15:52:34 SFU: Processing 6 pending ICE candidates for client 40
+2026/02/15 15:52:34 SFU: Successfully processed pending candidate for client 40
+2026/02/15 15:52:34 SFU: Successfully processed pending candidate for client 40
+2026/02/15 15:52:34 SFU: Successfully processed pending candidate for client 40
+2026/02/15 15:52:34 SFU: Successfully processed pending candidate for client 40
+2026/02/15 15:52:34 SFU: Successfully processed pending candidate for client 40
+2026/02/15 15:52:34 SFU: Successfully processed pending candidate for client 40
+2026/02/15 15:52:34 SFU: Initial connection established for client 40
+2026/02/15 15:52:34 SFU: Completing pending subscriptions for client 40, pending count=0
+2026/02/15 15:52:34 SFU: Processing 0 queued track events for client 40
+2026/02/15 15:52:34 SFU: Connection state changed to connecting for client 40
+2026/02/15 15:52:34 SFU: Connection state changed to connected for client 40
+2026/02/15 15:52:34 SFU: Connection established for client 40
+2026/02/15 15:52:34 WebRTCTransport: Received track d28d62d7-f612-4894-844b-bc7b90d439b9 from client 40
+2026/02/15 15:52:34 PeerManager: Received remote track d28d62d7-f612-4894-844b-bc7b90d439b9 (audio) from client 40
+2026/02/15 15:52:34 PubSub: Track published - clientID: 40, trackID: d28d62d7-f612-4894-844b-bc7b90d439b9, kind: audio
+2026/02/15 15:52:34 PubSub: Track published - clientID: 40, trackID: d28d62d7-f612-4894-844b-bc7b90d439b9
+2026/02/15 15:52:34 PeerManager: Published track d28d62d7-f612-4894-844b-bc7b90d439b9 (audio) from client 40 to pubsub
+2026/02/15 15:52:34 PubSub: Starting direct forwarding for audio track d28d62d7-f612-4894-844b-bc7b90d439b9 from client 40
+2026/02/15 15:52:34 SFU: Track ADD event - track d28d62d7-f612-4894-844b-bc7b90d439b9 (kind=audio) from 40 for client 22, initialConnected=false
+2026/02/15 15:52:34 SFU: QUEUING track d28d62d7-f612-4894-844b-bc7b90d439b9 from 40 for client 22 (initial connection pending)
+2026/02/15 15:52:34 WebRTCTransport: Received track 190eba09-8405-4f40-8f3e-49c37abc6fa2 from client 40
+2026/02/15 15:52:34 WebRTCTransport: ICE gathering timeout for client 22, proceeding with current candidates
+2026/02/15 15:52:34 SFU: Created initial offer for client 22 (len=4161)
+2026/02/15 15:52:34 SFU: Sent initial offer to client 22, waiting for answer
+2026/02/15 15:52:35 SFU: Queued ICE candidate for client 22 (remote description not set yet)
+2026/02/15 15:52:35 SFU: Queued ICE candidate for client 22 (remote description not set yet)
+2026/02/15 15:52:35 SFU: Queued ICE candidate for client 22 (remote description not set yet)
+2026/02/15 15:52:35 SFU: Queued ICE candidate for client 22 (remote description not set yet)
+2026/02/15 15:52:35 SFU: Queued ICE candidate for client 22 (remote description not set yet)
+2026/02/15 15:52:35 SFU: Queued ICE candidate for client 22 (remote description not set yet)
+2026/02/15 15:52:35 SFU: Queued ICE candidate for client 22 (remote description not set yet)
+2026/02/15 15:52:35 SFU: Queued ICE candidate for client 22 (remote description not set yet)
+2026/02/15 15:52:44 PeerManager: WARNING - No tracks received from client 22 within 15 seconds. Check if browser is sending media tracks. Media may not work.
+2026/02/15 15:52:45 SFU: Received answer from client 22 (len=3119)
+2026/02/15 15:52:45 SFU: Answer SDP directions - sendrecv:true sendonly:false recvonly:false
+2026/02/15 15:52:45 SFU: Answer SDP preview: v=0
+o=- 5967932469630512186 2 IN IP4 127.0.0.1
+s=-
+t=0 0
+a=group:BUNDLE 0 1
+a=extmap-allow-mixed
+a=msid-semantic: WMS d2c265be-b651-44ad-b392-74140b909991
+m=audio 38784 UDP/TLS/RTP/SAVPF 111
+c=IN IP4 120.61.221.216
+a=rtcp:9 IN IP4 0.0.0.0
+a=candidate:1501632636 1 udp 2122260223 192.168.1.3 38780 typ host generation 0 network-id 3 network-cost 10
+a=candidate:3533605638 1 udp 2122129151 100.91.104.119 49773 typ host generation 0 network-id 2 network-cost 900
+a=candidate:410488985 1 udp
+2026/02/15 15:52:45 SFU: Answer processed successfully for client 22
+2026/02/15 15:52:45 SFU: After answer, peer connection has 2 transceivers
+2026/02/15 15:52:45 SFU: After answer - Transceiver[0] kind=audio direction=sendrecv
+2026/02/15 15:52:45 SFU: After answer - Transceiver[1] kind=video direction=sendrecv
+2026/02/15 15:52:45 SFU: Processing 8 pending ICE candidates for client 22
+2026/02/15 15:52:45 SFU: Successfully processed pending candidate for client 22
+2026/02/15 15:52:45 SFU: Successfully processed pending candidate for client 22
+2026/02/15 15:52:45 SFU: Successfully processed pending candidate for client 22
+2026/02/15 15:52:45 SFU: Successfully processed pending candidate for client 22
+2026/02/15 15:52:45 SFU: Successfully processed pending candidate for client 22
+2026/02/15 15:52:45 SFU: Successfully processed pending candidate for client 22
+2026/02/15 15:52:45 SFU: Successfully processed pending candidate for client 22
+2026/02/15 15:52:45 SFU: Successfully processed pending candidate for client 22
+2026/02/15 15:52:45 SFU: Initial connection established for client 22
+2026/02/15 15:52:45 SFU: Completing pending subscriptions for client 22, pending count=0
+2026/02/15 15:52:45 SFU: Processing 1 queued track events for client 22
+2026/02/15 15:52:45 SFU: Processing queued track d28d62d7-f612-4894-844b-bc7b90d439b9 from 40 for client 22
+2026/02/15 15:52:45 SFU: Connection state changed to connecting for client 22
+2026/02/15 15:52:45 SFU: Adding track d28d62d7-f612-4894-844b-bc7b90d439b9 (kind=audio) from 40 to client 22
+2026/02/15 15:52:45 SFU: Created forward track ID=d28d62d7-f612-4894-844b-bc7b90d439b9, StreamID=pub-40-d28d62d7-f612-4894-844b-bc7b90d439b9, Kind=audio for client 22
+2026/02/15 15:52:45 SFU: Sent renegotiation offer to client 22 for track d28d62d7-f612-4894-844b-bc7b90d439b9
+2026/02/15 15:52:45 SFU: Received answer from client 22 (len=3636)
+2026/02/15 15:52:45 SFU: Answer SDP directions - sendrecv:true sendonly:false recvonly:true
+2026/02/15 15:52:45 SFU: Answer SDP preview: v=0
+o=- 5967932469630512186 3 IN IP4 127.0.0.1
+s=-
+t=0 0
+a=group:BUNDLE 0 1 2
+a=extmap-allow-mixed
+a=msid-semantic: WMS d2c265be-b651-44ad-b392-74140b909991
+m=audio 38784 UDP/TLS/RTP/SAVPF 111
+c=IN IP4 120.61.221.216
+a=rtcp:9 IN IP4 0.0.0.0
+a=candidate:1501632636 1 udp 2122260223 192.168.1.3 38780 typ host generation 0 network-id 3 network-cost 10
+a=candidate:3533605638 1 udp 2122129151 100.91.104.119 49773 typ host generation 0 network-id 2 network-cost 900
+a=candidate:410488985 1 u
+2026/02/15 15:52:45 SFU: Answer processed successfully for client 22
+2026/02/15 15:52:45 SFU: After answer, peer connection has 3 transceivers
+2026/02/15 15:52:45 SFU: After answer - Transceiver[0] kind=audio direction=sendrecv
+2026/02/15 15:52:45 SFU: After answer - Transceiver[1] kind=video direction=sendrecv
+2026/02/15 15:52:45 SFU: After answer - Transceiver[2] kind=audio direction=sendrecv
+2026/02/15 15:52:45 SFU: Completing pending subscriptions for client 22, pending count=1
+2026/02/15 15:52:45 SFU: Processing pending sub - track d28d62d7-f612-4894-844b-bc7b90d439b9 from 40 for client 22
+2026/02/15 15:52:45 PubSub: Track subscribed - pubClientID: 40, trackID: d28d62d7-f612-4894-844b-bc7b90d439b9, subClientID: 22
+2026/02/15 15:52:45 TracksManager: Immediately subscribed 22 to track d28d62d7-f612-4894-844b-bc7b90d439b9 from 40 in room 86bdbd30-1132-4905-9726-daec585c3939
+2026/02/15 15:52:45 SFU: SUCCESSFULLY subscribed client 22 to track d28d62d7-f612-4894-844b-bc7b90d439b9 from 40 - forwarding should start now
+2026/02/15 15:52:48 SFU: Connection state changed to connected for client 22
+2026/02/15 15:52:48 SFU: Connection established for client 22
+2026/02/15 15:52:48 WebRTCTransport: Received track 67ac1183-ae7a-4e11-ae74-ba378b8a549c from client 22
+2026/02/15 15:52:48 PeerManager: Received remote track 67ac1183-ae7a-4e11-ae74-ba378b8a549c (audio) from client 22
+2026/02/15 15:52:48 PubSub: Track published - clientID: 22, trackID: 67ac1183-ae7a-4e11-ae74-ba378b8a549c, kind: audio
+2026/02/15 15:52:48 PubSub: Track published - clientID: 22, trackID: 67ac1183-ae7a-4e11-ae74-ba378b8a549c
+2026/02/15 15:52:48 PeerManager: Published track 67ac1183-ae7a-4e11-ae74-ba378b8a549c (audio) from client 22 to pubsub
+2026/02/15 15:52:48 PubSub: Starting direct forwarding for audio track 67ac1183-ae7a-4e11-ae74-ba378b8a549c from client 22
+2026/02/15 15:52:48 SFU: Track ADD event - track 67ac1183-ae7a-4e11-ae74-ba378b8a549c (kind=audio) from 22 for client 40, initialConnected=true
+2026/02/15 15:52:48 SFU: IMMEDIATELY adding track 67ac1183-ae7a-4e11-ae74-ba378b8a549c from 22 to client 40
+2026/02/15 15:52:48 SFU: Adding track 67ac1183-ae7a-4e11-ae74-ba378b8a549c (kind=audio) from 22 to client 40
+2026/02/15 15:52:48 SFU: Created forward track ID=67ac1183-ae7a-4e11-ae74-ba378b8a549c, StreamID=pub-22-67ac1183-ae7a-4e11-ae74-ba378b8a549c, Kind=audio for client 40
+2026/02/15 15:52:48 SFU: Sent renegotiation offer to client 40 for track 67ac1183-ae7a-4e11-ae74-ba378b8a549c
+2026/02/15 15:52:48 SFU: Received answer from client 40 (len=3314)
+2026/02/15 15:52:48 SFU: Answer SDP directions - sendrecv:true sendonly:false recvonly:true
+2026/02/15 15:52:48 SFU: Answer SDP preview: v=0
+o=- 8459032344323608522 3 IN IP4 127.0.0.1
+s=-
+t=0 0
+a=group:BUNDLE 0 1 2
+a=extmap-allow-mixed
+a=msid-semantic: WMS e394f556-f8c6-4306-970e-eb6444194e31
+m=audio 49441 UDP/TLS/RTP/SAVPF 111
+c=IN IP4 120.61.221.216
+a=rtcp:9 IN IP4 0.0.0.0
+a=candidate:786609519 1 udp 2122260223 169.254.195.132 49438 typ host generation 0 network-id 1
+a=candidate:1067575035 1 udp 2122194687 192.168.1.2 49439 typ host generation 0 network-id 2 network-cost 10
+a=candidate:2136708178 1 udp 1685987071 12
+2026/02/15 15:52:48 SFU: Answer processed successfully for client 40
+2026/02/15 15:52:48 SFU: After answer, peer connection has 3 transceivers
+2026/02/15 15:52:48 SFU: After answer - Transceiver[0] kind=audio direction=sendrecv
+2026/02/15 15:52:48 SFU: After answer - Transceiver[1] kind=video direction=sendrecv
+2026/02/15 15:52:48 SFU: After answer - Transceiver[2] kind=audio direction=sendrecv
+2026/02/15 15:52:48 SFU: Completing pending subscriptions for client 40, pending count=1
+2026/02/15 15:52:48 SFU: Processing pending sub - track 67ac1183-ae7a-4e11-ae74-ba378b8a549c from 22 for client 40
+2026/02/15 15:52:48 PubSub: Track subscribed - pubClientID: 22, trackID: 67ac1183-ae7a-4e11-ae74-ba378b8a549c, subClientID: 40
+2026/02/15 15:52:48 TracksManager: Immediately subscribed 40 to track 67ac1183-ae7a-4e11-ae74-ba378b8a549c from 22 in room 86bdbd30-1132-4905-9726-daec585c3939
+2026/02/15 15:52:48 SFU: SUCCESSFULLY subscribed client 40 to track 67ac1183-ae7a-4e11-ae74-ba378b8a549c from 22 - forwarding should start now
+2026/02/15 15:52:48 WebRTCTransport: Received track fbc4fd4e-ba7b-4c20-a2d5-743c36511cc4 from client 22
+2026/02/15 15:53:48 SFU: Client 40 inactive for 60 seconds, checking health
+2026/02/15 15:53:59 SFU: Client 22 inactive for 60 seconds, checking health
+panic: concurrent write to websocket connection
+
+goroutine 223 [running]:
+github.com/gorilla/websocket.(*messageWriter).flushFrame(0xc000535e60, 0x1, {0x0?, 0xc000535e68?, 0x7ff6a9085b25?})
+	C:/Users/LENOVO/go/pkg/mod/github.com/gorilla/websocket@v1.5.3/conn.go:617 +0x4af
+github.com/gorilla/websocket.(*Conn).WriteMessage(0xc0000186e0, 0x0?, {0x0, 0x0, 0x0})
+	C:/Users/LENOVO/go/pkg/mod/github.com/gorilla/websocket@v1.5.3/conn.go:770 +0x125
+Remainwith/internal/sfu.(*SFU).monitorConnection(0xc00024c080, 0xc000156300)
+	G:/Remainwith/internal/sfu/sfu.go:277 +0x2fb
+created by Remainwith/internal/sfu.(*SFU).ServeHTTP in goroutine 216
+	G:/Remainwith/internal/sfu/sfu.go:224 +0xe65

@@ -1401,10 +1401,19 @@
                 console.log('Current transceivers before offer:', pc.getTransceivers().length);
                 console.log('Current signaling state:', pc.signalingState);
                 
-                // CRITICAL: Add local tracks BEFORE setting remote description
-                // This ensures the answer will have sendrecv direction
+                // Set remote description FIRST
+                console.log('Setting remote description...');
+                await pc.setRemoteDescription(new RTCSessionDescription({
+                    type: 'offer',
+                    sdp: msg.offer
+                }));
+                console.log('✓ Remote description set');
+
+                
+                // CRITICAL: Add local tracks AFTER setting remote description
+                // This ensures proper sendrecv direction negotiation
                 if (localStream) {
-                    console.log('Adding local tracks before handling offer...');
+                    console.log('Adding local tracks after setting remote description...');
                     const currentSenders = pc.getSenders();
                     const currentTrackIds = new Set(currentSenders.map(s => s.track?.id).filter(Boolean));
                     
@@ -1424,15 +1433,7 @@
                 
                 console.log('Transceivers after adding tracks:', pc.getTransceivers().length);
                 
-                // Set remote description
-                console.log('Setting remote description...');
-                await pc.setRemoteDescription(new RTCSessionDescription({
-                    type: 'offer',
-                    sdp: msg.offer
-                }));
-                console.log('✓ Remote description set');
-                
-                // Log transceiver directions after setting remote description
+                // Log transceiver directions after adding tracks
                 pc.getTransceivers().forEach((tr, i) => {
                     console.log(`Transceiver[${i}]: kind=${tr.kind}, direction=${tr.direction}, currentDirection=${tr.currentDirection}`);
                 });
@@ -1440,6 +1441,7 @@
                 // Create answer
                 console.log('Creating answer...');
                 const answer = await pc.createAnswer();
+
                 console.log('✓ Created answer');
                 console.log('Answer SDP length:', answer.sdp.length);
                 

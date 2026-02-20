@@ -254,12 +254,13 @@ func (ps *PubSub) cleanup() {
 }
 
 // Pub publishes a track
-func (ps *PubSub) Pub(clientID string, roomID string, reader *TrackReader) error {
+func (ps *PubSub) Pub(clientID string, reader *TrackReader) error {
 	ps.mu.Lock()
 	defer ps.mu.Unlock()
 
 	track := reader.track
 	trackID := track.Track().ID()
+	trackKind := track.Track().Kind().String()
 
 	// Initialize published tracks map for client if needed
 	if ps.publishedTracks[clientID] == nil {
@@ -271,8 +272,7 @@ func (ps *PubSub) Pub(clientID string, roomID string, reader *TrackReader) error
 		ClientID: clientID,
 		TrackID:  trackID,
 		PeerID:   clientID, // peerID is same as clientID for WebRTC
-		Kind:     track.Track().Kind().String(),
-		RoomID:   roomID,
+		Kind:     trackKind,
 		Reader:   track,
 	}
 
@@ -282,17 +282,23 @@ func (ps *PubSub) Pub(clientID string, roomID string, reader *TrackReader) error
 	// Initialize bitrate estimator
 	ps.bitrateEstimators[trackID] = NewBitrateEstimator()
 
-	// Note: Jitter buffer disabled for audio to prevent frequency wave artifacts
-	// Audio now uses direct forwarding for lower latency and better quality
-	log.Printf("PubSub: Track published - clientID: %s, trackID: %s, kind: %s", clientID, trackID, track.Track().Kind().String())
+	// Log current subscribers count
+	subCount := 0
+	for _, trackSubs := range ps.subscriptions[clientID] {
+		for _, sub := range trackSubs {
+			if sub != nil {
+				subCount++
+			}
+		}
+	}
+	log.Printf("PubSub: [TRACK %s] PUBLISHED - clientID: %s, kind: %s, streamID: %s, current subs: %d",
+		trackID, clientID, trackKind, track.Track().StreamID(), subCount)
 
 	// Notify subscribers
 	ps.notifyEventSubscribers(PubTrackEvent{
 		PubTrack: *pubTrack,
 		Type:     TrackEventTypeAdd,
 	})
-
-	log.Printf("PubSub: Track published - clientID: %s, trackID: %s", clientID, trackID)
 
 	// Start forwarding RTP packets
 	go ps.forwardTrack(clientID, trackID, reader)
@@ -374,7 +380,8 @@ func (ps *PubSub) Sub(pubClientID, trackID, subClientID string, writer transport
 		Type:     TrackEventTypeSub,
 	})
 
-	log.Printf("PubSub: Track subscribed - pubClientID: %s, trackID: %s, subClientID: %s", pubClientID, trackID, subClientID)
+	log.Printf("PubSub: [TRACK %s] SUBSCRIBED - pubClientID: %s, subClientID: %s, kind: %s, total subs: %d",
+		trackID, pubClientID, subClientID, pubTrack.Kind, len(ps.subscriptions[pubClientID][trackID]))
 
 	return nil
 }
@@ -480,7 +487,6 @@ func (ps *PubSub) forwardAudioWithJitterBuffer(clientID, trackID string, reader 
 	doneCh := make(chan struct{})
 
 	// Goroutine to read packets and push to jitter buffer
-
 	go func() {
 		defer close(doneCh)
 		for {
@@ -521,7 +527,6 @@ func (ps *PubSub) forwardAudioWithJitterBuffer(clientID, trackID string, reader 
 
 			// Record audio packet if recording is enabled
 			if ps.recorder != nil {
-
 				if session, ok := ps.recordingSessions[trackID]; ok {
 					if err := ps.recorder.WriteRTP(session.ID, packet); err != nil {
 						log.Printf("PubSub: Error writing RTP to recorder for %s: %v", trackID, err)
@@ -541,19 +546,42 @@ func (ps *PubSub) forwardAudioWithJitterBuffer(clientID, trackID string, reader 
 
 // forwardDirect forwards packets directly without jitter buffering (for video)
 func (ps *PubSub) forwardDirect(clientID, trackID string, reader *TrackReader, isAudioTrack bool) {
+	// Log track type for debugging
+	trackType := "video"
+	if isAudioTrack {
+		trackType = "audio"
+	}
+	log.Printf("PubSub: [TRACK %s] Starting direct forwarding for %s track from client %s", trackID, trackType, clientID)
+
+	packetCount := 0
+	lastLogTime := time.Now()
+	firstPacketLogged := false
+
 	for {
 		packet, err := reader.ReadRTP()
 
 		if err != nil {
-			log.Printf("PubSub: Error reading RTP from track %s: %v", trackID, err)
+			log.Printf("PubSub: [TRACK %s] Error reading RTP from %s track: %v - STOPPING forwarding", trackID, trackType, err)
 			return
+		}
+
+		// Log first packet to confirm track is being read
+		if !firstPacketLogged {
+			log.Printf("PubSub: [TRACK %s] FIRST PACKET READ - SSRC=%d, Seq=%d, PayloadType=%d, Len=%d",
+				trackID, packet.SSRC, packet.SequenceNumber, packet.PayloadType, len(packet.Payload))
+			firstPacketLogged = true
 		}
 
 		ps.mu.RLock()
 		subs, ok := ps.subscriptions[clientID][trackID]
+		subCount := len(subs)
 		ps.mu.RUnlock()
 
-		if !ok || len(subs) == 0 {
+		if !ok || subCount == 0 {
+			// No subscribers yet, skip this packet but log occasionally
+			if packetCount%100 == 0 {
+				log.Printf("PubSub: [TRACK %s] No subscribers yet (packet %d), skipping", trackID, packetCount)
+			}
 			continue
 		}
 
@@ -561,9 +589,7 @@ func (ps *PubSub) forwardDirect(clientID, trackID string, reader *TrackReader, i
 		// The original SSRC is maintained for proper RTP stream identification
 
 		// Record audio packet if recording is enabled
-
 		if isAudioTrack && ps.recorder != nil {
-
 			if session, ok := ps.recordingSessions[trackID]; ok {
 				if err := ps.recorder.WriteRTP(session.ID, packet); err != nil {
 					log.Printf("PubSub: Error writing RTP to recorder for %s: %v", trackID, err)
@@ -572,10 +598,25 @@ func (ps *PubSub) forwardDirect(clientID, trackID string, reader *TrackReader, i
 		}
 
 		// Phase 6: Forward to all subscribers with direct reference (no cloning)
-		for _, sub := range subs {
+		forwardedCount := 0
+		for subClientID, sub := range subs {
 			if err := sub.Writer.WriteRTP(packet); err != nil {
-				log.Printf("PubSub: Error writing RTP to subscriber %s: %v", sub.ClientID, err)
+				// Only log errors occasionally to avoid spam
+				if packetCount%1000 == 0 {
+					log.Printf("PubSub: [TRACK %s] Error writing RTP to subscriber %s: %v", trackID, subClientID, err)
+				}
+			} else {
+				forwardedCount++
 			}
+		}
+
+		packetCount++
+
+		// Log forwarding stats every 5 seconds for video tracks
+		if !isAudioTrack && time.Since(lastLogTime) > 5*time.Second {
+			log.Printf("PubSub: [TRACK %s] VIDEO STATS: forwarded %d total packets to %d/%d subscribers (SSRC=%d, Seq=%d, PayloadLen=%d)",
+				trackID, packetCount, forwardedCount, subCount, packet.SSRC, packet.SequenceNumber, len(packet.Payload))
+			lastLogTime = time.Now()
 		}
 	}
 }
