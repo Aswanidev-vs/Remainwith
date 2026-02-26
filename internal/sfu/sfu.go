@@ -51,6 +51,8 @@ type Client struct {
 	// Phase 9: Connection monitoring
 	lastActivity    time.Time
 	connectionState webrtc.PeerConnectionState
+	// Write channel for serializing WebSocket writes
+	writeCh chan interface{}
 }
 
 // pendingSub represents a pending track subscription
@@ -160,28 +162,12 @@ func (s *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Add transceivers for audio and video to the peer connection
-	// CRITICAL: Use sendrecv direction for BIDIRECTIONAL audio/video
-	// This allows both sending AND receiving media between client and SFU
+	// NOTE: We no longer create upfront transceivers.
+	// The client will send an offer with its tracks, and we'll create matching transceivers.
+	// This ensures proper transceiver alignment between client and SFU.
 	pc := webrtcTransport.GetPeerConnection()
-	if pc != nil {
-		// Add sendrecv transceivers - bidirectional media flow
-		// Client sends to SFU AND receives from SFU on same transceiver
-		_, err = pc.AddTransceiverFromKind(webrtc.RTPCodecTypeAudio, webrtc.RTPTransceiverInit{
-			Direction: webrtc.RTPTransceiverDirectionSendrecv,
-		})
-		if err != nil {
-			log.Printf("SFU: Failed to add audio transceiver: %v", err)
-		}
-
-		_, err = pc.AddTransceiverFromKind(webrtc.RTPCodecTypeVideo, webrtc.RTPTransceiverInit{
-			Direction: webrtc.RTPTransceiverDirectionSendrecv,
-		})
-		if err != nil {
-			log.Printf("SFU: Failed to add video transceiver: %v", err)
-		}
-
-		log.Printf("SFU: Added sendrecv transceivers for audio and video to client %s (bidirectional media)", clientID)
+	if pc == nil {
+		log.Printf("SFU: ERROR - PeerConnection is nil for client %s", clientID)
 	}
 
 	client := &Client{
@@ -197,7 +183,11 @@ func (s *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		descriptionSent:    make(chan struct{}),
 		lastActivity:       time.Now(),
 		connectionState:    webrtc.PeerConnectionStateNew,
+		writeCh:            make(chan interface{}, 100),
 	}
+
+	// Start dedicated write goroutine to serialize WebSocket writes
+	go s.writePump(client)
 
 	s.mu.Lock()
 	s.clients[clientID] = client
@@ -225,6 +215,26 @@ func (s *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Handle client messages (this will wait for ready signal before sending offer)
 	s.handleClientMessages(client)
+}
+
+// writePump serializes WebSocket writes through a channel
+func (s *SFU) writePump(client *Client) {
+	for msg := range client.writeCh {
+		switch m := msg.(type) {
+		case string:
+			// Ping message
+			if err := client.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				log.Printf("SFU: Error sending ping to client %s: %v", client.ID, err)
+				return
+			}
+		default:
+			// JSON message
+			if err := client.Conn.WriteJSON(m); err != nil {
+				log.Printf("SFU: Error writing to client %s: %v", client.ID, err)
+				return
+			}
+		}
+	}
 }
 
 // Phase 9: monitorConnection monitors the peer connection state and handles recovery
@@ -272,9 +282,11 @@ func (s *SFU) monitorConnection(client *Client) {
 
 			if inactive && state != webrtc.PeerConnectionStateClosed {
 				log.Printf("SFU: Client %s inactive for 60 seconds, checking health", client.ID)
-				// Send a keepalive ping via WebSocket - hold lock during write
-				if err := client.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-					log.Printf("SFU: Failed to ping client %s: %v", client.ID, err)
+				// Send a keepalive ping via WebSocket
+				select {
+				case client.writeCh <- "ping":
+				default:
+					log.Printf("SFU: Failed to queue ping for client %s", client.ID)
 					client.mu.Unlock()
 					return
 				}
@@ -327,18 +339,16 @@ func (s *SFU) handleConnectionFailure(client *Client) {
 		ICERestart: true,
 	}
 
-	client.mu.Lock()
-	if err := client.Conn.WriteJSON(msg); err != nil {
-		log.Printf("SFU: Failed to send ICE restart offer to client %s: %v", client.ID, err)
-		client.mu.Unlock()
+	select {
+	case client.writeCh <- msg:
+		log.Printf("SFU: Sent ICE restart offer to client %s", client.ID)
+	default:
+		log.Printf("SFU: Failed to send ICE restart offer to client %s: write channel full", client.ID)
 		client.mu.Lock()
 		client.iceRestartPending = false
 		client.mu.Unlock()
 		return
 	}
-	client.mu.Unlock()
-
-	log.Printf("SFU: Sent ICE restart offer to client %s", client.ID)
 }
 
 // Phase 10: waitForRecovery waits for natural recovery before triggering ICE restart
@@ -379,8 +389,10 @@ func (s *SFU) handlePubTrackEvents(client *Client, eventsCh <-chan pubsub.PubTra
 			Kind:        event.PubTrack.Kind,
 		}
 
-		if err := client.Conn.WriteJSON(msg); err != nil {
-			log.Printf("SFU: Error sending pub track event: %v", err)
+		select {
+		case client.writeCh <- msg:
+		default:
+			log.Printf("SFU: Error sending pub track event: write channel full")
 			return
 		}
 
@@ -438,6 +450,16 @@ func (s *SFU) addTrackToClient(client *Client, pubTrack pubsub.PubTrack) {
 	log.Printf("SFU: [ADD TRACK] START - track %s (kind=%s) from %s to client %s", pubTrack.TrackID, pubTrack.Kind, pubTrack.ClientID, client.ID)
 	log.Printf("SFU: [ADD TRACK] Current pending subs count: %d", len(client.pendingSubs))
 
+	// Log current transceivers before adding track
+	pc := client.Transport.GetPeerConnection()
+	if pc != nil {
+		transceivers := pc.GetTransceivers()
+		log.Printf("SFU: [ADD TRACK] Before AddTrack: client %s has %d transceivers", client.ID, len(transceivers))
+		for i, tr := range transceivers {
+			log.Printf("SFU: [ADD TRACK] Before - Transceiver[%d] kind=%v direction=%v mid=%s", i, tr.Kind(), tr.Direction(), tr.Mid())
+		}
+	}
+
 	// Get codec capability based on track kind
 	var codecCapability webrtc.RTPCodecCapability
 	switch pubTrack.Kind {
@@ -478,10 +500,31 @@ func (s *SFU) addTrackToClient(client *Client, pubTrack pubsub.PubTrack) {
 	}
 
 	// Add the track to the subscriber's peer connection
-	rtpSender, err := client.Transport.GetPeerConnection().AddTrack(trackToForward)
+	// CRITICAL: Use AddTransceiverFromTrack with sendonly direction to create proper forwarding transceiver
+	log.Printf("SFU: [ADD TRACK] Calling AddTransceiverFromTrack for track %s to client %s", pubTrack.TrackID, client.ID)
+	transceiver, err := client.Transport.GetPeerConnection().AddTransceiverFromTrack(trackToForward, webrtc.RTPTransceiverInit{
+		Direction: webrtc.RTPTransceiverDirectionSendonly,
+	})
 	if err != nil {
-		log.Printf("SFU: Error adding track to subscriber: %v", err)
+		log.Printf("SFU: [ADD TRACK] ERROR adding transceiver for track: %v", err)
 		return
+	}
+	log.Printf("SFU: [ADD TRACK] SUCCESS - AddTransceiverFromTrack returned transceiver with mid=%s", transceiver.Mid())
+
+	// Get the sender from the transceiver
+	rtpSender := transceiver.Sender()
+	if rtpSender == nil {
+		log.Printf("SFU: [ADD TRACK] ERROR - transceiver has no sender")
+		return
+	}
+
+	// Log transceivers after adding track
+	if pc != nil {
+		transceivers := pc.GetTransceivers()
+		log.Printf("SFU: [ADD TRACK] After AddTrack: client %s has %d transceivers", client.ID, len(transceivers))
+		for i, tr := range transceivers {
+			log.Printf("SFU: [ADD TRACK] After - Transceiver[%d] kind=%v direction=%v mid=%s", i, tr.Kind(), tr.Direction(), tr.Mid())
+		}
 	}
 
 	// Create RTCP reader for this sender
@@ -510,14 +553,22 @@ func (s *SFU) addTrackToClient(client *Client, pubTrack pubsub.PubTrack) {
 		trackToForward.ID(), trackToForward.StreamID(), trackToForward.Kind(), client.ID)
 
 	// Renegotiate - create and send offer
+	log.Printf("SFU: [ADD TRACK] Creating renegotiation offer for client %s", client.ID)
 	offer, err := client.Transport.CreateOffer()
 	if err != nil {
-		log.Printf("SFU: Error creating offer for track addition: %v", err)
+		log.Printf("SFU: [ADD TRACK] ERROR creating offer for track addition: %v", err)
 		// Clean up pending sub
 		delete(client.pendingSubs, pubTrack.TrackID)
 		client.Transport.GetPeerConnection().RemoveTrack(rtpSender)
 		return
 	}
+	log.Printf("SFU: [ADD TRACK] Renegotiation offer created, length=%d", len(offer.SDP))
+
+	// Check if offer has the new track
+	hasAudio := contains(offer.SDP, "m=audio")
+	hasVideo := contains(offer.SDP, "m=video")
+	hasSendOnly := contains(offer.SDP, "a=sendonly")
+	log.Printf("SFU: [ADD TRACK] Offer has audio=%v video=%v sendonly=%v", hasAudio, hasVideo, hasSendOnly)
 
 	// Send offer to client
 	msg := SignalMessage{
@@ -525,15 +576,16 @@ func (s *SFU) addTrackToClient(client *Client, pubTrack pubsub.PubTrack) {
 		Offer: offer.SDP,
 	}
 
-	if err := client.Conn.WriteJSON(msg); err != nil {
-		log.Printf("SFU: Error sending offer for track addition: %v", err)
+	select {
+	case client.writeCh <- msg:
+		log.Printf("SFU: Sent renegotiation offer to client %s for track %s", client.ID, pubTrack.TrackID)
+	default:
+		log.Printf("SFU: Error sending offer for track addition: write channel full")
 		// Clean up pending sub
 		delete(client.pendingSubs, pubTrack.TrackID)
 		client.Transport.GetPeerConnection().RemoveTrack(rtpSender)
 		return
 	}
-
-	log.Printf("SFU: Sent renegotiation offer to client %s for track %s", client.ID, pubTrack.TrackID)
 }
 
 // completePendingSubscriptions completes pending track subscriptions after answer is received
@@ -715,8 +767,10 @@ func (s *SFU) handleSignals(client *Client) {
 			}
 		}
 
-		if err := client.Conn.WriteJSON(msg); err != nil {
-			log.Printf("SFU: Error sending signal: %v", err)
+		select {
+		case client.writeCh <- msg:
+		default:
+			log.Printf("SFU: Error sending signal: write channel full")
 			return
 		}
 	}
@@ -743,13 +797,15 @@ func (s *SFU) handleClientMessages(client *Client) {
 	done := make(chan struct{})
 	defer close(done)
 
-	// Start ping goroutine
+	// Start ping goroutine - uses writeCh for serialization
 	go func() {
 		for {
 			select {
 			case <-pingTicker.C:
-				if err := client.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-					log.Printf("SFU: Error sending ping to client %s: %v", client.ID, err)
+				select {
+				case client.writeCh <- "ping":
+				default:
+					log.Printf("SFU: Error sending ping to client %s: write channel full", client.ID)
 					return
 				}
 			case <-done:
@@ -782,9 +838,11 @@ func (s *SFU) handleClientMessages(client *Client) {
 		case "ready":
 			if !clientReady {
 				clientReady = true
-				log.Printf("SFU: Client %s is ready, sending initial offer", client.ID)
-				go s.sendInitialOffer(client)
+				log.Printf("SFU: Client %s is ready, waiting for client offer", client.ID)
+				// Client will send offer - we don't send initial offer anymore
+				// This ensures the client's tracks are properly negotiated
 			}
+
 		case "offer":
 			s.handleOffer(client, msg)
 		case "answer":
@@ -876,15 +934,21 @@ func (s *SFU) handleAnswer(client *Client, msg SignalMessage) {
 		client.initialConnected = true
 		log.Printf("SFU: Initial connection established for client %s", client.ID)
 	}
+	pendingCount := len(client.pendingSubs)
 	client.mu.Unlock()
 
-	// Complete any pending track subscriptions now that renegotiation is done
-	s.completePendingSubscriptions(client)
-
 	// If this was the initial connection, process any queued track events
+	// This will add tracks and trigger renegotiation offers
 	if wasInitial {
 		s.processQueuedTrackEvents(client)
 	}
+
+	// Complete any pending track subscriptions now that renegotiation is done
+	// Only do this if there are actually pending subscriptions (renegotiation case)
+	if pendingCount > 0 {
+		s.completePendingSubscriptions(client)
+	}
+
 }
 
 // handleCandidate handles an ICE candidate message
@@ -978,36 +1042,12 @@ func (s *SFU) handleUnsubTrack(client *Client, msg SignalMessage) {
 	}
 }
 
-// sendInitialOffer sends the initial offer to a newly connected client
+// sendInitialOffer is no longer used - client sends the offer now
+// This ensures proper transceiver alignment
 func (s *SFU) sendInitialOffer(client *Client) {
-	// Small delay to ensure everything is ready
-	time.Sleep(100 * time.Millisecond)
-
-	// Create initial offer
-	offer, err := client.Transport.CreateOffer()
-	if err != nil {
-		log.Printf("SFU: Error creating initial offer for client %s: %v", client.ID, err)
-		return
-	}
-
-	log.Printf("SFU: Created initial offer for client %s (len=%d)", client.ID, len(offer.SDP))
-
-	// Send offer to client
-	msg := SignalMessage{
-		Type:  "offer",
-		Offer: offer.SDP,
-	}
-
-	// Use write lock to prevent concurrent writes
-	client.mu.Lock()
-	if err := client.Conn.WriteJSON(msg); err != nil {
-		log.Printf("SFU: Error sending initial offer to client %s: %v", client.ID, err)
-		client.mu.Unlock()
-		return
-	}
-	client.mu.Unlock()
-
-	log.Printf("SFU: Sent initial offer to client %s, waiting for answer", client.ID)
+	// DEPRECATED: Client now sends the offer first
+	// This ensures the client's tracks are properly negotiated from the start
+	log.Printf("SFU: sendInitialOffer called for client %s - DEPRECATED, client should send offer", client.ID)
 }
 
 // GetRoomStats returns statistics for monitoring

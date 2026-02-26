@@ -227,9 +227,9 @@ func (t *WebRTCTransport) setupPeerConnectionHandlers() {
 	t.peerConn.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
 		log.Printf("WebRTCTransport: Connection state changed to %s for client %s", state.String(), t.clientID)
 
+		// Only close on failed or closed - disconnected is transient and may recover
 		if state == webrtc.PeerConnectionStateFailed ||
-			state == webrtc.PeerConnectionStateClosed ||
-			state == webrtc.PeerConnectionStateDisconnected {
+			state == webrtc.PeerConnectionStateClosed {
 			t.closeOnce.Do(func() {
 				close(t.doneCh)
 			})

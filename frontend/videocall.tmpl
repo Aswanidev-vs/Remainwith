@@ -686,7 +686,7 @@
         }
         
         // Create peer connection early, before WebSocket connection
-        // CRITICAL: Do NOT add tracks here - add them after receiving the offer
+        // CRITICAL: Add tracks BEFORE connecting to ensure proper sendrecv negotiation
         function createPeerConnection() {
             if (pc) {
                 pc.close();
@@ -696,9 +696,22 @@
             pc = new RTCPeerConnection(rtcConfig);
             console.log('Peer connection created');
             
-            // DO NOT add transceivers or tracks here
-            // We will add tracks AFTER receiving the offer from the server
-            // This ensures proper sendrecv direction negotiation
+            // CRITICAL: Add local tracks BEFORE any offer/answer exchange
+            // This ensures transceivers are created with proper sendrecv direction
+            if (localStream) {
+                console.log('Adding local tracks to peer connection BEFORE connecting...');
+                localStream.getTracks().forEach(track => {
+                    try {
+                        pc.addTrack(track, localStream);
+                        console.log('✓ Added ' + track.kind + ' track to PC');
+                    } catch (e) {
+                        console.error('Failed to add track to PC:', e);
+                    }
+                });
+            } else {
+                console.warn('Local stream not available when creating peer connection - tracks will be added when stream is ready');
+            }
+
 
 
             
@@ -1155,50 +1168,9 @@
                     });
                 });
                 
-                // If peer connection already exists, add tracks to it
-                if (pc) {
-                    console.log('Adding tracks to existing peer connection');
-                    localStream.getTracks().forEach(track => {
-                        // Check if track is already added
-                        const senders = pc.getSenders();
-                        const alreadyAdded = senders.some(s => s.track && s.track.id === track.id);
-                        if (!alreadyAdded) {
-                            console.log('Adding track to existing PC:', track.kind);
-                            try {
-                                const sender = pc.addTrack(track, localStream);
-                                console.log('✓ Added ' + track.kind + ' track');
-                                
-                                // Monitor video packets specifically
-                                if (track.kind === 'video') {
-                                    console.log('📹 Video track added - starting packet monitor');
-                                    const videoPacketMonitor = setInterval(() => {
-                                        pc.getStats(sender).then(stats => {
-                                            stats.forEach(report => {
-                                                if (report.type === 'outbound-rtp' && report.kind === 'video') {
-                                                    const totalKbps = (report.bytesSent * 8 / 1000).toFixed(2);
-                                                    if (report.bytesSent > 0) {
-                                                        console.log('✓ Video packets: ' + report.bytesSent + ' bytes, ' + report.framesEncoded + ' frames encoded');
-                                                    } else {
-                                                        console.warn('⚠️  Video track created but NO packets being sent!');
-                                                        console.warn('   This means video is not actually flowing to server');
-                                                        console.warn('   Check: 1) Camera permissions  2) Browser console for errors  3) Firewall');
-                                                    }
-                                                }
-                                            });
-                                        });
-                                    }, 2000);
-                                    
-                                    sender.track.onended = () => {
-                                        clearInterval(videoPacketMonitor);
-                                        console.warn('Video track ended');
-                                    };
-                                }
-                            } catch (e) {
-                                console.error('Failed to add track to PC:', e);
-                            }
-                        }
-                    });
-                }
+                // Tracks are now added in createPeerConnection() before connecting
+                // This ensures proper transceiver negotiation
+
             } catch (err) {
                 console.error("Error accessing media devices:", err);
                 alert("Could not access camera or microphone. Please check permissions. Error: " + err.message);
@@ -1257,7 +1229,7 @@
 
 
 
-        function connectWebSockets() {
+        async function connectWebSockets() {
             if (isConnecting) return;
             isConnecting = true;
             
@@ -1267,14 +1239,19 @@
             const sfuUrl = `${protocol}//${window.location.host}/ws/sfu?client_id=${userID}&room_id=${roomID}`;
             sfuWs = new WebSocket(sfuUrl);
 
-            sfuWs.onopen = () => {
+            sfuWs.onopen = async () => {
                 console.log('SFU WebSocket connected');
                 isConnecting = false;
                 
-                // Send ready signal to SFU - peer connection is already created
+                // CRITICAL: Send ready signal first, then create and send offer
                 sendSFUMessage({ type: 'ready' });
                 console.log('Sent ready signal to SFU');
+                
+                // Now create and send our offer with tracks
+                // This ensures the SFU receives our tracks and can create matching transceivers
+                await createAndSendOffer();
             };
+
 
             sfuWs.onmessage = (event) => {
                 const msg = JSON.parse(event.data);
@@ -1332,6 +1309,60 @@
                 sfuWs.send(JSON.stringify(msg));
             }
         }
+
+        // Create and send offer to SFU with our tracks
+        async function createAndSendOffer() {
+            if (!pc) {
+                console.error('No peer connection available');
+                return;
+            }
+            
+            try {
+                console.log('=== CREATING OFFER FOR SFU ===');
+                console.log('Current transceivers:', pc.getTransceivers().length);
+                
+                // Log transceiver state before creating offer
+                pc.getTransceivers().forEach((tr, i) => {
+                    console.log(`Transceiver[${i}]: kind=${tr.kind}, direction=${tr.direction}`);
+                });
+                
+                // Create offer
+                const offer = await pc.createOffer();
+                console.log('Created offer, length:', offer.sdp.length);
+                
+                // Check offer has media sections
+                const hasAudio = offer.sdp.includes('m=audio');
+                const hasVideo = offer.sdp.includes('m=video');
+                console.log('Offer has audio:', hasAudio, 'video:', hasVideo);
+                
+                // Set local description
+                await pc.setLocalDescription(offer);
+                console.log('Set local description');
+                
+                // Wait for ICE gathering
+                await waitForIceGathering();
+                
+                // Get final offer with ICE candidates
+                const finalOffer = pc.localDescription;
+                if (!finalOffer) {
+                    throw new Error('Local description is null after ICE gathering');
+                }
+                
+                console.log('Final offer length:', finalOffer.sdp.length);
+                console.log('Final offer has ice-ufrag:', finalOffer.sdp.includes('ice-ufrag'));
+                
+                // Send offer to SFU
+                sendSFUMessage({
+                    type: 'offer',
+                    offer: finalOffer.sdp
+                });
+                
+                console.log('Sent offer to SFU');
+            } catch (err) {
+                console.error('Error creating/sending offer:', err);
+            }
+        }
+
 
         function sendRoomMessage(msg) {
             if (roomWs && roomWs.readyState === WebSocket.OPEN) {
@@ -1401,7 +1432,7 @@
                 console.log('Current transceivers before offer:', pc.getTransceivers().length);
                 console.log('Current signaling state:', pc.signalingState);
                 
-                // Set remote description FIRST
+                // Set remote description
                 console.log('Setting remote description...');
                 await pc.setRemoteDescription(new RTCSessionDescription({
                     type: 'offer',
@@ -1409,29 +1440,9 @@
                 }));
                 console.log('✓ Remote description set');
 
-                
-                // CRITICAL: Add local tracks AFTER setting remote description
-                // This ensures proper sendrecv direction negotiation
-                if (localStream) {
-                    console.log('Adding local tracks after setting remote description...');
-                    const currentSenders = pc.getSenders();
-                    const currentTrackIds = new Set(currentSenders.map(s => s.track?.id).filter(Boolean));
-                    
-                    localStream.getTracks().forEach(track => {
-                        if (!currentTrackIds.has(track.id)) {
-                            try {
-                                pc.addTrack(track, localStream);
-                                console.log('✓ Added ' + track.kind + ' track to PC');
-                            } catch (e) {
-                                console.error('Failed to add track:', e);
-                            }
-                        } else {
-                            console.log('Track already added:', track.kind);
-                        }
-                    });
-                }
-                
-                console.log('Transceivers after adding tracks:', pc.getTransceivers().length);
+                // Log transceiver state after setting remote description
+                console.log('Transceivers after setting remote description:', pc.getTransceivers().length);
+
                 
                 // Log transceiver directions after adding tracks
                 pc.getTransceivers().forEach((tr, i) => {
