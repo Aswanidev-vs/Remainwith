@@ -3,6 +3,7 @@ package sfu
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -41,6 +42,15 @@ type Client struct {
 	initialConnected bool
 	// Pending ICE candidates waiting for remote description
 	pendingCandidates []*webrtc.ICECandidate
+	// Channel to signal when local description is set (for ICE candidates)
+	descriptionSent     chan struct{}
+	descriptionSentOnce sync.Once
+	// Phase 10: ICE restart state
+	iceRestartPending bool
+	iceRestartCount   int
+	// Phase 9: Connection monitoring
+	lastActivity    time.Time
+	connectionState webrtc.PeerConnectionState
 }
 
 // pendingSub represents a pending track subscription
@@ -63,6 +73,8 @@ type SignalMessage struct {
 	PubClientID string                 `json:"pub_client_id,omitempty"`
 	// Ready indicates client is ready to receive offers
 	Ready bool `json:"ready,omitempty"`
+	// Phase 10: ICE restart flag
+	ICERestart bool `json:"ice_restart,omitempty"`
 }
 
 // PubTrackMessage represents a track subscription message
@@ -113,9 +125,7 @@ func (s *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create WebRTC transport with STUN and TURN servers
-	// TURN servers help when peers are behind restrictive NATs/firewalls
-	// For VS Code port forwarding, we need multiple STUN servers and TURN servers
-	// to ensure connectivity through the forwarded port
+	// Phase 9: Enhanced ICE configuration for connection stability
 	iceServers := []webrtc.ICEServer{
 		// Multiple Google STUN servers for redundancy
 		{URLs: []string{"stun:stun.l.google.com:19302"}},
@@ -126,7 +136,6 @@ func (s *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// Cloudflare STUN server
 		{URLs: []string{"stun:stun.cloudflare.com:3478"}},
 		// Public TURN servers for testing (replace with your own in production)
-		// These help when both peers are behind symmetric NATs
 		{
 			URLs:       []string{"turn:openrelay.metered.ca:80"},
 			Username:   "openrelayproject",
@@ -152,7 +161,6 @@ func (s *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Add transceivers for audio and video to the peer connection
-	// This ensures the offer has proper m-lines for media
 	pc := webrtcTransport.GetPeerConnection()
 	if pc != nil {
 		// Add sendrecv transceivers - client will set the actual direction in answer
@@ -182,6 +190,9 @@ func (s *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		initialTrackEvents: make([]pubsub.PubTrackEvent, 0),
 		initialConnected:   false,
 		pendingCandidates:  make([]*webrtc.ICECandidate, 0),
+		descriptionSent:    make(chan struct{}),
+		lastActivity:       time.Now(),
+		connectionState:    webrtc.PeerConnectionStateNew,
 	}
 
 	s.mu.Lock()
@@ -205,8 +216,147 @@ func (s *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Handle WebRTC signals
 	go s.handleSignals(client)
 
+	// Phase 9: Start connection monitoring
+	go s.monitorConnection(client)
+
 	// Handle client messages (this will wait for ready signal before sending offer)
 	s.handleClientMessages(client)
+}
+
+// Phase 9: monitorConnection monitors the peer connection state and handles recovery
+func (s *SFU) monitorConnection(client *Client) {
+	pc := client.Transport.GetPeerConnection()
+	if pc == nil {
+		return
+	}
+
+	// Monitor connection state changes
+	pc.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
+		client.mu.Lock()
+		client.connectionState = state
+		client.lastActivity = time.Now()
+		client.mu.Unlock()
+
+		log.Printf("SFU: Connection state changed to %s for client %s", state.String(), client.ID)
+
+		switch state {
+		case webrtc.PeerConnectionStateFailed:
+			log.Printf("SFU: Connection failed for client %s, attempting ICE restart", client.ID)
+			s.handleConnectionFailure(client)
+		case webrtc.PeerConnectionStateDisconnected:
+			log.Printf("SFU: Connection disconnected for client %s, monitoring for recovery", client.ID)
+			// Give it some time to recover naturally
+			go s.waitForRecovery(client)
+		case webrtc.PeerConnectionStateConnected:
+			log.Printf("SFU: Connection established for client %s", client.ID)
+			client.mu.Lock()
+			client.iceRestartCount = 0 // Reset restart counter on successful connection
+			client.mu.Unlock()
+		}
+	})
+
+	// Phase 9: Periodic keepalive check
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			client.mu.Lock()
+			inactive := time.Since(client.lastActivity) > 60*time.Second
+			state := client.connectionState
+			client.mu.Unlock()
+
+			if inactive && state != webrtc.PeerConnectionStateClosed {
+				log.Printf("SFU: Client %s inactive for 60 seconds, checking health", client.ID)
+				// Send a keepalive ping via WebSocket
+				if err := client.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+					log.Printf("SFU: Failed to ping client %s: %v", client.ID, err)
+				}
+			}
+		case <-client.Transport.Done():
+			return
+		}
+	}
+}
+
+// Phase 10: handleConnectionFailure handles connection failures with ICE restart
+func (s *SFU) handleConnectionFailure(client *Client) {
+	client.mu.Lock()
+	if client.iceRestartPending {
+		client.mu.Unlock()
+		log.Printf("SFU: ICE restart already pending for client %s", client.ID)
+		return
+	}
+
+	// Limit restart attempts
+	if client.iceRestartCount >= 3 {
+		client.mu.Unlock()
+		log.Printf("SFU: Max ICE restart attempts reached for client %s, closing connection", client.ID)
+		s.closeClient(client)
+		return
+	}
+
+	client.iceRestartPending = true
+	client.iceRestartCount++
+	client.mu.Unlock()
+
+	log.Printf("SFU: Initiating ICE restart for client %s (attempt %d)", client.ID, client.iceRestartCount)
+
+	// Create new offer with ICE restart
+	offer, err := client.Transport.CreateOffer()
+	if err != nil {
+		log.Printf("SFU: Failed to create ICE restart offer for client %s: %v", client.ID, err)
+		client.mu.Lock()
+		client.iceRestartPending = false
+		client.mu.Unlock()
+		return
+	}
+
+	// Send ICE restart offer to client
+	msg := SignalMessage{
+		Type:       "offer",
+		Offer:      offer.SDP,
+		ICERestart: true,
+	}
+
+	client.mu.Lock()
+	if err := client.Conn.WriteJSON(msg); err != nil {
+		log.Printf("SFU: Failed to send ICE restart offer to client %s: %v", client.ID, err)
+		client.mu.Unlock()
+		client.mu.Lock()
+		client.iceRestartPending = false
+		client.mu.Unlock()
+		return
+	}
+	client.mu.Unlock()
+
+	log.Printf("SFU: Sent ICE restart offer to client %s", client.ID)
+}
+
+// Phase 10: waitForRecovery waits for natural recovery before triggering ICE restart
+func (s *SFU) waitForRecovery(client *Client) {
+	// Wait 5 seconds for natural recovery
+	time.Sleep(5 * time.Second)
+
+	client.mu.Lock()
+	state := client.connectionState
+	client.mu.Unlock()
+
+	if state == webrtc.PeerConnectionStateDisconnected || state == webrtc.PeerConnectionStateFailed {
+		log.Printf("SFU: No natural recovery for client %s, triggering ICE restart", client.ID)
+		s.handleConnectionFailure(client)
+	}
+}
+
+// closeClient closes a client connection cleanly
+func (s *SFU) closeClient(client *Client) {
+	s.mu.Lock()
+	delete(s.clients, client.ID)
+	s.mu.Unlock()
+	client.Conn.Close()
+	client.Transport.Close()
+	log.Printf("SFU: Closed client %s connection", client.ID)
 }
 
 // handlePubTrackEvents handles track publication events
@@ -289,11 +439,14 @@ func (s *SFU) addTrackToClient(client *Client, pubTrack pubsub.PubTrack) {
 	}
 
 	// Create a local track to forward the published track
+	// Use consistent stream ID for all tracks from same participant so audio/video are grouped together
+	streamID := fmt.Sprintf("participant-%s", pubTrack.ClientID)
 	trackToForward, err := webrtc.NewTrackLocalStaticRTP(
 		codecCapability,
 		pubTrack.TrackID,
-		pubTrack.ClientID, // Use publisher's client ID as stream ID for identification
+		streamID, // Consistent stream ID for audio/video grouping
 	)
+
 	if err != nil {
 		log.Printf("SFU: Error creating forward track: %v", err)
 		return
@@ -321,6 +474,10 @@ func (s *SFU) addTrackToClient(client *Client, pubTrack pubsub.PubTrack) {
 		rtcpReader: rtcpReader,
 		rtpSender:  rtpSender,
 	}
+
+	// Use the variables to avoid compiler errors
+	_ = rtcpReader
+	_ = trackLocal
 
 	// Start RTCP processing for this sender
 	go s.processRTCP(rtpSender)
@@ -548,6 +705,11 @@ func (s *SFU) handleClientMessages(client *Client) {
 			break
 		}
 
+		// Update last activity
+		client.mu.Lock()
+		client.lastActivity = time.Now()
+		client.mu.Unlock()
+
 		switch msg.Type {
 		case "ready":
 			if !clientReady {
@@ -589,6 +751,30 @@ func (s *SFU) handleOffer(client *Client, msg SignalMessage) {
 func (s *SFU) handleAnswer(client *Client, msg SignalMessage) {
 	log.Printf("SFU: Received answer from client %s (len=%d)", client.ID, len(msg.Answer))
 
+	// Phase 10: Check if this is an ICE restart answer
+	if msg.ICERestart {
+		log.Printf("SFU: Received ICE restart answer from client %s", client.ID)
+		client.mu.Lock()
+		client.iceRestartPending = false
+		client.mu.Unlock()
+	}
+
+	// Log answer SDP directions for debugging
+	if len(msg.Answer) > 0 {
+		// Check for sendrecv direction in answer (client should send AND receive)
+		hasSendRecv := contains(msg.Answer, "a=sendrecv")
+		hasSendOnly := contains(msg.Answer, "a=sendonly")
+		hasRecvOnly := contains(msg.Answer, "a=recvonly")
+		log.Printf("SFU: Answer SDP directions - sendrecv:%v sendonly:%v recvonly:%v", hasSendRecv, hasSendOnly, hasRecvOnly)
+
+		// Log first 500 chars of answer for inspection
+		previewLen := 500
+		if len(msg.Answer) < previewLen {
+			previewLen = len(msg.Answer)
+		}
+		log.Printf("SFU: Answer SDP preview: %s", msg.Answer[:previewLen])
+	}
+
 	signal := transport.SignalMessage{
 		Type: "answer",
 		SDP:  msg.Answer,
@@ -600,6 +786,17 @@ func (s *SFU) handleAnswer(client *Client, msg SignalMessage) {
 	}
 
 	log.Printf("SFU: Answer processed successfully for client %s", client.ID)
+
+	// Verify transceiver directions after answer is applied
+	pc := client.Transport.GetPeerConnection()
+	if pc != nil {
+		trs := pc.GetTransceivers()
+		log.Printf("SFU: After answer, peer connection has %d transceivers", len(trs))
+		for i, tr := range trs {
+			log.Printf("SFU: After answer - Transceiver[%d] kind=%v direction=%v",
+				i, tr.Kind(), tr.Direction())
+		}
+	}
 
 	// Process any pending ICE candidates now that remote description is set
 	s.processPendingCandidates(client)
@@ -616,10 +813,13 @@ func (s *SFU) handleAnswer(client *Client, msg SignalMessage) {
 	// Complete any pending track subscriptions now that renegotiation is done
 	s.completePendingSubscriptions(client)
 
-	// If this was the initial connection, process any queued track events
+	// If this was the initial connection, process any queued track events and share existing tracks
 	if wasInitial {
 		s.processQueuedTrackEvents(client)
+		// Share existing tracks from other participants AFTER initial connection is established
+		s.shareExistingTracksWithNewClient(client)
 	}
+
 }
 
 // handleCandidate handles an ICE candidate message
@@ -690,16 +890,27 @@ func (s *SFU) processPendingCandidates(client *Client) {
 	client.pendingCandidates = client.pendingCandidates[:0]
 }
 
-// handleSubTrack handles track subscription
+// handleSubTrack handles track subscription (auto-subscription is now the default)
 func (s *SFU) handleSubTrack(client *Client, msg SignalMessage) {
-	log.Printf("SFU: Client %s subscribing to track %s from %s", client.ID, msg.TrackID, msg.PubClientID)
-	// TODO: Implement proper track subscription
+	log.Printf("SFU: Client %s subscribing to track %s from %s (auto-subscription active)", client.ID, msg.TrackID, msg.PubClientID)
+	// Auto-subscription is handled in addTrackToClient - this handler is for manual subscription if needed
 }
 
 // handleUnsubTrack handles track unsubscription
 func (s *SFU) handleUnsubTrack(client *Client, msg SignalMessage) {
 	log.Printf("SFU: Client %s unsubscribing from track %s from %s", client.ID, msg.TrackID, msg.PubClientID)
-	// TODO: Implement proper track unsubscription
+
+	// Unsubscribe from the track
+	params := SubParams{
+		PubClientID: msg.PubClientID,
+		RoomID:      client.RoomID,
+		TrackID:     msg.TrackID,
+		SubClientID: client.ID,
+	}
+
+	if err := s.tracksManager.Unsub(params); err != nil {
+		log.Printf("SFU: Error unsubscribing from track: %v", err)
+	}
 }
 
 // sendInitialOffer sends the initial offer to a newly connected client
@@ -734,6 +945,41 @@ func (s *SFU) sendInitialOffer(client *Client) {
 	log.Printf("SFU: Sent initial offer to client %s, waiting for answer", client.ID)
 }
 
+// shareExistingTracksWithNewClient shares all existing tracks from other participants with a new client
+func (s *SFU) shareExistingTracksWithNewClient(client *Client) {
+	// Get all published tracks from the tracks manager
+	allTracks := s.tracksManager.GetAllTracks()
+
+	sharedCount := 0
+	for _, track := range allTracks {
+		// Don't share the client's own tracks back to them
+		if track.ClientID == client.ID {
+			continue
+		}
+
+		// Only share tracks from the same room
+		if track.RoomID != client.RoomID {
+			continue
+		}
+
+		log.Printf("SFU: Sharing existing track %s from %s with new client %s",
+			track.TrackID, track.ClientID, client.ID)
+
+		// Add track to the new client - this will trigger renegotiation
+		// Process synchronously to avoid race conditions, but release locks first
+		s.addTrackToClient(client, track)
+
+		sharedCount++
+	}
+
+	if sharedCount > 0 {
+		log.Printf("SFU: Shared %d existing tracks with new client %s", sharedCount, client.ID)
+	} else {
+		log.Printf("SFU: No existing tracks to share with new client %s", sharedCount, client.ID)
+	}
+
+}
+
 // GetRoomStats returns statistics for monitoring
 func (s *SFU) GetRoomStats(roomID string) (clientCount int, trackCount int) {
 	return s.tracksManager.GetRoomStats(roomID)
@@ -742,4 +988,18 @@ func (s *SFU) GetRoomStats(roomID string) (clientCount int, trackCount int) {
 // CleanupInactiveRooms removes rooms with no recent activity
 func (s *SFU) CleanupInactiveRooms() {
 	s.tracksManager.CleanupInactiveRooms()
+}
+
+// contains checks if a string contains a substring
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsAt(s, substr, 0))
+}
+
+func containsAt(s, substr string, start int) bool {
+	for i := start; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }

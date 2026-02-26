@@ -26,15 +26,20 @@ type PeerManager struct {
 
 	// PLI times for congestion control
 	pliTimes map[string]time.Time
+
+	// Phase 8: Track readers registry to prevent duplicates
+	// Maps trackID to its reader to ensure single reader per track
+	trackReaders map[string]bool
 }
 
 // NewPeerManager creates a new peer manager for a room
 func NewPeerManager(roomID string) *PeerManager {
 	return &PeerManager{
-		roomID:     roomID,
-		transports: make(map[string]transport.Transport),
-		pubsub:     pubsub.New(),
-		pliTimes:   make(map[string]time.Time),
+		roomID:       roomID,
+		transports:   make(map[string]transport.Transport),
+		pubsub:       pubsub.New(),
+		pliTimes:     make(map[string]time.Time),
+		trackReaders: make(map[string]bool),
 	}
 }
 
@@ -127,22 +132,39 @@ func (pm *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent,
 				}
 				trackID := track.Track().ID()
 
+				// Phase 8: Check for duplicate track readers
+				pm.mu.Lock()
+				if pm.trackReaders[trackID] {
+					// Already have a reader for this track, skip
+					log.Printf("PeerManager: Duplicate track reader detected for %s, skipping", trackID)
+					pm.mu.Unlock()
+					continue
+				}
+				// Mark this track as having a reader
+				pm.trackReaders[trackID] = true
+				pm.mu.Unlock()
+
 				log.Printf("PeerManager: Received remote track %s (%s) from client %s", trackID, track.Track().Kind().String(), clientID)
 
 				// Create done channel for cleanup
 				done := make(chan struct{})
 
-				// Publish track
+				// Publish track with room ID
 				reader := pubsub.NewTrackReader(track, func() {
 					close(done)
+					// Phase 8: Clean up track reader registry
+					pm.mu.Lock()
+					delete(pm.trackReaders, trackID)
+					pm.mu.Unlock()
 					pm.pubsub.Unpub(clientID, trackID)
 				})
 
 				pm.mu.Lock()
-				pm.pubsub.Pub(clientID, reader)
+				pm.pubsub.Pub(clientID, pm.roomID, reader)
 				pm.mu.Unlock()
 
-				// Process RTCP for this track
+				// Phase 8: Single RTCP processing - no duplicate readers
+				// Process RTCP for this track only once
 				pm.wg.Add(1)
 				go func() {
 					defer pm.wg.Done()
@@ -276,7 +298,8 @@ func (pm *PeerManager) Sub(pubClientID, trackID, subClientID string, writer tran
 		return err
 	}
 
-	// Start RTCP processing for subscriber
+	// Phase 8: Single RTCP processing for subscriber
+	// Start RTCP processing for this subscriber only once
 	pm.wg.Add(1)
 	go func() {
 		defer pm.wg.Done()
