@@ -153,65 +153,75 @@ func (pm *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent,
 
 				log.Printf("PeerManager: [TRACK RECEIVER] Track %s (%s) from client %s - passed duplicate check", trackID, trackKind, clientID)
 
-				// Create done channel for cleanup
-				done := make(chan struct{})
-
-				// Publish track to pubsub - this will start forwarding to all subscribers
-				reader := pubsub.NewTrackReader(track, func() {
-					close(done)
-					// Phase 8: Clean up track reader registry
-					pm.mu.Lock()
-					delete(pm.trackReaders, trackID)
-					pm.mu.Unlock()
-					pm.pubsub.Unpub(clientID, trackID)
-				})
-
-				// Publish the track - this notifies all subscribers and starts forwarding
-				pm.mu.Lock()
-				log.Printf("PeerManager: [TRACK RECEIVER] Calling pubsub.Pub for track %s (kind=%s) from client %s", trackID, trackKind, clientID)
-				if err := pm.pubsub.Pub(clientID, reader); err != nil {
-					log.Printf("PeerManager: [TRACK RECEIVER] ERROR publishing track %s: %v", trackID, err)
-					pm.mu.Unlock()
-					continue
-				}
-				pm.mu.Unlock()
-
-				log.Printf("PeerManager: [TRACK RECEIVER] SUCCESSFULLY published track %s (%s) from client %s to pubsub", trackID, trackKind, clientID)
-
-				// Phase 8: Single RTCP processing - no duplicate readers
-				// Process RTCP for this track only once
+				// CRITICAL FIX: Handle each track in its own goroutine so the select loop
+				// is not blocked and can immediately receive the next track (e.g., video
+				// arriving right after audio).
+				capturedTrack := trackWithReader
+				capturedTrackID := trackID
+				capturedTrackKind := trackKind
 				pm.wg.Add(1)
 				go func() {
 					defer pm.wg.Done()
 
-					for {
-						packets, _, err := trackWithReader.RTCPReader.ReadRTCP()
+					// Create done channel for cleanup
+					done := make(chan struct{})
 
-						if err != nil {
-							if err != io.EOF {
-								log.Printf("PeerManager: Error reading RTCP for track %s: %v", trackID, err)
+					// Publish track to pubsub - this will start forwarding to all subscribers
+					reader := pubsub.NewTrackReader(capturedTrack.TrackRemote, func() {
+						close(done)
+						// Phase 8: Clean up track reader registry
+						pm.mu.Lock()
+						delete(pm.trackReaders, capturedTrackID)
+						pm.mu.Unlock()
+						pm.pubsub.Unpub(clientID, capturedTrackID)
+					})
+
+					// Publish the track - this notifies all subscribers and starts forwarding
+					pm.mu.Lock()
+					log.Printf("PeerManager: [TRACK RECEIVER] Calling pubsub.Pub for track %s (kind=%s) from client %s", capturedTrackID, capturedTrackKind, clientID)
+					if err := pm.pubsub.Pub(clientID, reader); err != nil {
+						log.Printf("PeerManager: [TRACK RECEIVER] ERROR publishing track %s: %v", capturedTrackID, err)
+						pm.mu.Unlock()
+						return
+					}
+					pm.mu.Unlock()
+
+					log.Printf("PeerManager: [TRACK RECEIVER] SUCCESSFULLY published track %s (%s) from client %s to pubsub", capturedTrackID, capturedTrackKind, clientID)
+
+					// Phase 8: Single RTCP processing - no duplicate readers
+					pm.wg.Add(1)
+					go func() {
+						defer pm.wg.Done()
+
+						for {
+							packets, _, err := capturedTrack.RTCPReader.ReadRTCP()
+
+							if err != nil {
+								if err != io.EOF {
+									log.Printf("PeerManager: Error reading RTCP for track %s: %v", capturedTrackID, err)
+								}
+								return
 							}
-							return
-						}
 
-						for _, packet := range packets {
-							switch p := packet.(type) {
-							case *rtcp.PictureLossIndication:
-								log.Printf("PeerManager: Received PLI for track %s", trackID)
-								pm.forwardPLI(clientID, trackID, p)
-							case *rtcp.ReceiverEstimatedMaximumBitrate:
-								log.Printf("PeerManager: Received REMB for track %s: %f", trackID, p.Bitrate)
-								// Update bitrate estimator
-								if estimator, ok := pm.pubsub.BitrateEstimator(trackID); ok {
-									estimator.Feed(clientID, p.Bitrate)
+							for _, packet := range packets {
+								switch p := packet.(type) {
+								case *rtcp.PictureLossIndication:
+									log.Printf("PeerManager: Received PLI for track %s", capturedTrackID)
+									pm.forwardPLI(clientID, capturedTrackID, p)
+								case *rtcp.ReceiverEstimatedMaximumBitrate:
+									log.Printf("PeerManager: Received REMB for track %s: %f", capturedTrackID, p.Bitrate)
+									// Update bitrate estimator
+									if estimator, ok := pm.pubsub.BitrateEstimator(capturedTrackID); ok {
+										estimator.Feed(clientID, p.Bitrate)
+									}
 								}
 							}
 						}
-					}
-				}()
+					}()
 
-				// Wait for track cleanup
-				<-done
+					// Wait for track cleanup
+					<-done
+				}()
 
 			case <-trackReceiveTimeout.C:
 				if !trackReceived {

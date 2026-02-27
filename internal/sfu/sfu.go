@@ -948,6 +948,24 @@ func (s *SFU) handleOffer(client *Client, msg SignalMessage) {
 
 	if err := client.Transport.Signal(signal); err != nil {
 		log.Printf("SFU: Error handling offer: %v", err)
+		return
+	}
+
+	// After processing the client's offer and sending back an answer,
+	// mark the initial connection as established (if not already done).
+	// This is needed when the CLIENT sends the initial offer (rather than the SFU),
+	// because handleAnswer is only called when the SFU is the offerer.
+	client.mu.Lock()
+	wasInitial := !client.initialConnected
+	if wasInitial {
+		client.initialConnected = true
+		log.Printf("SFU: Initial connection established (client-initiated offer) for client %s", client.ID)
+	}
+	client.mu.Unlock()
+
+	// Process any queued track events that arrived before the initial connection
+	if wasInitial {
+		s.processQueuedTrackEvents(client)
 	}
 }
 
