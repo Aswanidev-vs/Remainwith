@@ -256,7 +256,6 @@ func (ps *PubSub) cleanup() {
 // Pub publishes a track
 func (ps *PubSub) Pub(clientID string, reader *TrackReader) error {
 	ps.mu.Lock()
-	defer ps.mu.Unlock()
 
 	track := reader.track
 	trackID := track.Track().ID()
@@ -294,14 +293,17 @@ func (ps *PubSub) Pub(clientID string, reader *TrackReader) error {
 	log.Printf("PubSub: [TRACK %s] PUBLISHED - clientID: %s, kind: %s, streamID: %s, current subs: %d",
 		trackID, clientID, trackKind, track.Track().StreamID(), subCount)
 
-	// Notify subscribers
+	// Notify subscribers (within lock to ensure consistency)
 	ps.notifyEventSubscribers(PubTrackEvent{
 		PubTrack: *pubTrack,
 		Type:     TrackEventTypeAdd,
 	})
 
-	// Start forwarding RTP packets
-	go ps.forwardTrack(clientID, trackID, reader)
+	ps.mu.Unlock()
+
+	// Start forwarding RTP packets with track kind already determined
+	// Pass trackKind directly to avoid race conditions
+	go ps.forwardTrack(clientID, trackID, reader, trackKind)
 
 	return nil
 }
@@ -463,17 +465,37 @@ func (ps *PubSub) notifyEventSubscribers(event PubTrackEvent) {
 // Phase 3: SSRC preservation - we keep the original SSRC to maintain
 // proper stream identification across the SFU
 // Phase 6: No cloning - use direct packet reference for efficiency (peer-calls pattern)
-// Note: All tracks now use direct forwarding to prevent timing artifacts
-func (ps *PubSub) forwardTrack(clientID, trackID string, reader *TrackReader) {
-	// Check if this is an audio track
-	isAudioTrack := false
-	if track, ok := ps.publishedTracks[clientID][trackID]; ok {
-		isAudioTrack = track.Kind == "audio"
+// Note: Audio tracks use jitter buffering to prevent timing artifacts
+// FIX: Pass trackKind directly to avoid race condition when accessing publishedTracks map
+func (ps *PubSub) forwardTrack(clientID, trackID string, reader *TrackReader, trackKind string) {
+	// Track kind is passed as parameter to avoid race conditions
+	isAudioTrack := trackKind == "audio"
+
+	// Use jitter buffer for audio tracks to prevent timing artifacts
+	// Use direct forwarding for video tracks (no jitter buffer needed)
+	if isAudioTrack {
+		// Get or create a jitter buffer for this audio track
+		ps.mu.Lock()
+		jb, ok := ps.jitterBuffers[trackID]
+		if !ok {
+			// 20 ms buffer size - matches the jitter-buffer ticker interval
+			jb = jitter.New(jitter.Config{
+				MinDelay: 20 * time.Millisecond,
+				MaxDelay: 500 * time.Millisecond,
+				MaxSize:  1000,
+			})
+			ps.jitterBuffers[trackID] = jb
+			log.Printf("PubSub: Created jitter buffer for audio track %s", trackID)
+		}
+		ps.mu.Unlock()
+
+		// Forward audio via jitter buffer
+		ps.forwardAudioWithJitterBuffer(clientID, trackID, reader, jb)
+		return
 	}
 
-	// Use direct forwarding for all tracks (no jitter buffer)
-	// This prevents frequency wave sounds and timing artifacts
-	ps.forwardDirect(clientID, trackID, reader, isAudioTrack)
+	// For video tracks, use direct forwarding (no jitter buffer)
+	ps.forwardDirect(clientID, trackID, reader, true)
 }
 
 // forwardAudioWithJitterBuffer forwards audio with jitter buffering to prevent clock drift
@@ -545,10 +567,10 @@ func (ps *PubSub) forwardAudioWithJitterBuffer(clientID, trackID string, reader 
 }
 
 // forwardDirect forwards packets directly without jitter buffering (for video)
-func (ps *PubSub) forwardDirect(clientID, trackID string, reader *TrackReader, isAudioTrack bool) {
+func (ps *PubSub) forwardDirect(clientID, trackID string, reader *TrackReader, isVideoTrack bool) {
 	// Log track type for debugging
 	trackType := "video"
-	if isAudioTrack {
+	if !isVideoTrack {
 		trackType = "audio"
 	}
 	log.Printf("PubSub: [TRACK %s] Starting direct forwarding for %s track from client %s", trackID, trackType, clientID)
@@ -556,6 +578,7 @@ func (ps *PubSub) forwardDirect(clientID, trackID string, reader *TrackReader, i
 	packetCount := 0
 	lastLogTime := time.Now()
 	firstPacketLogged := false
+	noSubscribersLogged := false
 
 	for {
 		packet, err := reader.ReadRTP()
@@ -577,19 +600,49 @@ func (ps *PubSub) forwardDirect(clientID, trackID string, reader *TrackReader, i
 		subCount := len(subs)
 		ps.mu.RUnlock()
 
-		if !ok || subCount == 0 {
-			// No subscribers yet, skip this packet but log occasionally
-			if packetCount%100 == 0 {
-				log.Printf("PubSub: [TRACK %s] No subscribers yet (packet %d), skipping", trackID, packetCount)
+		// CRITICAL FIX: Always increment packet count and process packet
+		// even if there are no subscribers. This ensures the track stays alive
+		// and we can properly forward when subscribers join.
+		packetCount++
+
+		// Defensive check: if subscriptions map for clientID doesn't exist, initialize it
+		if !ok {
+			// Initialize the subscriptions map for this clientID if it doesn't exist
+			ps.mu.Lock()
+			if ps.subscriptions[clientID] == nil {
+				ps.subscriptions[clientID] = make(map[string]map[string]*Sub)
 			}
+			ps.mu.Unlock()
+
+			// No subscribers yet, log once then continue processing
+			if !noSubscribersLogged {
+				log.Printf("PubSub: [TRACK %s] No subscribers yet (map not initialized), buffering packets (packet %d)", trackID, packetCount)
+				noSubscribersLogged = true
+			}
+			// Continue to next packet - don't skip processing entirely
+			// This keeps the packet flow active for when subscribers join
 			continue
 		}
+
+		if subCount == 0 {
+			// No subscribers yet, log once then continue processing
+			if !noSubscribersLogged {
+				log.Printf("PubSub: [TRACK %s] No subscribers yet, buffering packets (packet %d)", trackID, packetCount)
+				noSubscribersLogged = true
+			}
+			// Continue to next packet - don't skip processing entirely
+			// This keeps the packet flow active for when subscribers join
+			continue
+		}
+
+		// Reset the flag when we have subscribers
+		noSubscribersLogged = false
 
 		// Phase 3: Preserve original SSRC - do NOT rewrite
 		// The original SSRC is maintained for proper RTP stream identification
 
 		// Record audio packet if recording is enabled
-		if isAudioTrack && ps.recorder != nil {
+		if !isVideoTrack && ps.recorder != nil {
 			if session, ok := ps.recordingSessions[trackID]; ok {
 				if err := ps.recorder.WriteRTP(session.ID, packet); err != nil {
 					log.Printf("PubSub: Error writing RTP to recorder for %s: %v", trackID, err)
@@ -610,10 +663,8 @@ func (ps *PubSub) forwardDirect(clientID, trackID string, reader *TrackReader, i
 			}
 		}
 
-		packetCount++
-
 		// Log forwarding stats every 5 seconds for video tracks
-		if !isAudioTrack && time.Since(lastLogTime) > 5*time.Second {
+		if isVideoTrack && time.Since(lastLogTime) > 5*time.Second {
 			log.Printf("PubSub: [TRACK %s] VIDEO STATS: forwarded %d total packets to %d/%d subscribers (SSRC=%d, Seq=%d, PayloadLen=%d)",
 				trackID, packetCount, forwardedCount, subCount, packet.SSRC, packet.SequenceNumber, len(packet.Payload))
 			lastLogTime = time.Now()

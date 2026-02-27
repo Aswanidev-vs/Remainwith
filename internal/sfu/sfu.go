@@ -621,6 +621,13 @@ func (s *SFU) completePendingSubscriptions(client *Client) {
 		} else {
 			log.Printf("SFU: [COMPLETE PENDING] SUCCESS - client %s subscribed to track %s (kind=%s) from %s",
 				client.ID, trackID, pending.pubTrack.Kind, pending.pubTrack.ClientID)
+
+			// CRITICAL: Request a keyframe from the publisher to ensure the subscriber
+			// receives a valid video stream immediately
+			if pending.pubTrack.Kind == "video" {
+				log.Printf("SFU: [COMPLETE PENDING] Requesting keyframe for video track %s from %s", trackID, pending.pubTrack.ClientID)
+				s.requestKeyframe(pending.pubTrack.ClientID, trackID)
+			}
 		}
 
 		// Remove from pending
@@ -630,7 +637,38 @@ func (s *SFU) completePendingSubscriptions(client *Client) {
 	log.Printf("SFU: [COMPLETE PENDING] END for client %s", client.ID)
 }
 
-// processRTCP processes RTCP packets for a sender
+// requestKeyframe sends a PLI to the publisher to request a keyframe
+func (s *SFU) requestKeyframe(pubClientID, trackID string) {
+	s.mu.RLock()
+	pubClient, ok := s.clients[pubClientID]
+	s.mu.RUnlock()
+
+	if !ok {
+		log.Printf("SFU: Cannot request keyframe - publisher %s not found", pubClientID)
+		return
+	}
+
+	pc := pubClient.Transport.GetPeerConnection()
+	if pc == nil {
+		log.Printf("SFU: Cannot request keyframe - peer connection nil for %s", pubClientID)
+		return
+	}
+
+	// Create PLI packet
+	pli := &rtcp.PictureLossIndication{
+		MediaSSRC: 0, // Will be set by the receiver
+	}
+
+	// Write PLI to request keyframe
+	if err := pc.WriteRTCP([]rtcp.Packet{pli}); err != nil {
+		log.Printf("SFU: Error requesting keyframe from %s: %v", pubClientID, err)
+	} else {
+		log.Printf("SFU: Successfully requested keyframe from %s for track %s", pubClientID, trackID)
+	}
+}
+
+// processRTCP processes RTCP packets for a sender and forwards PLI to publisher
+
 func (s *SFU) processRTCP(rtpSender *webrtc.RTPSender) {
 	rtcpBuf := make([]byte, 1500)
 	for {
@@ -639,7 +677,7 @@ func (s *SFU) processRTCP(rtpSender *webrtc.RTPSender) {
 			return
 		}
 
-		// Parse RTCP packets for debugging
+		// Parse RTCP packets for debugging and forwarding
 		packets, err := rtcp.Unmarshal(rtcpBuf[:n])
 		if err != nil {
 			continue
@@ -648,8 +686,10 @@ func (s *SFU) processRTCP(rtpSender *webrtc.RTPSender) {
 		for _, packet := range packets {
 			switch p := packet.(type) {
 			case *rtcp.PictureLossIndication:
-				// CRITICAL: PLI received from subscriber - needs to be forwarded to publisher
-				log.Printf("SFU: Received PLI from subscriber for SSRC %d - will forward to publisher", p.MediaSSRC)
+				// CRITICAL: PLI received from subscriber - forward to publisher
+				log.Printf("SFU: Received PLI from subscriber for SSRC %d - forwarding to publisher", p.MediaSSRC)
+				// Forward PLI to the publisher to request a keyframe
+				s.forwardPLIToPublisher(p)
 			case *rtcp.ReceiverEstimatedMaximumBitrate:
 				log.Printf("SFU: Received REMB from subscriber: %f bps", p.Bitrate)
 			case *rtcp.TransportLayerNack:
@@ -658,6 +698,44 @@ func (s *SFU) processRTCP(rtpSender *webrtc.RTPSender) {
 			}
 		}
 	}
+}
+
+// forwardPLIToPublisher forwards a PLI packet to the publisher to request a keyframe
+func (s *SFU) forwardPLIToPublisher(pli *rtcp.PictureLossIndication) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	// Find the publisher client that owns this SSRC
+	for clientID, client := range s.clients {
+		pc := client.Transport.GetPeerConnection()
+		if pc == nil {
+			continue
+		}
+
+		// Check if this client has a receiver with matching SSRC
+		receivers := pc.GetReceivers()
+		for _, receiver := range receivers {
+			if receiver.Track() == nil {
+				continue
+			}
+
+			// Check if this receiver's track matches the PLI SSRC
+			if uint32(receiver.Track().SSRC()) == uint32(pli.MediaSSRC) {
+
+				log.Printf("SFU: Forwarding PLI to publisher %s for SSRC %d", clientID, pli.MediaSSRC)
+
+				// Write PLI to the peer connection - this requests a keyframe from the publisher
+				if err := pc.WriteRTCP([]rtcp.Packet{pli}); err != nil {
+					log.Printf("SFU: Error forwarding PLI to publisher %s: %v", clientID, err)
+				} else {
+					log.Printf("SFU: Successfully forwarded PLI to publisher %s", clientID)
+				}
+				return
+			}
+		}
+	}
+
+	log.Printf("SFU: Could not find publisher for SSRC %d to forward PLI", pli.MediaSSRC)
 }
 
 func bytesToInt16(data []byte) []int16 {
