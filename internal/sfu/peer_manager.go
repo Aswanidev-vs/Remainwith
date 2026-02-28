@@ -167,7 +167,7 @@ func (pm *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent,
 					done := make(chan struct{})
 
 					// Publish track to pubsub - this will start forwarding to all subscribers
-					reader := pubsub.NewTrackReader(capturedTrack.TrackRemote, func() {
+					reader := pubsub.NewTrackReader(capturedTrack.TrackRemote, capturedTrack.Codec, func() {
 						close(done)
 						// Phase 8: Clean up track reader registry
 						pm.mu.Lock()

@@ -3,6 +3,7 @@ package pubsub
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"sync"
 	"time"
@@ -20,19 +21,22 @@ type PubTrack struct {
 	TrackID  string
 	PeerID   string
 	Kind     string
+	Codec    string // MimeType of the negotiated codec e.g. "video/vp8", "video/vp9", "audio/opus"
 	Reader   transport.TrackRemote
 }
 
 // TrackReader wraps a track remote with cleanup functionality
 type TrackReader struct {
 	track   transport.TrackRemote
+	Codec   string // MimeType of the negotiated codec
 	onClose func()
 }
 
 // NewTrackReader creates a new track reader
-func NewTrackReader(track transport.TrackRemote, onClose func()) *TrackReader {
+func NewTrackReader(track transport.TrackRemote, codec string, onClose func()) *TrackReader {
 	return &TrackReader{
 		track:   track,
+		Codec:   codec,
 		onClose: onClose,
 	}
 }
@@ -272,6 +276,7 @@ func (ps *PubSub) Pub(clientID string, reader *TrackReader) error {
 		TrackID:  trackID,
 		PeerID:   clientID, // peerID is same as clientID for WebRTC
 		Kind:     trackKind,
+		Codec:    reader.Codec, // use actual negotiated codec
 		Reader:   track,
 	}
 
@@ -579,12 +584,22 @@ func (ps *PubSub) forwardDirect(clientID, trackID string, reader *TrackReader, i
 	lastLogTime := time.Now()
 	firstPacketLogged := false
 	noSubscribersLogged := false
+	subscribersReady := false
+
+	// FIX: Wait a short time for subscriptions to be established before starting forwarding
+	// This ensures that when the first packets arrive, subscribers are ready to receive them
+	time.Sleep(100 * time.Millisecond)
 
 	for {
 		packet, err := reader.ReadRTP()
 
 		if err != nil {
-			log.Printf("PubSub: [TRACK %s] Error reading RTP from %s track: %v - STOPPING forwarding", trackID, trackType, err)
+			// FIX: Handle EOF more gracefully - don't log as error if it's a normal close
+			if err == io.EOF {
+				log.Printf("PubSub: [TRACK %s] Track %s closed (EOF) - stopping forwarding after %d packets", trackID, trackType, packetCount)
+			} else {
+				log.Printf("PubSub: [TRACK %s] Error reading RTP from %s track: %v - STOPPING forwarding after %d packets", trackID, trackType, err, packetCount)
+			}
 			return
 		}
 
@@ -605,6 +620,12 @@ func (ps *PubSub) forwardDirect(clientID, trackID string, reader *TrackReader, i
 		// and we can properly forward when subscribers join.
 		packetCount++
 
+		// FIX: Check if we now have subscribers and log when they become available
+		if subCount > 0 && !subscribersReady {
+			subscribersReady = true
+			log.Printf("PubSub: [TRACK %s] Subscribers now available (%d) - forwarding packets", trackID, subCount)
+		}
+
 		// Defensive check: if subscriptions map for clientID doesn't exist, initialize it
 		if !ok {
 			// Initialize the subscriptions map for this clientID if it doesn't exist
@@ -619,8 +640,19 @@ func (ps *PubSub) forwardDirect(clientID, trackID string, reader *TrackReader, i
 				log.Printf("PubSub: [TRACK %s] No subscribers yet (map not initialized), buffering packets (packet %d)", trackID, packetCount)
 				noSubscribersLogged = true
 			}
-			// Continue to next packet - don't skip processing entirely
-			// This keeps the packet flow active for when subscribers join
+			// FIX: For video, we need to be more aggressive about checking for subscribers
+			// Don't skip packets entirely - check again after a short delay
+			if isVideoTrack && packetCount%100 == 0 {
+				// Every 100 packets, re-check subscriptions
+				ps.mu.RLock()
+				subs, ok = ps.subscriptions[clientID][trackID]
+				subCount = len(subs)
+				ps.mu.RUnlock()
+				if subCount > 0 {
+					subscribersReady = true
+					log.Printf("PubSub: [TRACK %s] Found subscribers after buffering (packet %d)", trackID, packetCount)
+				}
+			}
 			continue
 		}
 
@@ -630,8 +662,17 @@ func (ps *PubSub) forwardDirect(clientID, trackID string, reader *TrackReader, i
 				log.Printf("PubSub: [TRACK %s] No subscribers yet, buffering packets (packet %d)", trackID, packetCount)
 				noSubscribersLogged = true
 			}
-			// Continue to next packet - don't skip processing entirely
-			// This keeps the packet flow active for when subscribers join
+			// FIX: For video, periodically check if subscribers have joined
+			if isVideoTrack && packetCount%100 == 0 {
+				ps.mu.RLock()
+				subs, ok = ps.subscriptions[clientID][trackID]
+				subCount = len(subs)
+				ps.mu.RUnlock()
+				if subCount > 0 {
+					subscribersReady = true
+					log.Printf("PubSub: [TRACK %s] Subscribers joined after buffering (packet %d)", trackID, packetCount)
+				}
+			}
 			continue
 		}
 
@@ -654,9 +695,9 @@ func (ps *PubSub) forwardDirect(clientID, trackID string, reader *TrackReader, i
 		forwardedCount := 0
 		for subClientID, sub := range subs {
 			if err := sub.Writer.WriteRTP(packet); err != nil {
-				// Only log errors occasionally to avoid spam
-				if packetCount%1000 == 0 {
-					log.Printf("PubSub: [TRACK %s] Error writing RTP to subscriber %s: %v", trackID, subClientID, err)
+				// FIX: Log first few errors to help debug, then throttle
+				if packetCount <= 10 || packetCount%1000 == 0 {
+					log.Printf("PubSub: [TRACK %s] Error writing RTP to subscriber %s (packet %d): %v", trackID, subClientID, packetCount, err)
 				}
 			} else {
 				forwardedCount++
