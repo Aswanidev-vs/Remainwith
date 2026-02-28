@@ -519,7 +519,12 @@ func (ps *PubSub) forwardAudioWithJitterBuffer(clientID, trackID string, reader 
 		for {
 			packet, err := reader.ReadRTP()
 			if err != nil {
-				log.Printf("PubSub: Error reading RTP from audio track %s: %v", trackID, err)
+				// EOF is expected when client disconnects - don't log as error
+				if err == io.EOF {
+					log.Printf("PubSub: Audio track %s publisher closed (EOF)", trackID)
+				} else {
+					log.Printf("PubSub: Error reading RTP from audio track %s: %v", trackID, err)
+				}
 				return
 			}
 
@@ -594,11 +599,15 @@ func (ps *PubSub) forwardDirect(clientID, trackID string, reader *TrackReader, i
 		packet, err := reader.ReadRTP()
 
 		if err != nil {
-			// FIX: Handle EOF more gracefully - don't log as error if it's a normal close
+			// EOF is expected when client disconnects - only log first time or for non-EOF errors
 			if err == io.EOF {
-				log.Printf("PubSub: [TRACK %s] Track %s closed (EOF) - stopping forwarding after %d packets", trackID, trackType, packetCount)
+				// Only log EOF if we were actually forwarding packets
+				if packetCount > 0 {
+					log.Printf("PubSub: [TRACK %s] Track closed by publisher (EOF) - stopped after %d packets", trackID, packetCount)
+				}
+				// Silent return for EOF - this is normal behavior
 			} else {
-				log.Printf("PubSub: [TRACK %s] Error reading RTP from %s track: %v - STOPPING forwarding after %d packets", trackID, trackType, err, packetCount)
+				log.Printf("PubSub: [TRACK %s] Error reading RTP from %s track: %v - stopping after %d packets", trackID, trackType, err, packetCount)
 			}
 			return
 		}

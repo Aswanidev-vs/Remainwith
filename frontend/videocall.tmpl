@@ -1301,6 +1301,31 @@
 
 
 
+        // Ping/pong keepalive for WebSocket connection stability
+        let sfuPingInterval = null;
+        let roomPingInterval = null;
+        
+        function startPingPong(ws, pingIntervalVar, intervalMs = 25000) {
+            // Clear any existing interval
+            if (pingIntervalVar) {
+                clearInterval(pingIntervalVar);
+            }
+            
+            // Set up new ping interval
+            const interval = setInterval(() => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    try {
+                        ws.send(JSON.stringify({ type: 'ping' }));
+                        console.log('Sent ping to server');
+                    } catch (err) {
+                        console.error('Error sending ping:', err);
+                    }
+                }
+            }, intervalMs);
+            
+            return interval;
+        }
+
         function connectWebSockets() {
             if (isConnecting) return;
             isConnecting = true;
@@ -1314,6 +1339,9 @@
             sfuWs.onopen = async () => {
                 console.log('SFU WebSocket connected');
                 isConnecting = false;
+
+                // Start ping/pong keepalive for SFU connection
+                sfuPingInterval = startPingPong(sfuWs, sfuPingInterval, 25000);
 
                 // Send ready signal to SFU
                 sendSFUMessage({ type: 'ready' });
@@ -1349,18 +1377,30 @@
 
             sfuWs.onmessage = (event) => {
                 const msg = JSON.parse(event.data);
+                // Handle pong response
+                if (msg.type === 'pong') {
+                    console.log('Received pong from SFU - connection alive');
+                    return;
+                }
                 handleSFUMessage(msg);
             };
 
-            sfuWs.onclose = () => {
-                console.log('SFU WebSocket closed');
+            sfuWs.onclose = (event) => {
+                console.log('SFU WebSocket closed', event.code, event.reason);
                 isConnecting = false;
                 callStatus.textContent = 'Disconnected';
                 
-                // Attempt to reconnect after a delay
-                if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                // Clear ping interval
+                if (sfuPingInterval) {
+                    clearInterval(sfuPingInterval);
+                    sfuPingInterval = null;
+                }
+                
+                // Only reconnect if not a clean close (code 1000)
+                if (event.code !== 1000 && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                    reconnectAttempts++;
                     setTimeout(() => {
-                        console.log('Attempting to reconnect...');
+                        console.log(`Reconnecting... attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`);
                         connectWebSockets();
                     }, 2000);
                 }
@@ -1370,6 +1410,7 @@
                 console.error('SFU WebSocket error:', error);
                 isConnecting = false;
             };
+
 
             // Connect to signaling for room management
             const signalingUrl = `${protocol}//${window.location.host}/ws/signaling?user_id=${userID}&room_id=${roomID}`;
@@ -1782,19 +1823,29 @@
 
 
         function endCall() {
+            // Clear ping intervals first
+            if (sfuPingInterval) {
+                clearInterval(sfuPingInterval);
+                sfuPingInterval = null;
+            }
+            if (roomPingInterval) {
+                clearInterval(roomPingInterval);
+                roomPingInterval = null;
+            }
+            
             // Close peer connection
             if (pc) {
                 pc.close();
                 pc = null;
             }
 
-            // Close WebSockets
+            // Close WebSockets with clean close code
             if (sfuWs) {
-                sfuWs.close();
+                sfuWs.close(1000, 'Client ending call');
                 sfuWs = null;
             }
             if (roomWs) {
-                roomWs.close();
+                roomWs.close(1000, 'Client ending call');
                 roomWs = null;
             }
 
@@ -1814,6 +1865,7 @@
 
             window.location.href = '/campfire';
         }
+
 
 
         // Handle page unload to clean up resources

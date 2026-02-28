@@ -219,14 +219,38 @@ func (s *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // writePump serializes WebSocket writes through a channel
 func (s *SFU) writePump(client *Client) {
+	// Set ping handler to handle pong responses from client
+	client.Conn.SetPingHandler(func(appData string) error {
+		// Automatically respond to ping with pong (gorilla/websocket does this by default)
+		// Just log for debugging
+		log.Printf("SFU: Received ping from client %s", client.ID)
+		return nil
+	})
+
+	client.Conn.SetPongHandler(func(appData string) error {
+		// Client responded to our ping - connection is alive
+		client.mu.Lock()
+		client.lastActivity = time.Now()
+		client.mu.Unlock()
+		log.Printf("SFU: Received pong from client %s - connection alive", client.ID)
+		return nil
+	})
+
 	for msg := range client.writeCh {
+		// Check if connection is still open before writing
+		if client.Conn == nil {
+			log.Printf("SFU: Connection is nil for client %s, stopping writePump", client.ID)
+			return
+		}
+
 		switch m := msg.(type) {
 		case string:
-			// Ping message
-			if err := client.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+			// Ping message - use control message for proper ping/pong
+			if err := client.Conn.WriteControl(websocket.PingMessage, []byte{}, time.Now().Add(5*time.Second)); err != nil {
 				log.Printf("SFU: Error sending ping to client %s: %v", client.ID, err)
 				return
 			}
+			log.Printf("SFU: Sent ping to client %s", client.ID)
 		default:
 			// JSON message
 			if err := client.Conn.WriteJSON(m); err != nil {
@@ -933,9 +957,21 @@ func (s *SFU) handleClientMessages(client *Client) {
 			s.handleUnsubTrack(client, msg)
 		case "leave":
 			return
+		case "ping":
+			// Respond to client ping with pong to keep connection alive
+			select {
+			case client.writeCh <- SignalMessage{Type: "pong"}:
+				log.Printf("SFU: Responded to ping from client %s", client.ID)
+			default:
+				log.Printf("SFU: Failed to queue pong for client %s", client.ID)
+			}
+		case "pong":
+			// Client responded to our ping - connection is alive
+			log.Printf("SFU: Received pong from client %s - connection healthy", client.ID)
 		default:
 			log.Printf("SFU: Unknown message type: %s from client %s", msg.Type, client.ID)
 		}
+
 	}
 }
 
