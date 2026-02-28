@@ -899,6 +899,10 @@ func (s *SFU) handleClientMessages(client *Client) {
 	done := make(chan struct{})
 	defer close(done)
 
+	// Reconnection tracking
+	reconnectAttempts := 0
+	maxReconnectAttempts := 3
+
 	// Start ping goroutine - uses writeCh for serialization
 	go func() {
 		for {
@@ -923,6 +927,28 @@ func (s *SFU) handleClientMessages(client *Client) {
 		var msg SignalMessage
 		err := client.Conn.ReadJSON(&msg)
 		if err != nil {
+			// Check if this is an unexpected close that might benefit from reconnection
+			isUnexpectedClose := websocket.IsUnexpectedCloseError(err,
+				websocket.CloseGoingAway,
+				websocket.CloseAbnormalClosure,
+				websocket.CloseNormalClosure,
+				websocket.CloseNoStatusReceived)
+
+			if isUnexpectedClose && reconnectAttempts < maxReconnectAttempts {
+				reconnectAttempts++
+				log.Printf("SFU: Abnormal close detected for client %s (attempt %d/%d), signaling for reconnection",
+					client.ID, reconnectAttempts, maxReconnectAttempts)
+
+				// Signal the client to reconnect by sending a special message
+				// The client should handle this and reconnect
+				select {
+				case client.writeCh <- SignalMessage{Type: "reconnect", ClientID: client.ID}:
+					log.Printf("SFU: Sent reconnect signal to client %s", client.ID)
+				default:
+					// Write channel full, just break
+				}
+			}
+
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("SFU: Unexpected close from client %s: %v", client.ID, err)
 			} else {

@@ -1462,8 +1462,14 @@
                 case 'candidate':
                     handleCandidate(msg);
                     break;
+                case 'reconnect':
+                    // Server signaled us to reconnect - this happens when connection was lost
+                    console.log('Received reconnect signal from server');
+                    handleConnectionFailure();
+                    break;
             }
         }
+
 
         function handleRoomMessage(msg) {
             // Handle room management messages (mute_status, camera_status, etc.)
