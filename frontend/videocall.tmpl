@@ -871,7 +871,7 @@
             
             // Handle ICE connection state changes
             pc.oniceconnectionstatechange = () => {
-                console.log('ICE connection state:', pc.iceConnectionState);
+                console.log('ICE Connection State:', pc.iceConnectionState);
                 
                 // Log ICE connection details
                 pc.getStats().then(stats => {
@@ -908,6 +908,10 @@
                         }
                     });
                 }
+            };
+
+            pc.onsignalingstatechange = () => {
+                console.log('Signaling State:', pc.signalingState);
             };
             
             console.log('Peer connection created');
@@ -1146,6 +1150,7 @@
         
         // Handle connection failure with retry
         function handleConnectionFailure() {
+            console.log('handleConnectionFailure triggered. Current PC state:', pc ? pc.connectionState : 'No PC');
             if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
                 reconnectAttempts++;
                 console.log(`Reconnect attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`);
@@ -1301,31 +1306,6 @@
 
 
 
-        // Ping/pong keepalive for WebSocket connection stability
-        let sfuPingInterval = null;
-        let roomPingInterval = null;
-        
-        function startPingPong(ws, pingIntervalVar, intervalMs = 25000) {
-            // Clear any existing interval
-            if (pingIntervalVar) {
-                clearInterval(pingIntervalVar);
-            }
-            
-            // Set up new ping interval
-            const interval = setInterval(() => {
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    try {
-                        ws.send(JSON.stringify({ type: 'ping' }));
-                        console.log('Sent ping to server');
-                    } catch (err) {
-                        console.error('Error sending ping:', err);
-                    }
-                }
-            }, intervalMs);
-            
-            return interval;
-        }
-
         function connectWebSockets() {
             if (isConnecting) return;
             isConnecting = true;
@@ -1340,9 +1320,6 @@
                 console.log('SFU WebSocket connected');
                 isConnecting = false;
 
-                // Start ping/pong keepalive for SFU connection
-                sfuPingInterval = startPingPong(sfuWs, sfuPingInterval, 25000);
-
                 // Send ready signal to SFU
                 sendSFUMessage({ type: 'ready' });
                 console.log('Sent ready signal to SFU');
@@ -1352,7 +1329,9 @@
                 try {
                     console.log('Creating initial offer to publish local tracks...');
                     const offer = await pc.createOffer();
+                    console.log('Created local offer:', { type: offer.type, sdpSnippet: offer.sdp.substring(0, 200) + '...' });
                     await pc.setLocalDescription(offer);
+                    console.log('Set local description (offer)');
 
                     // Wait for ICE gathering to complete before sending
                     await waitForIceGathering();
@@ -1377,30 +1356,22 @@
 
             sfuWs.onmessage = (event) => {
                 const msg = JSON.parse(event.data);
-                // Handle pong response
-                if (msg.type === 'pong') {
-                    console.log('Received pong from SFU - connection alive');
-                    return;
-                }
                 handleSFUMessage(msg);
             };
 
             sfuWs.onclose = (event) => {
-                console.log('SFU WebSocket closed', event.code, event.reason);
+                console.log('SFU WebSocket closed', {
+                    code: event.code,
+                    reason: event.reason,
+                    wasClean: event.wasClean
+                });
                 isConnecting = false;
                 callStatus.textContent = 'Disconnected';
                 
-                // Clear ping interval
-                if (sfuPingInterval) {
-                    clearInterval(sfuPingInterval);
-                    sfuPingInterval = null;
-                }
-                
-                // Only reconnect if not a clean close (code 1000)
-                if (event.code !== 1000 && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-                    reconnectAttempts++;
+                // Attempt to reconnect after a delay
+                if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
                     setTimeout(() => {
-                        console.log(`Reconnecting... attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`);
+                        console.log('Attempting to reconnect...');
                         connectWebSockets();
                     }, 2000);
                 }
@@ -1410,7 +1381,6 @@
                 console.error('SFU WebSocket error:', error);
                 isConnecting = false;
             };
-
 
             // Connect to signaling for room management
             const signalingUrl = `${protocol}//${window.location.host}/ws/signaling?user_id=${userID}&room_id=${roomID}`;
@@ -1429,8 +1399,12 @@
                 handleRoomMessage(msg);
             };
 
-            roomWs.onclose = () => {
-                console.log('Room WebSocket closed');
+            roomWs.onclose = (event) => {
+                console.log('Room WebSocket closed', {
+                    code: event.code,
+                    reason: event.reason,
+                    wasClean: event.wasClean
+                });
             };
 
             roomWs.onerror = (error) => {
@@ -1514,7 +1488,7 @@
             }
             
             try {
-                console.log('Handling offer from SFU, offer length:', msg.offer.length);
+                console.log('Handling offer from SFU', { type: 'offer', sdpSnippet: msg.offer.substring(0, 200) + '...' });
                 console.log('Current transceivers:', pc.getTransceivers().length);
                 console.log('Current signaling state:', pc.signalingState);
                 
@@ -1525,9 +1499,9 @@
                 });
                 
                 // Set remote description
-                console.log('setRemoteDescription about to be called...');
+                console.log('setRemoteDescription (offer) about to be called...');
                 await pc.setRemoteDescription(offerDesc);
-                console.log('✓ Remote description set successfully');
+                console.log('✓ Remote description (offer) set successfully');
                 
                 // CRITICAL FIX: Associate local tracks with transceivers after remote description is set
                 // This ensures the answer will have sendrecv direction instead of recvonly
@@ -1607,8 +1581,7 @@
                 
                 // Create answer
                 const answer = await pc.createAnswer();
-                console.log('Created answer successfully, SDP length:', answer.sdp.length);
-                console.log('Answer SDP preview:', answer.sdp.substring(0, 200));
+                console.log('Created local answer:', { type: answer.type, sdpSnippet: answer.sdp.substring(0, 200) + '...' });
                 
                 // Log answer directions for debugging
                 const hasSendRecv = answer.sdp.includes('a=sendrecv');
@@ -1623,9 +1596,9 @@
 
                 
                 // Set local description - this triggers ICE gathering
-                console.log('setLocalDescription about to be called...');
+                console.log('setLocalDescription (answer) about to be called...');
                 await pc.setLocalDescription(answer);
-                console.log('✓ Local description set successfully, ICE gathering state:', pc.iceGatheringState);
+                console.log('✓ Local description (answer) set successfully, ICE gathering state:', pc.iceGatheringState);
 
                 
                 // Wait for ICE gathering to complete
@@ -1764,10 +1737,12 @@
             if (!pc) return;
             
             try {
+                console.log('Received answer from SFU', { type: 'answer', sdpSnippet: msg.answer.substring(0, 200) + '...' });
                 await pc.setRemoteDescription(new RTCSessionDescription({
                     type: 'answer',
                     sdp: msg.answer
                 }));
+                console.log('Set remote description (answer)');
                 console.log('Received answer from SFU, connection established');
             } catch (err) {
                 console.error('Error handling answer:', err);
@@ -1829,29 +1804,19 @@
 
 
         function endCall() {
-            // Clear ping intervals first
-            if (sfuPingInterval) {
-                clearInterval(sfuPingInterval);
-                sfuPingInterval = null;
-            }
-            if (roomPingInterval) {
-                clearInterval(roomPingInterval);
-                roomPingInterval = null;
-            }
-            
             // Close peer connection
             if (pc) {
                 pc.close();
                 pc = null;
             }
 
-            // Close WebSockets with clean close code
+            // Close WebSockets
             if (sfuWs) {
-                sfuWs.close(1000, 'Client ending call');
+                sfuWs.close();
                 sfuWs = null;
             }
             if (roomWs) {
-                roomWs.close(1000, 'Client ending call');
+                roomWs.close();
                 roomWs = null;
             }
 
@@ -1873,9 +1838,9 @@
         }
 
 
-
         // Handle page unload to clean up resources
-        window.addEventListener('beforeunload', () => {
+        window.addEventListener('beforeunload', (event) => {
+            console.log('Page unloading (beforeunload triggered)');
             if (pc) {
                 pc.close();
             }

@@ -1,9 +1,2 @@
 .env
 tmp/*.exe
-peer-calls-reference/
-pion-webrtc-repo/
-quic/
-webrtc/
-interceptor/
-main.exe
-
