@@ -215,8 +215,9 @@ func (t *WebRTCTransport) setupPeerConnectionHandlers() {
 		case t.remoteTracksCh <- TrackRemoteWithRTCPReader{
 			TrackRemote: &trackRemoteImpl{track: track},
 			RTCPReader:  rtcpReader,
+			Codec:       trackCodec,
 		}:
-			log.Printf("WebRTCTransport: [ONTRACK] SUCCESSFULLY sent track %s (kind=%s) to remoteTracksCh", trackID, trackKind)
+			log.Printf("WebRTCTransport: [ONTRACK] SUCCESSFULLY sent track %s (kind=%s, codec=%s) to remoteTracksCh", trackID, trackKind, trackCodec)
 		}
 
 		// Start RTCP processing for this track

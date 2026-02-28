@@ -871,7 +871,7 @@
             
             // Handle ICE connection state changes
             pc.oniceconnectionstatechange = () => {
-                console.log('ICE connection state:', pc.iceConnectionState);
+                console.log('ICE Connection State:', pc.iceConnectionState);
                 
                 // Log ICE connection details
                 pc.getStats().then(stats => {
@@ -908,6 +908,10 @@
                         }
                     });
                 }
+            };
+
+            pc.onsignalingstatechange = () => {
+                console.log('Signaling State:', pc.signalingState);
             };
             
             console.log('Peer connection created');
@@ -1146,6 +1150,7 @@
         
         // Handle connection failure with retry
         function handleConnectionFailure() {
+            console.log('handleConnectionFailure triggered. Current PC state:', pc ? pc.connectionState : 'No PC');
             if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
                 reconnectAttempts++;
                 console.log(`Reconnect attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`);
@@ -1324,7 +1329,9 @@
                 try {
                     console.log('Creating initial offer to publish local tracks...');
                     const offer = await pc.createOffer();
+                    console.log('Created local offer:', { type: offer.type, sdpSnippet: offer.sdp.substring(0, 200) + '...' });
                     await pc.setLocalDescription(offer);
+                    console.log('Set local description (offer)');
 
                     // Wait for ICE gathering to complete before sending
                     await waitForIceGathering();
@@ -1352,8 +1359,12 @@
                 handleSFUMessage(msg);
             };
 
-            sfuWs.onclose = () => {
-                console.log('SFU WebSocket closed');
+            sfuWs.onclose = (event) => {
+                console.log('SFU WebSocket closed', {
+                    code: event.code,
+                    reason: event.reason,
+                    wasClean: event.wasClean
+                });
                 isConnecting = false;
                 callStatus.textContent = 'Disconnected';
                 
@@ -1388,8 +1399,12 @@
                 handleRoomMessage(msg);
             };
 
-            roomWs.onclose = () => {
-                console.log('Room WebSocket closed');
+            roomWs.onclose = (event) => {
+                console.log('Room WebSocket closed', {
+                    code: event.code,
+                    reason: event.reason,
+                    wasClean: event.wasClean
+                });
             };
 
             roomWs.onerror = (error) => {
@@ -1421,8 +1436,14 @@
                 case 'candidate':
                     handleCandidate(msg);
                     break;
+                case 'reconnect':
+                    // Server signaled us to reconnect - this happens when connection was lost
+                    console.log('Received reconnect signal from server');
+                    handleConnectionFailure();
+                    break;
             }
         }
+
 
         function handleRoomMessage(msg) {
             // Handle room management messages (mute_status, camera_status, etc.)
@@ -1467,7 +1488,7 @@
             }
             
             try {
-                console.log('Handling offer from SFU, offer length:', msg.offer.length);
+                console.log('Handling offer from SFU', { type: 'offer', sdpSnippet: msg.offer.substring(0, 200) + '...' });
                 console.log('Current transceivers:', pc.getTransceivers().length);
                 console.log('Current signaling state:', pc.signalingState);
                 
@@ -1478,9 +1499,9 @@
                 });
                 
                 // Set remote description
-                console.log('setRemoteDescription about to be called...');
+                console.log('setRemoteDescription (offer) about to be called...');
                 await pc.setRemoteDescription(offerDesc);
-                console.log('✓ Remote description set successfully');
+                console.log('✓ Remote description (offer) set successfully');
                 
                 // CRITICAL FIX: Associate local tracks with transceivers after remote description is set
                 // This ensures the answer will have sendrecv direction instead of recvonly
@@ -1560,8 +1581,7 @@
                 
                 // Create answer
                 const answer = await pc.createAnswer();
-                console.log('Created answer successfully, SDP length:', answer.sdp.length);
-                console.log('Answer SDP preview:', answer.sdp.substring(0, 200));
+                console.log('Created local answer:', { type: answer.type, sdpSnippet: answer.sdp.substring(0, 200) + '...' });
                 
                 // Log answer directions for debugging
                 const hasSendRecv = answer.sdp.includes('a=sendrecv');
@@ -1576,9 +1596,9 @@
 
                 
                 // Set local description - this triggers ICE gathering
-                console.log('setLocalDescription about to be called...');
+                console.log('setLocalDescription (answer) about to be called...');
                 await pc.setLocalDescription(answer);
-                console.log('✓ Local description set successfully, ICE gathering state:', pc.iceGatheringState);
+                console.log('✓ Local description (answer) set successfully, ICE gathering state:', pc.iceGatheringState);
 
                 
                 // Wait for ICE gathering to complete
@@ -1717,10 +1737,12 @@
             if (!pc) return;
             
             try {
+                console.log('Received answer from SFU', { type: 'answer', sdpSnippet: msg.answer.substring(0, 200) + '...' });
                 await pc.setRemoteDescription(new RTCSessionDescription({
                     type: 'answer',
                     sdp: msg.answer
                 }));
+                console.log('Set remote description (answer)');
                 console.log('Received answer from SFU, connection established');
             } catch (err) {
                 console.error('Error handling answer:', err);
@@ -1817,7 +1839,8 @@
 
 
         // Handle page unload to clean up resources
-        window.addEventListener('beforeunload', () => {
+        window.addEventListener('beforeunload', (event) => {
+            console.log('Page unloading (beforeunload triggered)');
             if (pc) {
                 pc.close();
             }
