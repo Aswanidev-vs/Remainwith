@@ -1721,21 +1721,92 @@
             }
         }
 
+        function buildVideoConstraints(profile, preferSharpness = false, strict = false) {
+            const width = strict ? { min: profile.width, ideal: profile.width } : { ideal: profile.width };
+            const height = strict ? { min: profile.height, ideal: profile.height } : { ideal: profile.height };
+            const frameRate = preferSharpness
+                ? { ideal: Math.min(profile.frameRate, 15), max: Math.min(profile.frameRate, 20) }
+                : (strict ? { min: Math.min(profile.frameRate, 24), ideal: profile.frameRate, max: profile.frameRate } : { ideal: profile.frameRate, max: profile.frameRate });
+
+            return { width, height, frameRate };
+        }
+
+        function attachTrackLifecycle(track) {
+            if (!track) return;
+            track.onended = () => {
+                console.warn('Local track ended unexpectedly:', track.kind, track.id);
+                scheduleReconnect('local-track-ended', 500);
+            };
+        }
+
         async function applyTrackConstraints(track, profile, preferSharpness = false) {
             if (!track || !track.applyConstraints) return;
 
-            const constraints = {
-                width: { ideal: profile.width },
-                height: { ideal: profile.height },
-                frameRate: preferSharpness
-                    ? { ideal: Math.min(profile.frameRate, 15), max: Math.min(profile.frameRate, 20) }
-                    : { ideal: profile.frameRate, max: profile.frameRate }
-            };
-
             try {
-                await track.applyConstraints(constraints);
+                await track.applyConstraints(buildVideoConstraints(profile, preferSharpness, false));
             } catch (error) {
                 console.warn('Failed to apply video constraints:', error);
+            }
+        }
+
+        async function requestCameraTrack(profile, strict = false) {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: buildVideoConstraints(profile, false, strict),
+                audio: false
+            });
+            return stream.getVideoTracks()[0] || null;
+        }
+
+        async function ensureCameraTrackQuality(profile) {
+            if (!cameraVideoTrack || isScreenSharing()) {
+                return;
+            }
+
+            const settings = cameraVideoTrack.getSettings ? cameraVideoTrack.getSettings() : {};
+            const width = settings.width || 0;
+            const height = settings.height || 0;
+            const alreadyMatches = width >= profile.width && height >= profile.height;
+
+            if (selectedQuality === 'auto') {
+                await applyTrackConstraints(cameraVideoTrack, profile, false);
+                return;
+            }
+
+            if (alreadyMatches) {
+                await applyTrackConstraints(cameraVideoTrack, profile, false);
+                return;
+            }
+
+            let nextTrack = null;
+            try {
+                nextTrack = await requestCameraTrack(profile, true);
+            } catch (error) {
+                console.warn('Strict camera quality request failed, retrying with ideal constraints:', error);
+                nextTrack = await requestCameraTrack(profile, false);
+            }
+
+            if (!nextTrack) {
+                return;
+            }
+
+            const previousTrack = cameraVideoTrack;
+            cameraVideoTrack = nextTrack;
+            attachTrackLifecycle(cameraVideoTrack);
+            await replaceVideoTrack(cameraVideoTrack);
+
+            if (previousTrack && previousTrack.readyState === 'live') {
+                previousTrack.onended = null;
+                previousTrack.stop();
+            }
+
+            const nextSettings = cameraVideoTrack.getSettings ? cameraVideoTrack.getSettings() : {};
+            console.log('Applied camera quality track:', nextSettings);
+
+            if ((nextSettings.width || 0) < profile.width || (nextSettings.height || 0) < profile.height) {
+                showPopupCard(
+                    'Limited by camera',
+                    `Requested ${profile.label}, but this device is sending ${nextSettings.width || '?'}x${nextSettings.height || '?'}.`
+                );
             }
         }
 
@@ -1755,7 +1826,7 @@
             updateStatsMeta();
 
             if (cameraVideoTrack) {
-                await applyTrackConstraints(cameraVideoTrack, profile, false);
+                await ensureCameraTrackQuality(profile);
             }
             if (isScreenSharing()) {
                 const displayTrack = screenStream.getVideoTracks()[0];
@@ -2567,10 +2638,7 @@
                         settings: track.getSettings ? track.getSettings() : 'N/A'
                     });
 
-                    track.onended = () => {
-                        console.warn('Local track ended unexpectedly:', track.kind, track.id);
-                        scheduleReconnect('local-track-ended', 500);
-                    };
+                    attachTrackLifecycle(track);
                 });
                 
                 // If peer connection already exists, add tracks to it

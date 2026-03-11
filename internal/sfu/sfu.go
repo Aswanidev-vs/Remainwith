@@ -46,8 +46,12 @@ type Client struct {
 	activeVideoSubs map[string]*activeVideoSub
 	// Track events queue for initial connection
 	initialTrackEvents []pubsub.PubTrackEvent
+	// Track events queued while a renegotiation offer is already in flight.
+	queuedTrackEvents []pubsub.PubTrackEvent
 	// Flag to indicate if initial connection is established
 	initialConnected bool
+	// True when the SFU has sent an offer and is waiting for the client's answer.
+	awaitingAnswer bool
 	// Pending ICE candidates waiting for remote description
 	pendingCandidates []*webrtc.ICECandidate
 	// Channel to signal when local description is set (for ICE candidates)
@@ -208,6 +212,7 @@ func (s *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		pendingSubs:        make(map[string]*pendingSub),
 		activeVideoSubs:    make(map[string]*activeVideoSub),
 		initialTrackEvents: make([]pubsub.PubTrackEvent, 0),
+		queuedTrackEvents:  make([]pubsub.PubTrackEvent, 0),
 		initialConnected:   false,
 		pendingCandidates:  make([]*webrtc.ICECandidate, 0),
 		descriptionSent:    make(chan struct{}),
@@ -480,6 +485,18 @@ func (s *SFU) handlePubTrackEvents(client *Client, eventsCh <-chan pubsub.PubTra
 				client.mu.Unlock()
 				continue
 			}
+
+			pc := client.Transport.GetPeerConnection()
+			if client.awaitingAnswer || (pc != nil && pc.SignalingState() != webrtc.SignalingStateStable) {
+				log.Printf("SFU: QUEUING track %s from %s for client %s (renegotiation in progress, signaling=%v awaitingAnswer=%v)",
+					selectedTrack.TrackID, selectedTrack.ClientID, client.ID, pc.SignalingState(), client.awaitingAnswer)
+				client.queuedTrackEvents = append(client.queuedTrackEvents, pubsub.PubTrackEvent{
+					PubTrack: selectedTrack,
+					Type:     event.Type,
+				})
+				client.mu.Unlock()
+				continue
+			}
 			client.mu.Unlock()
 
 			log.Printf("SFU: IMMEDIATELY adding track %s from %s to client %s",
@@ -546,10 +563,95 @@ func (s *SFU) processQueuedTrackEvents(client *Client) {
 
 		select {
 		case client.writeCh <- msg:
+			client.awaitingAnswer = true
 			log.Printf("SFU: Sent batch renegotiation offer to client %s", client.ID)
 		default:
 			log.Printf("SFU: [BATCH] Error sending offer: write channel full")
 		}
+	}
+}
+
+func (s *SFU) processQueuedRenegotiationEvents(client *Client) {
+	client.mu.Lock()
+	defer client.mu.Unlock()
+
+	if len(client.queuedTrackEvents) == 0 {
+		return
+	}
+
+	pc := client.Transport.GetPeerConnection()
+	if pc == nil {
+		return
+	}
+
+	if client.awaitingAnswer || pc.SignalingState() != webrtc.SignalingStateStable {
+		log.Printf("SFU: Deferring queued renegotiation events for client %s (awaitingAnswer=%v signaling=%v)",
+			client.ID, client.awaitingAnswer, pc.SignalingState())
+		return
+	}
+
+	log.Printf("SFU: Processing %d queued renegotiation events for client %s", len(client.queuedTrackEvents), client.ID)
+
+	selectedEvents := make(map[string]pubsub.PubTrackEvent)
+	for _, event := range client.queuedTrackEvents {
+		selected, ok := s.selectTrackForQuality(client.RoomID, client.receiveQuality, event.PubTrack)
+		if !ok {
+			continue
+		}
+		selectedEvents[subscriptionKeyForTrack(selected)] = pubsub.PubTrackEvent{
+			PubTrack: selected,
+			Type:     event.Type,
+		}
+	}
+
+	client.queuedTrackEvents = client.queuedTrackEvents[:0]
+
+	var addedAny bool
+	for _, event := range selectedEvents {
+		if event.Type != pubsub.TrackEventTypeAdd {
+			continue
+		}
+
+		subKey := subscriptionKeyForTrack(event.PubTrack)
+		if _, exists := client.pendingSubs[subKey]; exists {
+			continue
+		}
+		if active, exists := client.activeVideoSubs[subKey]; exists {
+			if active.pubTrack.TrackID != event.PubTrack.TrackID {
+				go s.switchActiveVideoLayer(client, active, event.PubTrack)
+			}
+			continue
+		}
+
+		log.Printf("SFU: Batch-adding queued track %s from %s for client %s",
+			event.PubTrack.TrackID, event.PubTrack.ClientID, client.ID)
+		if _, err := s.addTrackInternal(client, event.PubTrack); err == nil {
+			addedAny = true
+		}
+	}
+
+	if !addedAny {
+		return
+	}
+
+	log.Printf("SFU: Creating queued renegotiation offer for client %s", client.ID)
+	offer, err := client.Transport.CreateOffer()
+	if err != nil {
+		log.Printf("SFU: [QUEUED BATCH] ERROR creating offer: %v", err)
+		return
+	}
+
+	msg := SignalMessage{
+		Type:  "offer",
+		Offer: offer.SDP,
+	}
+
+	select {
+	case client.writeCh <- msg:
+		client.awaitingAnswer = true
+		log.Printf("SFU: Sent queued renegotiation offer to client %s", client.ID)
+	default:
+		log.Printf("SFU: [QUEUED BATCH] Error sending offer: write channel full")
 	}
 }
 
@@ -743,6 +845,7 @@ func (s *SFU) addTrackToClient(client *Client, pubTrack pubsub.PubTrack) {
 
 	select {
 	case client.writeCh <- msg:
+		client.awaitingAnswer = true
 		log.Printf("SFU: Sent renegotiation offer to client %s for track %s", client.ID, pubTrack.TrackID)
 	default:
 		log.Printf("SFU: [ADD TRACK] Error sending offer: write channel full")
@@ -1271,6 +1374,7 @@ func (s *SFU) handleAnswer(client *Client, msg SignalMessage) {
 		client.initialConnected = true
 		log.Printf("SFU: Initial connection established for client %s", client.ID)
 	}
+	client.awaitingAnswer = false
 	pendingCount := len(client.pendingSubs)
 	client.mu.Unlock()
 
@@ -1285,6 +1389,8 @@ func (s *SFU) handleAnswer(client *Client, msg SignalMessage) {
 	if pendingCount > 0 {
 		s.completePendingSubscriptions(client)
 	}
+
+	s.processQueuedRenegotiationEvents(client)
 
 }
 
