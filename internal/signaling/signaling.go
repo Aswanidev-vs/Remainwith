@@ -4,8 +4,16 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
+)
+
+const (
+	signalingWriteWait  = 10 * time.Second
+	signalingPongWait   = 30 * time.Second
+	signalingPingPeriod = 10 * time.Second
+	signalingLeaveGrace = 5 * time.Second
 )
 
 // SignalMessage represents a signaling message
@@ -35,6 +43,7 @@ type SignalingServer struct {
 	upgrader websocket.Upgrader
 	clients  map[string]*websocket.Conn            // userID -> conn
 	rooms    map[string]map[string]*websocket.Conn // roomID -> userID -> conn
+	offlineTimers map[string]*time.Timer
 	mu       sync.RWMutex
 }
 
@@ -46,8 +55,9 @@ func NewSignalingServer() *SignalingServer {
 				return true // Allow all origins for now
 			},
 		},
-		clients: make(map[string]*websocket.Conn),
-		rooms:   make(map[string]map[string]*websocket.Conn),
+		clients:       make(map[string]*websocket.Conn),
+		rooms:         make(map[string]map[string]*websocket.Conn),
+		offlineTimers: make(map[string]*time.Timer),
 	}
 
 	return s
@@ -69,7 +79,28 @@ func (s *SignalingServer) HandleConnection(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	if err := conn.SetReadDeadline(time.Now().Add(signalingPongWait)); err != nil {
+		log.Printf("Failed to set initial signaling read deadline: %v", err)
+	}
+	conn.SetPongHandler(func(string) error {
+		return conn.SetReadDeadline(time.Now().Add(signalingPongWait))
+	})
+
+	sessionKey := roomID + ":" + userID
+
 	s.mu.Lock()
+	if timer := s.offlineTimers[sessionKey]; timer != nil {
+		timer.Stop()
+		delete(s.offlineTimers, sessionKey)
+	}
+	if existing := s.clients[userID]; existing != nil {
+		existing.Close()
+	}
+	if existingRoomClients := s.rooms[roomID]; existingRoomClients != nil {
+		if existing := existingRoomClients[userID]; existing != nil {
+			existing.Close()
+		}
+	}
 	s.clients[userID] = conn
 	if s.rooms[roomID] == nil {
 		s.rooms[roomID] = make(map[string]*websocket.Conn)
@@ -85,16 +116,41 @@ func (s *SignalingServer) HandleConnection(w http.ResponseWriter, r *http.Reques
 
 // handleMessages processes incoming WebSocket messages
 func (s *SignalingServer) handleMessages(conn *websocket.Conn, userID, roomID string) {
+	done := make(chan struct{})
+	pingTicker := time.NewTicker(signalingPingPeriod)
+	defer pingTicker.Stop()
+
+	go func() {
+		for {
+			select {
+			case <-pingTicker.C:
+				if err := conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(signalingWriteWait)); err != nil {
+					return
+				}
+			case <-done:
+				return
+			}
+		}
+	}()
+
 	defer func() {
+		close(done)
 		s.mu.Lock()
-		delete(s.clients, userID)
+		if current, exists := s.clients[userID]; exists && current == conn {
+			delete(s.clients, userID)
+		}
 		if roomClients, exists := s.rooms[roomID]; exists {
-			delete(roomClients, userID)
+			if current, ok := roomClients[userID]; ok && current == conn {
+				delete(roomClients, userID)
+			}
 			if len(roomClients) == 0 {
 				delete(s.rooms, roomID)
 			}
 		}
 		s.mu.Unlock()
+
+		s.scheduleOfflineTransition(roomID, userID, conn)
+
 		conn.Close()
 		log.Printf("User %s left room %s", userID, roomID)
 	}()
@@ -103,7 +159,11 @@ func (s *SignalingServer) handleMessages(conn *websocket.Conn, userID, roomID st
 		var msg SignalMessage
 		err := conn.ReadJSON(&msg)
 		if err != nil {
-			log.Printf("Error reading message: %v", err)
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure, websocket.CloseNoStatusReceived) {
+				log.Printf("User %s signaling socket closed unexpectedly in room %s: %v", userID, roomID, err)
+			} else {
+				log.Printf("User %s signaling socket closed in room %s: %v", userID, roomID, err)
+			}
 			break
 		}
 
@@ -112,6 +172,41 @@ func (s *SignalingServer) handleMessages(conn *websocket.Conn, userID, roomID st
 
 		s.handleSignalMessage(msg)
 	}
+}
+
+func (s *SignalingServer) scheduleOfflineTransition(roomID, userID string, conn *websocket.Conn) {
+	sessionKey := roomID + ":" + userID
+
+	s.mu.Lock()
+	if timer := s.offlineTimers[sessionKey]; timer != nil {
+		timer.Stop()
+	}
+
+	s.offlineTimers[sessionKey] = time.AfterFunc(signalingLeaveGrace, func() {
+		s.mu.Lock()
+		currentConn := s.clients[userID]
+		if currentConn != nil && currentConn != conn {
+			delete(s.offlineTimers, sessionKey)
+			s.mu.Unlock()
+			return
+		}
+		delete(s.offlineTimers, sessionKey)
+		s.mu.Unlock()
+
+		rm := GetRoomManager()
+		if room, exists := rm.GetRoom(roomID); exists {
+			room.UpdateParticipant(userID, map[string]interface{}{"is_online": false})
+			if participant, ok := room.GetParticipant(userID); ok {
+				s.broadcastToRoom(SignalMessage{
+					Type:   "participant_left",
+					RoomID: roomID,
+					UserID: userID,
+					Data:   participant,
+				}, userID)
+			}
+		}
+	})
+	s.mu.Unlock()
 }
 
 // handleSignalMessage processes signaling messages
@@ -147,6 +242,21 @@ func (s *SignalingServer) handleJoin(msg SignalMessage) {
 
 	// Update participant status
 	room.UpdateParticipant(msg.UserID, map[string]interface{}{"is_online": true})
+
+	participants := room.GetParticipants()
+	existingParticipants := make([]*Participant, 0, len(participants))
+	for _, participant := range participants {
+		if participant.ID != msg.UserID && participant.IsOnline {
+			existingParticipants = append(existingParticipants, participant)
+		}
+	}
+
+	s.broadcastToRoom(SignalMessage{
+		Type:         "existing_participants",
+		RoomID:       msg.RoomID,
+		TargetUserID: msg.UserID,
+		Data:         existingParticipants,
+	}, "")
 
 	// Notify others in room
 	if participant, exists := room.GetParticipant(msg.UserID); exists {
