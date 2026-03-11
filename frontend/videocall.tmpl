@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-  <title>Video Call · Remainwith</title>
+  <title>Video Call - Remainwith</title>
 
   <!-- Fonts -->
   <link href="https://fonts.googleapis.com" rel="preconnect"/>
@@ -27,6 +27,7 @@
       
       --header-height: 70px;
       --control-bar-height: 80px;
+      --rail-width: 248px;
     }
 
     /* Themes */
@@ -74,6 +75,14 @@
         align-items: center;
         gap: 1rem;
         pointer-events: auto;
+        min-width: 0;
+    }
+
+    .header-right {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        pointer-events: auto;
     }
 
     .back-btn {
@@ -103,6 +112,57 @@
         text-shadow: 0 1px 2px rgba(0,0,0,0.5);
     }
 
+    .participant-info {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .status-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-top: 0.45rem;
+        max-width: min(64rem, 80vw);
+        min-width: 0;
+    }
+
+    .status-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.38rem;
+        min-width: 0;
+        max-width: 100%;
+        padding: 0.28rem 0.58rem;
+        border-radius: 999px;
+        background: rgba(12, 14, 18, 0.44);
+        border: 1px solid rgba(255,255,255,0.1);
+        backdrop-filter: blur(12px);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
+    }
+
+    .status-chip.is-hidden {
+        display: none;
+    }
+
+    .status-chip-label {
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: rgba(255,255,255,0.62);
+        white-space: nowrap;
+    }
+
+    .status-chip-value {
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: rgba(255,255,255,0.96);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 12rem;
+    }
+
     /* ==================================================
        Video Stage
        ================================================== */
@@ -111,9 +171,130 @@
         position: relative;
         width: 100%;
         height: 100%;
+        padding: 5.75rem 1.5rem calc(var(--control-bar-height) + 2rem);
+        background:
+            radial-gradient(circle at top, rgba(88, 101, 242, 0.18), transparent 30%),
+            linear-gradient(180deg, #2b2d31 0%, #1e1f22 100%);
+    }
+
+    .stage-shell {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) var(--rail-width);
+        gap: 1rem;
+        width: 100%;
+        height: 100%;
+    }
+
+    .stage-main {
+        position: relative;
+        min-width: 0;
+        min-height: 0;
+        border-radius: 1.75rem;
+        overflow: hidden;
+        background: linear-gradient(180deg, rgba(49, 51, 56, 0.92), rgba(26, 27, 30, 0.98));
+        border: 1px solid rgba(255,255,255,0.06);
+        box-shadow: 0 30px 80px rgba(0,0,0,0.35);
+    }
+
+    .stage-canvas {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+    }
+
+    .participant-rail {
+        display: flex;
+        flex-direction: column;
+        gap: 0.875rem;
+        padding: 0.35rem 0;
+        min-height: 0;
+        overflow-y: auto;
+    }
+
+    .participant-rail::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .participant-rail::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,0.12);
+        border-radius: 999px;
+    }
+
+    .video-card {
+        position: relative;
+        overflow: hidden;
+        border-radius: 1.35rem;
+        background: #111214;
+        border: 1px solid rgba(255,255,255,0.08);
+        box-shadow: 0 18px 40px rgba(0,0,0,0.28);
+    }
+
+    .video-card video {
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-fit: cover;
+        background: #111;
+    }
+
+    .video-card::after {
+        content: '';
+        position: absolute;
+        inset: auto 0 0;
+        height: 40%;
+        background: linear-gradient(180deg, transparent, rgba(0,0,0,0.72));
+        pointer-events: none;
+    }
+
+    .video-card.is-stage {
+        width: 100%;
+        height: 100%;
+        border-radius: 0;
+        border: none;
+        box-shadow: none;
+    }
+
+    .video-card.is-stage video {
+        height: 100%;
+    }
+
+    .video-card.is-rail {
+        aspect-ratio: 4 / 5;
+        min-height: 158px;
+        flex: 0 0 auto;
+    }
+
+    .video-card.is-local {
+        aspect-ratio: 4 / 5;
+        min-height: 172px;
+        border-color: rgba(88, 101, 242, 0.35);
+    }
+
+    .video-label {
+        position: absolute;
+        left: 0.85rem;
+        right: 0.85rem;
+        bottom: 0.75rem;
+        z-index: 2;
         display: flex;
         align-items: center;
-        justify-content: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        font-size: 0.82rem;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        text-shadow: 0 1px 6px rgba(0,0,0,0.7);
+    }
+
+    .video-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.28rem 0.55rem;
+        border-radius: 999px;
+        background: rgba(0,0,0,0.48);
+        backdrop-filter: blur(10px);
     }
 
     #remoteVideo {
@@ -125,28 +306,10 @@
 
     /* Dynamic remote video elements for multiple participants */
     video[id^="video-"] {
-        object-fit: cover;
-        background: #111;
-        position: absolute;
-        z-index: 5;
-        top: 0;
-        left: 0;
         display: block;
     }
 
     #localVideo {
-        position: absolute;
-        bottom: 100px; /* Space for controls */
-        right: 1.5rem;
-        width: 120px;
-        height: 160px;
-        object-fit: cover;
-        border-radius: var(--radius-lg);
-        border: 2px solid rgba(255,255,255,0.1);
-        background: #222;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-        transition: all 0.3s ease;
-        z-index: 10;
         transform: scaleX(-1); /* Mirror local video */
     }
 
@@ -157,8 +320,14 @@
         left: 50%;
         transform: translate(-50%, -50%);
         text-align: center;
-        z-index: 5;
+        z-index: 4;
         pointer-events: none;
+        width: min(100%, 28rem);
+        padding: 1.75rem;
+        border-radius: 1.5rem;
+        background: rgba(17, 18, 20, 0.58);
+        backdrop-filter: blur(18px);
+        border: 1px solid rgba(255,255,255,0.08);
     }
     .status-icon {
         font-size: 48px;
@@ -186,8 +355,218 @@
         background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
     }
 
+    .call-tools {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        position: relative;
+    }
+
+    .settings-shell {
+        position: relative;
+    }
+
+    .tool-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        border-radius: 50%;
+        border: 1px solid rgba(255,255,255,0.16);
+        background: rgba(17,18,20,0.82);
+        color: #fff;
+        font-family: var(--font-sans);
+        backdrop-filter: blur(16px);
+        cursor: pointer;
+        transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+    }
+
+    .tool-btn:hover,
+    .tool-btn[aria-expanded="true"] {
+        background: rgba(34, 37, 43, 0.92);
+        border-color: rgba(255,255,255,0.24);
+    }
+
+    .tool-btn:focus-visible {
+        outline: none;
+        border-color: rgba(88, 101, 242, 0.7);
+    }
+
+    .tool-btn .material-symbols-outlined {
+        font-size: 22px;
+    }
+
+    .settings-popover {
+        position: absolute;
+        top: calc(100% + 0.7rem);
+        right: 0;
+        width: min(26rem, calc(100vw - 2rem));
+        max-height: min(32rem, calc(100dvh - 8rem));
+        overflow-y: auto;
+        padding: 0.9rem;
+        border-radius: 1.15rem;
+        background: rgba(22, 24, 29, 0.96);
+        border: 1px solid rgba(255,255,255,0.1);
+        box-shadow: 0 24px 60px rgba(0,0,0,0.38);
+        backdrop-filter: blur(18px);
+        pointer-events: auto;
+        opacity: 0;
+        transform: translateY(-6px);
+        visibility: hidden;
+        transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s ease;
+    }
+
+    .settings-popover.is-open {
+        opacity: 1;
+        transform: translateY(0);
+        visibility: visible;
+    }
+
+    .settings-section + .settings-section {
+        margin-top: 0.9rem;
+        padding-top: 0.9rem;
+        border-top: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .settings-title {
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: rgba(255,255,255,0.6);
+        margin-bottom: 0.55rem;
+    }
+
+    .settings-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .settings-copy {
+        min-width: 0;
+    }
+
+    .settings-copy strong {
+        display: block;
+        font-size: 0.92rem;
+        font-weight: 600;
+        color: #fff;
+    }
+
+    .settings-copy span {
+        display: block;
+        margin-top: 0.18rem;
+        font-size: 0.78rem;
+        color: rgba(255,255,255,0.65);
+    }
+
+    .toggle-switch {
+        position: relative;
+        width: 46px;
+        height: 28px;
+        border: none;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.18);
+        cursor: pointer;
+        transition: background 0.2s ease;
+    }
+
+    .toggle-switch::after {
+        content: '';
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: #fff;
+        transition: transform 0.2s ease;
+    }
+
+    .toggle-switch[aria-pressed="true"] {
+        background: #5865f2;
+    }
+
+    .toggle-switch[aria-pressed="true"]::after {
+        transform: translateX(18px);
+    }
+
+    .settings-toggle-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.5rem;
+    }
+
+    .settings-toggle-item {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 38px;
+        padding: 0.55rem 0.7rem;
+        border-radius: 0.85rem;
+        border: 1px solid rgba(255,255,255,0.1);
+        background: rgba(255,255,255,0.04);
+        color: rgba(255,255,255,0.78);
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .settings-toggle-item:hover {
+        background: rgba(255,255,255,0.08);
+    }
+
+    .settings-toggle-item.is-active {
+        color: #fff;
+        background: rgba(88, 101, 242, 0.22);
+        border-color: rgba(119, 132, 255, 0.55);
+    }
+
+    .quality-pill-group {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+    }
+
+    .quality-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 4.4rem;
+        min-height: 38px;
+        padding: 0.55rem 0.78rem;
+        border-radius: 0.9rem;
+        border: 1px solid rgba(255,255,255,0.1);
+        background: rgba(255,255,255,0.04);
+        color: rgba(255,255,255,0.82);
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .quality-pill:hover {
+        background: rgba(255,255,255,0.08);
+    }
+
+    .quality-pill.is-active {
+        background: linear-gradient(180deg, rgba(88, 101, 242, 0.38), rgba(88, 101, 242, 0.22));
+        border-color: rgba(136, 146, 255, 0.7);
+        color: #fff;
+    }
+
     .control-btn.pin-active {
         background: #10b981;
+        color: white;
+    }
+
+    .control-btn.sharing {
+        background: #5865f2;
         color: white;
     }
 
@@ -225,6 +604,71 @@
     .control-btn.danger:hover {
         background: #dc2626;
         transform: scale(1.1);
+    }
+
+    .popup-card {
+        position: fixed;
+        left: 50%;
+        bottom: calc(var(--control-bar-height) + env(safe-area-inset-bottom) + 1.25rem);
+        z-index: 40;
+        width: min(28rem, calc(100vw - 2rem));
+        padding: 0.9rem 1rem;
+        border-radius: 1rem;
+        background: rgba(18, 21, 29, 0.96);
+        border: 1px solid rgba(255,255,255,0.1);
+        box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+        backdrop-filter: blur(18px);
+        transform: translate(-50%, 14px);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+    }
+
+    .popup-card.is-visible {
+        opacity: 1;
+        visibility: visible;
+        transform: translate(-50%, 0);
+    }
+
+    .popup-card-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+    }
+
+    .popup-card-copy {
+        min-width: 0;
+    }
+
+    .popup-card-title {
+        display: block;
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #fff;
+    }
+
+    .popup-card-message {
+        display: block;
+        margin-top: 0.28rem;
+        font-size: 0.82rem;
+        line-height: 1.45;
+        color: rgba(255,255,255,0.72);
+    }
+
+    .popup-card-close {
+        flex: 0 0 auto;
+        width: 34px;
+        height: 34px;
+        border: none;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.08);
+        color: #fff;
+        cursor: pointer;
+    }
+
+    .popup-card-close:hover {
+        background: rgba(255,255,255,0.14);
     }
 
     /* ==================================================
@@ -411,10 +855,324 @@
     }
 
     @media (max-width: 600px) {
-        #localVideo { width: 90px; height: 120px; bottom: 90px; right: 1rem; }
         .control-btn { width: 48px; height: 48px; }
         .room-dialog-content { padding: 1.5rem; }
         .room-id-text { font-size: 1.5rem; }
+    }
+
+    @media (max-width: 980px) {
+        .video-stage {
+            padding: 5.35rem 1rem calc(var(--control-bar-height) + 1.75rem);
+        }
+
+        .stage-shell {
+            grid-template-columns: 1fr;
+            grid-template-rows: minmax(0, 1fr) auto;
+            gap: 0.85rem;
+        }
+
+        .participant-rail {
+            flex-direction: row;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding-bottom: 0.25rem;
+        }
+
+        .video-card.is-rail,
+        .video-card.is-local {
+            width: 168px;
+            min-width: 168px;
+            min-height: 126px;
+            aspect-ratio: 16 / 10;
+        }
+
+        .header-right {
+            gap: 0.65rem;
+        }
+
+        .status-meta {
+            max-width: min(52rem, 72vw);
+        }
+
+    }
+
+    @media (max-width: 768px) {
+        :root {
+            --header-height: 64px;
+            --control-bar-height: 74px;
+        }
+
+        .call-header {
+            position: relative;
+            top: auto;
+            left: auto;
+            right: auto;
+            height: auto;
+            min-height: 0;
+            align-items: flex-start;
+            gap: 0.7rem;
+            padding: calc(0.75rem + env(safe-area-inset-top)) 0.9rem 0.8rem;
+            flex-direction: row;
+            flex-wrap: wrap;
+            background: linear-gradient(180deg, rgba(8, 10, 16, 0.98), rgba(14, 18, 28, 0.9));
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .participant-info h2 {
+            font-size: 1rem;
+        }
+
+        .participant-info p {
+            font-size: 0.75rem;
+        }
+
+        .stage-main {
+            border-radius: 1.15rem;
+        }
+
+        .status-overlay {
+            width: calc(100% - 2rem);
+            padding: 1.25rem;
+        }
+
+        .controls-bar {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            gap: 0.9rem;
+            padding-bottom: max(0.9rem, env(safe-area-inset-bottom));
+        }
+
+        .header-left,
+        .header-right {
+            width: 100%;
+        }
+
+        .header-left {
+            align-items: flex-start;
+            gap: 0.8rem;
+        }
+
+        .header-right {
+            flex-direction: row;
+            justify-content: flex-end;
+            align-items: flex-start;
+        }
+
+        .participant-info {
+            width: 100%;
+        }
+
+        .status-meta {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 0.45rem;
+            margin-top: 0.55rem;
+            max-width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding-bottom: 0.15rem;
+            scroll-snap-type: x proximity;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .status-meta::-webkit-scrollbar {
+            display: none;
+        }
+
+        .status-chip {
+            flex: 0 0 auto;
+            width: auto;
+            min-width: max-content;
+            scroll-snap-align: start;
+        }
+
+        .call-tools {
+            width: auto;
+        }
+
+        .tool-btn {
+            width: 44px;
+            height: 44px;
+            align-self: flex-start;
+        }
+
+        .settings-popover {
+            position: fixed;
+            left: 0.75rem;
+            right: 0.75rem;
+            top: auto;
+            bottom: calc(var(--control-bar-height) + env(safe-area-inset-bottom) + 0.9rem);
+            width: auto;
+            max-height: min(30rem, 62dvh);
+            transform: translateY(12px);
+            border-radius: 1.25rem;
+        }
+
+        .popup-card {
+            width: calc(100vw - 1.5rem);
+            bottom: calc(var(--control-bar-height) + env(safe-area-inset-bottom) + 1rem);
+        }
+
+        .settings-row {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 0.7rem;
+        }
+    }
+
+    @media (max-width: 560px) {
+        .video-stage {
+            padding: 0.75rem 0.75rem calc(var(--control-bar-height) + env(safe-area-inset-bottom) + 1.4rem);
+        }
+
+        .stage-shell {
+            gap: 0.7rem;
+        }
+
+        .participant-rail {
+            gap: 0.65rem;
+        }
+
+        .video-card.is-rail,
+        .video-card.is-local {
+            width: 134px;
+            min-width: 134px;
+            min-height: 100px;
+        }
+
+        .video-label {
+            left: 0.55rem;
+            right: 0.55rem;
+            bottom: 0.5rem;
+            font-size: 0.72rem;
+        }
+
+        .video-badge {
+            padding: 0.22rem 0.45rem;
+        }
+
+        .control-btn {
+            width: 46px;
+            height: 46px;
+        }
+
+        .call-tools {
+            width: auto;
+        }
+
+        .status-meta {
+            display: flex;
+            grid-template-columns: none;
+            gap: 0.38rem;
+            width: 100%;
+            max-width: 100%;
+        }
+
+        .status-chip {
+            width: auto;
+            min-width: max-content;
+            padding: 0.4rem 0.56rem;
+            border-radius: 0.9rem;
+        }
+
+        .status-chip-label,
+        .status-chip-value {
+            max-width: 100%;
+        }
+
+        .status-chip-label {
+            font-size: 0.56rem;
+        }
+
+        .status-chip-value {
+            font-size: 0.68rem;
+            max-width: 7.2rem;
+        }
+
+        .popup-card {
+            padding: 0.82rem 0.9rem;
+            border-radius: 0.95rem;
+        }
+
+        .popup-card-title {
+            font-size: 0.88rem;
+        }
+
+        .popup-card-message {
+            font-size: 0.78rem;
+        }
+
+        .quality-pill-group {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .quality-pill {
+            width: 100%;
+            min-width: 0;
+        }
+
+        .settings-toggle-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 400px) {
+        .call-header {
+            padding-left: 0.75rem;
+            padding-right: 0.75rem;
+        }
+
+        .header-left {
+            gap: 0.7rem;
+        }
+
+        .back-btn {
+            width: 36px;
+            height: 36px;
+            flex: 0 0 36px;
+        }
+
+        .participant-info h2 {
+            font-size: 0.94rem;
+        }
+
+        .participant-info p {
+            font-size: 0.72rem;
+        }
+
+        .quality-pill-group {
+            grid-template-columns: 1fr;
+        }
+
+        .status-meta {
+            gap: 0.34rem;
+        }
+
+        .settings-popover {
+            left: 0.5rem;
+            right: 0.5rem;
+            bottom: calc(var(--control-bar-height) + env(safe-area-inset-bottom) + 0.65rem);
+            max-height: 58dvh;
+        }
+
+        .popup-card {
+            width: calc(100vw - 1rem);
+            bottom: calc(var(--control-bar-height) + env(safe-area-inset-bottom) + 0.75rem);
+        }
+    }
+
+    @media (min-width: 1400px) {
+        :root {
+            --rail-width: 280px;
+        }
+
+        .video-stage {
+            padding-left: 2rem;
+            padding-right: 2rem;
+        }
     }
   </style>
 
@@ -430,6 +1188,88 @@
             <div class="participant-info">
                 <h2 id="remoteName">Campfire Call</h2>
                 <p id="callStatus">Connecting...</p>
+                <div class="status-meta" id="statusMeta" aria-live="polite">
+                    <div class="status-chip" data-stat-key="send">
+                        <span class="status-chip-label">Send</span>
+                        <span class="status-chip-value" id="statSendBitrate">0 kbps</span>
+                    </div>
+                    <div class="status-chip" data-stat-key="receive">
+                        <span class="status-chip-label">Receive</span>
+                        <span class="status-chip-value" id="statRecvBitrate">0 kbps</span>
+                    </div>
+                    <div class="status-chip" data-stat-key="uplink">
+                        <span class="status-chip-label">Uplink</span>
+                        <span class="status-chip-value" id="statUplink">Unknown</span>
+                    </div>
+                    <div class="status-chip" data-stat-key="rtt">
+                        <span class="status-chip-label">RTT</span>
+                        <span class="status-chip-value" id="statRtt">-</span>
+                    </div>
+                    <div class="status-chip" data-stat-key="resolution">
+                        <span class="status-chip-label">Resolution</span>
+                        <span class="status-chip-value" id="statResolution">-</span>
+                    </div>
+                    <div class="status-chip" data-stat-key="source">
+                        <span class="status-chip-label">Source</span>
+                        <span class="status-chip-value" id="statSource">Camera</span>
+                    </div>
+                    <div class="status-chip" data-stat-key="network">
+                        <span class="status-chip-label">Network</span>
+                        <span class="status-chip-value" id="statNetwork">Unknown</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="call-tools">
+                <div class="settings-shell">
+                    <button class="tool-btn" id="settingsButton" type="button" title="Call settings" aria-label="Call settings" aria-expanded="false" aria-controls="settingsPopover">
+                        <span class="material-symbols-outlined">settings</span>
+                    </button>
+                    <div class="settings-popover" id="settingsPopover">
+                        <div class="settings-section">
+                            <div class="settings-row">
+                                <div class="settings-copy">
+                                    <strong>Live stats in header</strong>
+                                    <span>Show connection and media metrics under the call status.</span>
+                                </div>
+                                <button class="toggle-switch" id="liveStatsToggle" type="button" aria-pressed="true"></button>
+                            </div>
+                        </div>
+                        <div class="settings-section">
+                            <div class="settings-title">Visible Metrics</div>
+                            <div class="settings-toggle-grid" id="statsToggleGrid">
+                                <button class="settings-toggle-item" type="button" data-stat-toggle="send">Send bitrate</button>
+                                <button class="settings-toggle-item" type="button" data-stat-toggle="receive">Receive bitrate</button>
+                                <button class="settings-toggle-item" type="button" data-stat-toggle="uplink">Estimated uplink</button>
+                                <button class="settings-toggle-item" type="button" data-stat-toggle="rtt">RTT</button>
+                                <button class="settings-toggle-item" type="button" data-stat-toggle="resolution">Actual resolution</button>
+                                <button class="settings-toggle-item" type="button" data-stat-toggle="source">Source</button>
+                                <button class="settings-toggle-item" type="button" data-stat-toggle="network">Network</button>
+                            </div>
+                        </div>
+                        <div class="settings-section">
+                            <div class="settings-title">Send Quality</div>
+                            <div class="quality-pill-group" id="qualityPresetGroup">
+                                <button class="quality-pill" type="button" data-quality="auto">Auto</button>
+                                <button class="quality-pill" type="button" data-quality="360p">360p</button>
+                                <button class="quality-pill" type="button" data-quality="480p">480p</button>
+                                <button class="quality-pill" type="button" data-quality="720p">720p</button>
+                                <button class="quality-pill" type="button" data-quality="1080p">1080p</button>
+                            </div>
+                        </div>
+                        <div class="settings-section">
+                            <div class="settings-title">View Quality</div>
+                            <div class="quality-pill-group" id="receiveQualityPresetGroup">
+                                <button class="quality-pill" type="button" data-receive-quality="auto">Auto</button>
+                                <button class="quality-pill" type="button" data-receive-quality="360p">360p</button>
+                                <button class="quality-pill" type="button" data-receive-quality="480p">480p</button>
+                                <button class="quality-pill" type="button" data-receive-quality="720p">720p</button>
+                                <button class="quality-pill" type="button" data-receive-quality="1080p">1080p</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </header>
@@ -476,12 +1316,26 @@
 
     <!-- Video Stage -->
     <div class="video-stage" id="videoStage" style="display: none;">
-        <div class="status-overlay" id="statusOverlay">
-            <span class="material-symbols-outlined status-icon">sensors</span>
-            <p>Waiting for others to join...</p>
+        <div class="stage-shell">
+            <div class="stage-main">
+                <div class="stage-canvas" id="stageCanvas">
+                    <div class="status-overlay" id="statusOverlay">
+                        <span class="material-symbols-outlined status-icon">sensors</span>
+                        <p>Waiting for others to join...</p>
+                    </div>
+                    <video id="remoteVideo" autoplay playsinline></video>
+                </div>
+            </div>
+            <aside class="participant-rail" id="participantRail">
+                <div class="video-card is-local" id="localVideoCard">
+                    <video id="localVideo" autoplay playsinline muted></video>
+                    <div class="video-label">
+                        <span class="video-badge">You</span>
+                        <span class="video-badge">Self View</span>
+                    </div>
+                </div>
+            </aside>
         </div>
-        <video id="remoteVideo" autoplay playsinline></video>
-        <video id="localVideo" autoplay playsinline muted></video>
     </div>
 
 
@@ -498,6 +1352,22 @@
         <button class="control-btn" id="btnCam" onclick="toggleCam()">
             <span class="material-symbols-outlined">videocam</span>
         </button>
+
+        <button class="control-btn" id="btnShare" onclick="toggleScreenShare()" title="Share screen">
+            <span class="material-symbols-outlined">screen_share</span>
+        </button>
+    </div>
+
+    <div class="popup-card" id="popupCard" role="status" aria-live="polite" aria-hidden="true">
+        <div class="popup-card-head">
+            <div class="popup-card-copy">
+                <strong class="popup-card-title" id="popupCardTitle">Notice</strong>
+                <span class="popup-card-message" id="popupCardMessage"></span>
+            </div>
+            <button class="popup-card-close" id="popupCardClose" type="button" aria-label="Close popup">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+        </div>
     </div>
 
     <script>
@@ -516,10 +1386,24 @@
         const remoteVideo = document.getElementById('remoteVideo');
         const statusOverlay = document.getElementById('statusOverlay');
         const callStatus = document.getElementById('callStatus');
+        const statusMeta = document.getElementById('statusMeta');
         const btnMic = document.getElementById('btnMic');
         const btnCam = document.getElementById('btnCam');
+        const btnShare = document.getElementById('btnShare');
+        const popupCard = document.getElementById('popupCard');
+        const popupCardTitle = document.getElementById('popupCardTitle');
+        const popupCardMessage = document.getElementById('popupCardMessage');
+        const popupCardClose = document.getElementById('popupCardClose');
+        const settingsButton = document.getElementById('settingsButton');
+        const settingsPopover = document.getElementById('settingsPopover');
+        const liveStatsToggle = document.getElementById('liveStatsToggle');
+        const statsToggleGrid = document.getElementById('statsToggleGrid');
+        const qualityPresetGroup = document.getElementById('qualityPresetGroup');
+        const receiveQualityPresetGroup = document.getElementById('receiveQualityPresetGroup');
         const roomDialog = document.getElementById('roomDialog');
         const videoStage = document.getElementById('videoStage');
+        const stageCanvas = document.getElementById('stageCanvas');
+        const participantRail = document.getElementById('participantRail');
         const createdRoomIdDiv = document.getElementById('createdRoomId');
         const roomIdText = document.getElementById('roomIdText');
         const joinRoomIdInput = document.getElementById('joinRoomId');
@@ -533,6 +1417,41 @@
         let isConnecting = false;
         let reconnectAttempts = 0;
         const MAX_RECONNECT_ATTEMPTS = 3;
+        let reconnectTimer = null;
+        let reconnectInProgress = false;
+        let pageUnloading = false;
+        let popupTimer = null;
+        let screenStream = null;
+        let cameraVideoTrack = null;
+        let videoSender = null;
+        let selectedQuality = 'auto';
+        let selectedReceiveQuality = 'auto';
+        let statsInterval = null;
+        let statsSnapshot = null;
+        let autoQualityLevel = '720p';
+        let lastAppliedVideoTrack = null;
+        const statsPreferenceStorageKey = 'remainwith-call-stats-preferences';
+
+        const qualityProfiles = {
+            auto: { label: 'Auto', width: 1280, height: 720, frameRate: 24, maxBitrate: 1500000 },
+            '360p': { label: '360p', width: 640, height: 360, frameRate: 24, maxBitrate: 600000 },
+            '480p': { label: '480p', width: 854, height: 480, frameRate: 24, maxBitrate: 900000 },
+            '720p': { label: '720p', width: 1280, height: 720, frameRate: 30, maxBitrate: 1800000 },
+            '1080p': { label: '1080p', width: 1920, height: 1080, frameRate: 30, maxBitrate: 3500000 }
+        };
+        const defaultStatsPreferences = {
+            liveStats: true,
+            visibleStats: {
+                send: true,
+                receive: true,
+                uplink: true,
+                rtt: true,
+                resolution: true,
+                source: true,
+                network: true
+            }
+        };
+        let statsPreferences = loadStatsPreferences();
         
         // Port forwarding detection
         const isPortForwarded = window.location.protocol === 'http:' || 
@@ -552,6 +1471,505 @@
         
         // Connection state tracking
         let connectionState = 'new'; // new, connecting, connected, disconnected, failed
+
+        function loadStatsPreferences() {
+            try {
+                const raw = localStorage.getItem(statsPreferenceStorageKey);
+                if (!raw) {
+                    return JSON.parse(JSON.stringify(defaultStatsPreferences));
+                }
+
+                const parsed = JSON.parse(raw);
+                return {
+                    liveStats: parsed.liveStats ?? defaultStatsPreferences.liveStats,
+                    visibleStats: {
+                        ...defaultStatsPreferences.visibleStats,
+                        ...(parsed.visibleStats || {})
+                    }
+                };
+            } catch (error) {
+                console.warn('Failed to load stats preferences:', error);
+                return JSON.parse(JSON.stringify(defaultStatsPreferences));
+            }
+        }
+
+        function saveStatsPreferences() {
+            try {
+                localStorage.setItem(statsPreferenceStorageKey, JSON.stringify(statsPreferences));
+            } catch (error) {
+                console.warn('Failed to save stats preferences:', error);
+            }
+        }
+
+        function hidePopupCard() {
+            if (!popupCard) return;
+            popupCard.classList.remove('is-visible');
+            popupCard.setAttribute('aria-hidden', 'true');
+            if (popupTimer) {
+                clearTimeout(popupTimer);
+                popupTimer = null;
+            }
+        }
+
+        function showPopupCard(title, message, duration = 4200) {
+            if (!popupCard || !popupCardTitle || !popupCardMessage) return;
+
+            popupCardTitle.textContent = title;
+            popupCardMessage.textContent = message;
+            popupCard.classList.add('is-visible');
+            popupCard.setAttribute('aria-hidden', 'false');
+
+            if (popupTimer) {
+                clearTimeout(popupTimer);
+            }
+
+            if (duration > 0) {
+                popupTimer = setTimeout(() => {
+                    hidePopupCard();
+                }, duration);
+            }
+        }
+
+        function updateSettingsSummary() {
+            return;
+        }
+
+        function syncQualityControlState() {
+            if (qualityPresetGroup) {
+                qualityPresetGroup.querySelectorAll('[data-quality]').forEach((button) => {
+                    button.classList.toggle('is-active', button.dataset.quality === selectedQuality);
+                });
+            }
+
+            if (receiveQualityPresetGroup) {
+                receiveQualityPresetGroup.querySelectorAll('[data-receive-quality]').forEach((button) => {
+                    button.classList.toggle('is-active', button.dataset.receiveQuality === selectedReceiveQuality);
+                });
+            }
+        }
+
+        function applyStatsPreferenceUI() {
+            let visibleCount = 0;
+            if (statusMeta) {
+                statusMeta.querySelectorAll('[data-stat-key]').forEach((chip) => {
+                    const key = chip.dataset.statKey;
+                    const isVisible = !!statsPreferences.visibleStats[key];
+                    chip.classList.toggle('is-hidden', !isVisible);
+                    if (isVisible) {
+                        visibleCount += 1;
+                    }
+                });
+                statusMeta.style.display = statsPreferences.liveStats && visibleCount > 0 ? 'flex' : 'none';
+            }
+
+            if (liveStatsToggle) {
+                liveStatsToggle.setAttribute('aria-pressed', String(!!statsPreferences.liveStats));
+            }
+
+            if (statsToggleGrid) {
+                statsToggleGrid.querySelectorAll('[data-stat-toggle]').forEach((button) => {
+                    const key = button.dataset.statToggle;
+                    button.classList.toggle('is-active', !!statsPreferences.visibleStats[key]);
+                    button.disabled = !statsPreferences.liveStats;
+                    button.style.opacity = statsPreferences.liveStats ? '1' : '0.45';
+                });
+            }
+        }
+
+        function setSettingsPopoverOpen(isOpen) {
+            if (!settingsPopover || !settingsButton) return;
+            settingsPopover.classList.toggle('is-open', isOpen);
+            settingsButton.setAttribute('aria-expanded', String(isOpen));
+        }
+
+        function cleanupRemoteState() {
+            remoteVideos.forEach((videoData) => {
+                videoData.card.remove();
+            });
+            remoteVideos.clear();
+            processedStreams.clear();
+            streamToParticipant.clear();
+            participantCounter = 0;
+            remoteVideo.style.display = 'block';
+            statusOverlay.style.display = 'block';
+            const statusText = statusOverlay.querySelector('p');
+            if (statusText) {
+                statusText.textContent = 'Reconnecting...';
+            }
+        }
+
+        function closeSocket(socket) {
+            if (!socket) return null;
+            try {
+                socket.onopen = null;
+                socket.onmessage = null;
+                socket.onerror = null;
+                socket.onclose = null;
+                if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+                    socket.close();
+                }
+            } catch (error) {
+                console.warn('Socket close failed:', error);
+            }
+            return null;
+        }
+
+        function clearReconnectTimer() {
+            if (reconnectTimer) {
+                clearTimeout(reconnectTimer);
+                reconnectTimer = null;
+            }
+        }
+
+        async function ensureLocalStreamActive() {
+            const needsRestart = !localStream || localStream.getTracks().some(track => track.readyState === 'ended');
+            if (needsRestart) {
+                if (localStream) {
+                    localStream.getTracks().forEach(track => track.stop());
+                }
+                localStream = null;
+                await startLocalStream();
+                return;
+            }
+
+            if (!localVideo.srcObject && localStream) {
+                localVideo.srcObject = localStream;
+            }
+        }
+
+        function scheduleReconnect(reason, delay = 1500) {
+            if (pageUnloading || reconnectInProgress) {
+                return;
+            }
+
+            if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+                updateStatus('Connection failed - please refresh');
+                statusOverlay.innerHTML = `
+                    <span class="material-symbols-outlined status-icon" style="color: #ef4444;">error</span>
+                    <p>Connection failed. Please refresh the page.</p>
+                `;
+                statusOverlay.style.display = 'block';
+                return;
+            }
+
+            clearReconnectTimer();
+            reconnectTimer = setTimeout(() => {
+                reconnectTimer = null;
+                handleConnectionFailure(reason);
+            }, delay);
+        }
+
+        function getCurrentQualityProfile() {
+            if (selectedQuality !== 'auto') {
+                return qualityProfiles[selectedQuality];
+            }
+
+            if (isScreenSharing()) {
+                return { ...qualityProfiles[autoQualityLevel], frameRate: 12 };
+            }
+
+            return qualityProfiles[autoQualityLevel];
+        }
+
+        function isScreenSharing() {
+            return !!(screenStream && screenStream.getVideoTracks().length > 0);
+        }
+
+        function getActiveVideoTrack() {
+            if (isScreenSharing()) {
+                return screenStream.getVideoTracks()[0] || null;
+            }
+            return cameraVideoTrack;
+        }
+
+        function getVideoSender() {
+            if (videoSender && videoSender.track) {
+                return videoSender;
+            }
+            if (!pc) return null;
+            videoSender = pc.getSenders().find(sender => sender.track && sender.track.kind === 'video') || null;
+            return videoSender;
+        }
+
+        function updateStatsMeta() {
+            document.getElementById('statSource').textContent = isScreenSharing() ? 'Screen' : 'Camera';
+            updateSettingsSummary();
+            syncQualityControlState();
+        }
+
+        async function applySenderEncoding(profile) {
+            const sender = getVideoSender();
+            if (!sender) return;
+
+            const params = sender.getParameters();
+            if (!params.encodings || params.encodings.length === 0) {
+                params.encodings = [{}];
+            }
+            const encodingProfiles = getSimulcastEncodings(profile);
+            params.encodings = params.encodings.map((encoding, index) => ({
+                ...encoding,
+                active: true,
+                maxBitrate: encodingProfiles[Math.min(index, encodingProfiles.length - 1)].maxBitrate,
+                maxFramerate: encodingProfiles[Math.min(index, encodingProfiles.length - 1)].maxFramerate,
+                scaleResolutionDownBy: encodingProfiles[Math.min(index, encodingProfiles.length - 1)].scaleResolutionDownBy
+            }));
+
+            try {
+                await sender.setParameters(params);
+            } catch (error) {
+                console.warn('Failed to apply sender parameters:', error);
+            }
+        }
+
+        function buildVideoConstraints(profile, preferSharpness = false, strict = false) {
+            const width = strict ? { min: profile.width, ideal: profile.width } : { ideal: profile.width };
+            const height = strict ? { min: profile.height, ideal: profile.height } : { ideal: profile.height };
+            const frameRate = preferSharpness
+                ? { ideal: Math.min(profile.frameRate, 15), max: Math.min(profile.frameRate, 20) }
+                : (strict ? { min: Math.min(profile.frameRate, 24), ideal: profile.frameRate, max: profile.frameRate } : { ideal: profile.frameRate, max: profile.frameRate });
+
+            return { width, height, frameRate };
+        }
+
+        function attachTrackLifecycle(track) {
+            if (!track) return;
+            track.onended = () => {
+                console.warn('Local track ended unexpectedly:', track.kind, track.id);
+                scheduleReconnect('local-track-ended', 500);
+            };
+        }
+
+        async function applyTrackConstraints(track, profile, preferSharpness = false) {
+            if (!track || !track.applyConstraints) return;
+
+            try {
+                await track.applyConstraints(buildVideoConstraints(profile, preferSharpness, false));
+            } catch (error) {
+                console.warn('Failed to apply video constraints:', error);
+            }
+        }
+
+        async function requestCameraTrack(profile, strict = false) {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: buildVideoConstraints(profile, false, strict),
+                audio: false
+            });
+            return stream.getVideoTracks()[0] || null;
+        }
+
+        async function ensureCameraTrackQuality(profile) {
+            if (!cameraVideoTrack || isScreenSharing()) {
+                return;
+            }
+
+            const settings = cameraVideoTrack.getSettings ? cameraVideoTrack.getSettings() : {};
+            const width = settings.width || 0;
+            const height = settings.height || 0;
+            const alreadyMatches = width >= profile.width && height >= profile.height;
+
+            if (selectedQuality === 'auto') {
+                await applyTrackConstraints(cameraVideoTrack, profile, false);
+                return;
+            }
+
+            if (alreadyMatches) {
+                await applyTrackConstraints(cameraVideoTrack, profile, false);
+                return;
+            }
+
+            let nextTrack = null;
+            try {
+                nextTrack = await requestCameraTrack(profile, true);
+            } catch (error) {
+                console.warn('Strict camera quality request failed, retrying with ideal constraints:', error);
+                nextTrack = await requestCameraTrack(profile, false);
+            }
+
+            if (!nextTrack) {
+                return;
+            }
+
+            const previousTrack = cameraVideoTrack;
+            cameraVideoTrack = nextTrack;
+            attachTrackLifecycle(cameraVideoTrack);
+            await replaceVideoTrack(cameraVideoTrack);
+
+            if (previousTrack && previousTrack.readyState === 'live') {
+                previousTrack.onended = null;
+                previousTrack.stop();
+            }
+
+            const nextSettings = cameraVideoTrack.getSettings ? cameraVideoTrack.getSettings() : {};
+            console.log('Applied camera quality track:', nextSettings);
+
+            if ((nextSettings.width || 0) < profile.width || (nextSettings.height || 0) < profile.height) {
+                showPopupCard(
+                    'Limited by camera',
+                    `Requested ${profile.label}, but this device is sending ${nextSettings.width || '?'}x${nextSettings.height || '?'}.`
+                );
+            }
+        }
+
+        function getSimulcastEncodings(profile) {
+            const lowScale = Math.max(1, profile.height / 360);
+            const mediumScale = Math.max(1, profile.height / 720);
+
+            return [
+                { rid: 'q', maxBitrate: 350000, maxFramerate: Math.min(profile.frameRate, 15), scaleResolutionDownBy: lowScale },
+                { rid: 'h', maxBitrate: Math.min(profile.maxBitrate, 1500000), maxFramerate: Math.min(profile.frameRate, 24), scaleResolutionDownBy: mediumScale },
+                { rid: 'f', maxBitrate: profile.maxBitrate, maxFramerate: profile.frameRate, scaleResolutionDownBy: 1.0 }
+            ];
+        }
+
+        async function applyQualityProfile() {
+            const profile = getCurrentQualityProfile();
+            updateStatsMeta();
+
+            if (cameraVideoTrack) {
+                await ensureCameraTrackQuality(profile);
+            }
+            if (isScreenSharing()) {
+                const displayTrack = screenStream.getVideoTracks()[0];
+                await applyTrackConstraints(displayTrack, profile, true);
+            }
+
+            await applySenderEncoding(profile);
+        }
+
+        function addLocalTrackToPeerConnection(track) {
+            if (!pc || !localStream) return null;
+
+            if (track.kind === 'video') {
+                const transceiver = pc.addTransceiver(track, {
+                    direction: 'sendrecv',
+                    streams: [localStream],
+                    sendEncodings: getSimulcastEncodings(getCurrentQualityProfile())
+                });
+                videoSender = transceiver.sender;
+                return transceiver.sender;
+            }
+
+            return pc.addTrack(track, localStream);
+        }
+
+        async function replaceVideoTrack(nextTrack) {
+            if (!nextTrack || !localStream) return;
+
+            const currentTrack = localStream.getVideoTracks()[0];
+            if (currentTrack && currentTrack.id === nextTrack.id) {
+                await applyQualityProfile();
+                localVideo.srcObject = localStream;
+                return;
+            }
+
+            if (currentTrack) {
+                localStream.removeTrack(currentTrack);
+            }
+            localStream.addTrack(nextTrack);
+            localVideo.srcObject = localStream;
+
+            const sender = getVideoSender();
+            if (sender) {
+                try {
+                    await sender.replaceTrack(nextTrack);
+                    videoSender = sender;
+                } catch (error) {
+                    console.error('Failed to replace outbound video track:', error);
+                }
+            }
+
+            lastAppliedVideoTrack = nextTrack;
+            await applyQualityProfile();
+            updateStatsMeta();
+        }
+
+        function startStatsMonitoring() {
+            if (statsInterval) return;
+            statsInterval = setInterval(refreshStatsPanel, 1000);
+        }
+
+        function stopStatsMonitoring() {
+            if (statsInterval) {
+                clearInterval(statsInterval);
+                statsInterval = null;
+            }
+            statsSnapshot = null;
+        }
+
+        if (settingsButton && settingsPopover) {
+            settingsButton.addEventListener('click', (event) => {
+                event.stopPropagation();
+                const isOpen = settingsPopover.classList.contains('is-open');
+                setSettingsPopoverOpen(!isOpen);
+            });
+
+            settingsPopover.addEventListener('click', (event) => {
+                event.stopPropagation();
+            });
+        }
+
+        if (popupCard) {
+            popupCard.addEventListener('click', (event) => {
+                event.stopPropagation();
+            });
+        }
+
+        if (popupCardClose) {
+            popupCardClose.addEventListener('click', () => {
+                hidePopupCard();
+            });
+        }
+
+        if (liveStatsToggle) {
+            liveStatsToggle.addEventListener('click', () => {
+                statsPreferences.liveStats = !statsPreferences.liveStats;
+                saveStatsPreferences();
+                applyStatsPreferenceUI();
+            });
+        }
+
+        if (statsToggleGrid) {
+            statsToggleGrid.addEventListener('click', (event) => {
+                const button = event.target.closest('[data-stat-toggle]');
+                if (!button || !statsPreferences.liveStats) return;
+
+                const key = button.dataset.statToggle;
+                statsPreferences.visibleStats[key] = !statsPreferences.visibleStats[key];
+                saveStatsPreferences();
+                applyStatsPreferenceUI();
+            });
+        }
+
+        if (qualityPresetGroup) {
+            qualityPresetGroup.addEventListener('click', (event) => {
+                const button = event.target.closest('[data-quality]');
+                if (!button) return;
+                changeQuality(button.dataset.quality).catch((error) => {
+                    console.warn('Failed to change send quality:', error);
+                });
+            });
+        }
+
+        if (receiveQualityPresetGroup) {
+            receiveQualityPresetGroup.addEventListener('click', (event) => {
+                const button = event.target.closest('[data-receive-quality]');
+                if (!button) return;
+                changeReceiveQuality(button.dataset.receiveQuality);
+            });
+        }
+
+        document.addEventListener('click', () => {
+            setSettingsPopoverOpen(false);
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                setSettingsPopoverOpen(false);
+            }
+        });
+
+        updateStatsMeta();
+        applyStatsPreferenceUI();
 
 
 
@@ -684,6 +2102,7 @@
             
             console.log('Creating peer connection with config:', rtcConfig);
             pc = new RTCPeerConnection(rtcConfig);
+            videoSender = null;
             console.log('Peer connection created');
             
             // DO NOT add transceivers upfront - let tracks create them
@@ -694,11 +2113,12 @@
                 console.log('Adding local tracks to peer connection...');
                 localStream.getTracks().forEach(track => {
                     try {
-                        const sender = pc.addTrack(track, localStream);
+                        const sender = addLocalTrackToPeerConnection(track);
                         console.log('✓ Added ' + track.kind + ' track');
                         
                         // Monitor video packets specifically
                         if (track.kind === 'video') {
+                            videoSender = sender;
                             console.log('📹 Video track added - starting packet monitor');
                             const videoPacketMonitor = setInterval(() => {
                                 // Use pc.getStats() without parameter to get all stats
@@ -731,6 +2151,7 @@
                         console.error('Failed to add track to PC:', e);
                     }
                 });
+                applyQualityProfile().catch(err => console.warn('Initial quality apply failed:', err));
             } else {
                 console.warn('⚠️ No local stream available yet - tracks will be added later');
             }
@@ -805,6 +2226,10 @@
                     updateStatus('Connected');
                     statusOverlay.style.display = 'none';
                     reconnectAttempts = 0; // Reset reconnect attempts on success
+                    reconnectInProgress = false;
+                    clearReconnectTimer();
+                    startStatsMonitoring();
+                    refreshStatsPanel();
                     
                     // Check if local tracks are being sent
                     console.log('Checking local track senders...');
@@ -857,13 +2282,13 @@
                 } else if (pc.connectionState === 'failed') {
                     console.error('Connection failed');
                     updateStatus('Connection failed - retrying...');
-                    handleConnectionFailure();
+                    scheduleReconnect('peer-connection-failed', 1000);
                 } else if (pc.connectionState === 'disconnected') {
                     updateStatus('Disconnected');
                     // Don't immediately reconnect, wait to see if it recovers
                     setTimeout(() => {
                         if (pc && pc.connectionState === 'disconnected') {
-                            handleConnectionFailure();
+                            scheduleReconnect('peer-connection-disconnected', 0);
                         }
                     }, 5000);
                 }
@@ -976,19 +2401,23 @@
                 videoEl.autoplay = true;
                 videoEl.playsinline = true;
                 videoEl.muted = false; // Ensure audio is not muted for remote videos
-                
-                // Apply base styles for video element
-                videoEl.style.objectFit = 'cover';
-                videoEl.style.background = '#111';
-                videoEl.style.borderRadius = 'var(--radius-lg)';
-                videoEl.style.zIndex = '5';
-                videoEl.style.position = 'absolute';
-                videoEl.style.top = '0';
-                videoEl.style.left = '0';
+
+                const videoCard = document.createElement('div');
+                videoCard.className = 'video-card';
+                videoCard.dataset.participantId = participantId;
+
+                const videoLabel = document.createElement('div');
+                videoLabel.className = 'video-label';
+                videoLabel.innerHTML = `<span class="video-badge">Participant ${remoteVideos.size + 1}</span><span class="video-badge">Live</span>`;
+
+                videoCard.appendChild(videoEl);
+                videoCard.appendChild(videoLabel);
                 
                 // Store in our map with metadata
                 videoData = {
                     element: videoEl,
+                    card: videoCard,
+                    label: videoLabel,
                     stream: stream,
                     tracks: new Set([track.id]),
                     audioTrack: track.kind === 'audio' ? track : null,
@@ -998,9 +2427,8 @@
                 remoteVideos.set(participantId, videoData);
                 console.log('Stored video data, total participants:', remoteVideos.size);
                 
-                // Add to video stage (before the status overlay)
-                const videoStage = document.querySelector('.video-stage');
-                videoStage.insertBefore(videoEl, statusOverlay);
+                // Add to stage area; layout will move cards between stage and rail
+                stageCanvas.appendChild(videoCard);
                 console.log('Inserted video element into DOM');
                 
                 // Handle stream ending
@@ -1069,38 +2497,30 @@
 
         // Update video layout based on number of participants
         function updateVideoLayout() {
-            const count = remoteVideos.size + 1; // +1 for local video
-            
-            remoteVideos.forEach((videoData, participantId) => {
-                const videoEl = videoData.element;
-                
-                if (count <= 2) {
-                    // One remote participant - full screen
-                    videoEl.style.width = '100%';
-                    videoEl.style.height = '100%';
-                    videoEl.style.position = 'absolute';
-                    videoEl.style.top = '0';
-                    videoEl.style.left = '0';
-                    videoEl.style.objectFit = 'cover';
-                    videoEl.style.zIndex = '5';
-                    videoEl.style.borderRadius = '0';
-                } else {
-                    // Multiple participants - grid layout
-                    videoEl.style.width = '50%';
-                    videoEl.style.height = '50%';
-                    videoEl.style.position = 'absolute';
-                    videoEl.style.objectFit = 'cover';
-                    videoEl.style.zIndex = '5';
-                    videoEl.style.borderRadius = '0';
-                    
-                    // Position based on index
-                    const index = Array.from(remoteVideos.keys()).indexOf(participantId);
-                    const row = Math.floor(index / 2);
-                    const col = index % 2;
-                    videoEl.style.top = (row * 50) + '%';
-                    videoEl.style.left = (col * 50) + '%';
+            const participantEntries = Array.from(remoteVideos.entries());
+            const [primaryParticipant] = participantEntries;
+
+            remoteVideo.style.display = primaryParticipant ? 'none' : 'block';
+
+            participantEntries.forEach(([, videoData], index) => {
+                const targetParent = index === 0 ? stageCanvas : participantRail;
+                if (videoData.card.parentElement !== targetParent) {
+                    targetParent.appendChild(videoData.card);
+                }
+
+                videoData.card.classList.toggle('is-stage', index === 0);
+                videoData.card.classList.toggle('is-rail', index !== 0);
+
+                if (videoData.label) {
+                    videoData.label.innerHTML = `<span class="video-badge">Participant ${index + 1}</span><span class="video-badge">${index === 0 ? 'On Stage' : 'Listening'}</span>`;
                 }
             });
+
+            if (!primaryParticipant) {
+                statusOverlay.style.display = 'block';
+            } else {
+                statusOverlay.style.display = 'none';
+            }
         }
 
 
@@ -1117,7 +2537,7 @@
             const allTracksEnded = stream.getTracks().every(t => t.readyState === 'ended');
             if (allTracksEnded) {
                 console.log('Removing video element for participant:', participantId);
-                videoEl.remove();
+                videoData.card.remove();
                 remoteVideos.delete(participantId);
                 
                 // Also clean up the stream mapping
@@ -1149,25 +2569,42 @@
 
         
         // Handle connection failure with retry
-        function handleConnectionFailure() {
-            console.log('handleConnectionFailure triggered. Current PC state:', pc ? pc.connectionState : 'No PC');
+        async function handleConnectionFailure(reason = 'unknown') {
+            if (reconnectInProgress || pageUnloading) {
+                return;
+            }
+
+            reconnectInProgress = true;
+            clearReconnectTimer();
+            console.log('handleConnectionFailure triggered. Reason:', reason, 'Current PC state:', pc ? pc.connectionState : 'No PC');
             if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
                 reconnectAttempts++;
                 console.log(`Reconnect attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`);
+                cleanupRemoteState();
+                updateStatus('Reconnecting...');
                 
                 // Close existing connection
                 if (pc) {
                     pc.close();
                 }
-                
-                // Recreate peer connection
-                createPeerConnection();
-                
-                // Reconnect WebSocket if needed
-                if (sfuWs && sfuWs.readyState !== WebSocket.OPEN) {
+
+                sfuWs = closeSocket(sfuWs);
+                roomWs = closeSocket(roomWs);
+
+                try {
+                    await ensureLocalStreamActive();
+                    createPeerConnection();
                     connectWebSockets();
+                } catch (error) {
+                    console.error('Reconnect failed:', error);
+                    reconnectInProgress = false;
+                    scheduleReconnect('retry-after-failed-reconnect', 2000);
+                    return;
                 }
+
+                reconnectInProgress = false;
             } else {
+                reconnectInProgress = false;
                 updateStatus('Connection failed - please refresh');
                 statusOverlay.innerHTML = `
                     <span class="material-symbols-outlined status-icon" style="color: #ef4444;">error</span>
@@ -1185,7 +2622,10 @@
     video: videoConstraints, 
     audio: audioConstraints 
 });
+                cameraVideoTrack = localStream.getVideoTracks()[0] || null;
                 localVideo.srcObject = localStream;
+                updateStatsMeta();
+                await applyQualityProfile();
                 console.log('Local stream started with', localStream.getTracks().length, 'tracks');
                 
                 // Log each track
@@ -1197,6 +2637,8 @@
                         readyState: track.readyState,
                         settings: track.getSettings ? track.getSettings() : 'N/A'
                     });
+
+                    attachTrackLifecycle(track);
                 });
                 
                 // If peer connection already exists, add tracks to it
@@ -1209,11 +2651,12 @@
                         if (!alreadyAdded) {
                             console.log('Adding track to existing PC:', track.kind);
                             try {
-                                const sender = pc.addTrack(track, localStream);
+                                const sender = addLocalTrackToPeerConnection(track);
                                 console.log('✓ Added ' + track.kind + ' track');
                                 
                                 // Monitor video packets specifically
                                 if (track.kind === 'video') {
+                                    videoSender = sender;
                                     console.log('📹 Video track added - starting packet monitor');
                                     const videoPacketMonitor = setInterval(() => {
                                         // Use pc.getStats() without parameter to get all stats
@@ -1247,6 +2690,7 @@
                             }
                         }
                     });
+                    await applyQualityProfile();
                 }
             } catch (err) {
                 console.error("Error accessing media devices:", err);
@@ -1312,6 +2756,9 @@
             
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 
+            sfuWs = closeSocket(sfuWs);
+            roomWs = closeSocket(roomWs);
+
             // Connect to SFU for WebRTC signaling
             const sfuUrl = `${protocol}//${window.location.host}/ws/sfu?client_id=${userID}&room_id=${roomID}`;
             sfuWs = new WebSocket(sfuUrl);
@@ -1322,6 +2769,7 @@
 
                 // Send ready signal to SFU
                 sendSFUMessage({ type: 'ready' });
+                sendSFUMessage({ type: 'quality_preference', quality: selectedReceiveQuality });
                 console.log('Sent ready signal to SFU');
 
                 // Immediately create and send an offer to publish our local tracks.
@@ -1370,10 +2818,8 @@
                 
                 // Attempt to reconnect after a delay
                 if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-                    setTimeout(() => {
-                        console.log('Attempting to reconnect...');
-                        connectWebSockets();
-                    }, 2000);
+                    console.log('Attempting to reconnect...');
+                    scheduleReconnect('sfu-websocket-closed', 2000);
                 }
             };
 
@@ -1405,6 +2851,11 @@
                     reason: event.reason,
                     wasClean: event.wasClean
                 });
+                if ((event.code === 1005 || !event.wasClean) && reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                    if (!roomWs || roomWs.readyState === WebSocket.CLOSED) {
+                        scheduleReconnect('room-websocket-closed', 1500);
+                    }
+                }
             };
 
             roomWs.onerror = (error) => {
@@ -1439,7 +2890,7 @@
                 case 'reconnect':
                     // Server signaled us to reconnect - this happens when connection was lost
                     console.log('Received reconnect signal from server');
-                    handleConnectionFailure();
+                    scheduleReconnect('server-reconnect-signal', 0);
                     break;
             }
         }
@@ -1448,18 +2899,19 @@
         function handleRoomMessage(msg) {
             // Handle room management messages (mute_status, camera_status, etc.)
             console.log('Room message:', msg);
+            const participant = msg.data || {};
             
             switch (msg.type) {
                 case 'participant_joined':
-                    console.log('Participant joined:', msg.participant_name || msg.participant_id);
+                    console.log('Participant joined:', participant.name || msg.participant_name || participant.id || msg.participant_id);
                     // Hide waiting overlay when a participant joins
-                    if (msg.participant_id && msg.participant_id !== userID.toString()) {
+                    if ((participant.id || msg.participant_id) && (participant.id || msg.participant_id) !== userID.toString()) {
                         statusOverlay.style.display = 'none';
-                        updateStatus('Connected - ' + (msg.participant_name || 'Participant'));
+                        updateStatus('Connected - ' + (participant.name || msg.participant_name || 'Participant'));
                     }
                     break;
                 case 'participant_left':
-                    console.log('Participant left:', msg.participant_id);
+                    console.log('Participant left:', participant.id || msg.participant_id);
                     // Show waiting overlay if no more participants
                     if (remoteVideos.size === 0) {
                         statusOverlay.style.display = 'block';
@@ -1469,10 +2921,11 @@
                     break;
                 case 'existing_participants':
                     // Received list of existing participants when joining
-                    console.log('Existing participants:', msg.participants);
-                    if (msg.participants && msg.participants.length > 0) {
+                    console.log('Existing participants:', msg.data || msg.participants);
+                    if ((msg.data && msg.data.length > 0) || (msg.participants && msg.participants.length > 0)) {
+                        const count = msg.data ? msg.data.length : msg.participants.length;
                         // There are already participants in the room
-                        statusOverlay.querySelector('p').textContent = 'Connecting to ' + msg.participants.length + ' participant(s)...';
+                        statusOverlay.querySelector('p').textContent = 'Connecting to ' + count + ' participant(s)...';
                     }
                     break;
             }
@@ -1524,7 +2977,7 @@
                         if (!senderKinds.has(track.kind)) {
                             console.log(`Adding missing ${track.kind} sender`);
                             try {
-                                pc.addTrack(track, localStream);
+                                addLocalTrackToPeerConnection(track);
                             } catch (e) {
                                 console.error(`Failed to add ${track.kind} track:`, e);
                             }
@@ -1764,6 +3217,177 @@
 
 
 
+        function formatBitrate(bps) {
+            if (!bps || bps <= 0) return '0 kbps';
+            return `${Math.round(bps / 1000)} kbps`;
+        }
+
+        function setStatValue(id, value) {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value;
+        }
+
+        function maybeAdjustAutoQuality(availableOutgoingBitrate) {
+            if (selectedQuality !== 'auto') return;
+            if (!availableOutgoingBitrate || availableOutgoingBitrate <= 0) return;
+
+            let nextLevel = '720p';
+            if (availableOutgoingBitrate > 2800000) {
+                nextLevel = '1080p';
+            } else if (availableOutgoingBitrate > 1400000) {
+                nextLevel = '720p';
+            } else if (availableOutgoingBitrate > 800000) {
+                nextLevel = '480p';
+            } else {
+                nextLevel = '360p';
+            }
+
+            if (autoQualityLevel !== nextLevel) {
+                autoQualityLevel = nextLevel;
+                applyQualityProfile().catch(err => console.warn('Auto quality update failed:', err));
+            }
+        }
+
+        async function refreshStatsPanel() {
+            if (!pc) return;
+
+            try {
+                const stats = await pc.getStats();
+                const now = performance.now();
+                let outboundBytes = 0;
+                let inboundBytes = 0;
+                let availableOutgoingBitrate = 0;
+                let currentRtt = 0;
+                let localCandidateType = 'Unknown';
+                let remoteCandidateType = 'Unknown';
+                let actualResolution = '-';
+
+                stats.forEach(report => {
+                    if (report.type === 'outbound-rtp' && report.kind === 'video') {
+                        outboundBytes += report.bytesSent || 0;
+                        if (report.frameWidth && report.frameHeight) {
+                            actualResolution = `${report.frameWidth}x${report.frameHeight}`;
+                        }
+                    }
+                    if (report.type === 'inbound-rtp' && report.kind === 'video') {
+                        inboundBytes += report.bytesReceived || 0;
+                    }
+                    if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+                        availableOutgoingBitrate = report.availableOutgoingBitrate || availableOutgoingBitrate;
+                        currentRtt = report.currentRoundTripTime || currentRtt;
+                        const localCand = report.localCandidateId ? stats.get(report.localCandidateId) : null;
+                        const remoteCand = report.remoteCandidateId ? stats.get(report.remoteCandidateId) : null;
+                        localCandidateType = localCand?.candidateType || localCandidateType;
+                        remoteCandidateType = remoteCand?.candidateType || remoteCandidateType;
+                    }
+                });
+
+                if (statsSnapshot) {
+                    const elapsedSeconds = Math.max((now - statsSnapshot.timestamp) / 1000, 1);
+                    const sendBps = Math.max(0, ((outboundBytes - statsSnapshot.outboundBytes) * 8) / elapsedSeconds);
+                    const recvBps = Math.max(0, ((inboundBytes - statsSnapshot.inboundBytes) * 8) / elapsedSeconds);
+                    setStatValue('statSendBitrate', formatBitrate(sendBps));
+                    setStatValue('statRecvBitrate', formatBitrate(recvBps));
+                }
+
+                statsSnapshot = { timestamp: now, outboundBytes, inboundBytes };
+
+                setStatValue('statUplink', availableOutgoingBitrate ? formatBitrate(availableOutgoingBitrate) : 'Unknown');
+                setStatValue('statRtt', currentRtt ? `${Math.round(currentRtt * 1000)} ms` : '-');
+                setStatValue('statResolution', actualResolution);
+
+                const navConnection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+                if (navConnection) {
+                    const downlink = navConnection.downlink ? `${navConnection.downlink} Mbps` : 'Unknown';
+                    const effectiveType = navConnection.effectiveType || 'Unknown';
+                    setStatValue('statNetwork', `${effectiveType} / ${downlink}`);
+                } else {
+                    setStatValue('statNetwork', `${localCandidateType} -> ${remoteCandidateType}`);
+                }
+
+                maybeAdjustAutoQuality(availableOutgoingBitrate);
+                updateStatsMeta();
+            } catch (error) {
+                console.warn('Stats refresh failed:', error);
+            }
+        }
+
+        async function changeQuality(nextQuality = selectedQuality) {
+            selectedQuality = nextQuality;
+            await applyQualityProfile();
+            await refreshStatsPanel();
+        }
+
+        function changeReceiveQuality(nextQuality = selectedReceiveQuality) {
+            selectedReceiveQuality = nextQuality;
+            syncQualityControlState();
+            sendSFUMessage({
+                type: 'quality_preference',
+                quality: selectedReceiveQuality
+            });
+        }
+
+        async function toggleScreenShare() {
+            if (isScreenSharing()) {
+                await stopScreenShare();
+                return;
+            }
+
+            try {
+                const profile = getCurrentQualityProfile();
+                screenStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: {
+                        width: { ideal: profile.width },
+                        height: { ideal: profile.height },
+                        frameRate: { ideal: Math.min(profile.frameRate, 15), max: 20 }
+                    },
+                    audio: false
+                });
+
+                const displayTrack = screenStream.getVideoTracks()[0];
+                if (!displayTrack) {
+                    throw new Error('No display track returned');
+                }
+
+                displayTrack.onended = () => {
+                    stopScreenShare().catch(err => console.error('Failed to stop screen share cleanly:', err));
+                };
+
+                await replaceVideoTrack(displayTrack);
+                btnShare.classList.add('sharing');
+                btnShare.querySelector('span').textContent = 'stop_screen_share';
+                updateStatsMeta();
+                showPopupCard('Screen sharing started', 'Your screen is now being shared in this call.', 2200);
+            } catch (error) {
+                console.error('Screen share failed:', error);
+                const message = error && error.name === 'NotAllowedError'
+                    ? 'Screen sharing permission was denied.'
+                    : (error && error.message ? error.message : 'Unable to start screen sharing.');
+                showPopupCard('Screen share unavailable', message);
+            }
+        }
+
+        async function stopScreenShare() {
+            if (!isScreenSharing()) return;
+
+            const displayTrack = screenStream.getVideoTracks()[0];
+            if (displayTrack) {
+                displayTrack.onended = null;
+            }
+
+            screenStream.getTracks().forEach(track => track.stop());
+            screenStream = null;
+
+            if (cameraVideoTrack) {
+                await replaceVideoTrack(cameraVideoTrack);
+            }
+
+            btnShare.classList.remove('sharing');
+            btnShare.querySelector('span').textContent = 'screen_share';
+            updateStatsMeta();
+            showPopupCard('Screen sharing stopped', 'You switched back to your camera.', 2200);
+        }
+
         function updateStatus(status) {
             callStatus.textContent = status;
             if (status === 'Connected') {
@@ -1804,6 +3428,7 @@
 
 
         function endCall() {
+            stopStatsMonitoring();
             // Close peer connection
             if (pc) {
                 pc.close();
@@ -1825,10 +3450,14 @@
                 localStream.getTracks().forEach(track => track.stop());
                 localStream = null;
             }
+            if (screenStream) {
+                screenStream.getTracks().forEach(track => track.stop());
+                screenStream = null;
+            }
 
             // Clean up remote videos
             remoteVideos.forEach((videoData) => {
-                videoData.element.remove();
+                videoData.card.remove();
             });
             remoteVideos.clear();
             processedStreams.clear();
@@ -1841,6 +3470,9 @@
         // Handle page unload to clean up resources
         window.addEventListener('beforeunload', (event) => {
             console.log('Page unloading (beforeunload triggered)');
+            pageUnloading = true;
+            clearReconnectTimer();
+            stopStatsMonitoring();
             if (pc) {
                 pc.close();
             }
@@ -1852,6 +3484,9 @@
             }
             if (localStream) {
                 localStream.getTracks().forEach(track => track.stop());
+            }
+            if (screenStream) {
+                screenStream.getTracks().forEach(track => track.stop());
             }
         });
 

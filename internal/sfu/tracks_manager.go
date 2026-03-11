@@ -257,6 +257,26 @@ func (tm *TracksManager) GetAllTracks() []pubsub.PubTrack {
 	return allTracks
 }
 
+// GetTracksForPublisher returns all tracks for a publisher within a room.
+func (tm *TracksManager) GetTracksForPublisher(roomID, pubClientID string) []pubsub.PubTrack {
+	tm.mu.RLock()
+	defer tm.mu.RUnlock()
+
+	pm, ok := tm.peerManagers[roomID]
+	if !ok || pm.pubsub == nil {
+		return nil
+	}
+
+	all := pm.pubsub.Tracks()
+	filtered := make([]pubsub.PubTrack, 0)
+	for _, track := range all {
+		if track.ClientID == pubClientID {
+			filtered = append(filtered, track)
+		}
+	}
+	return filtered
+}
+
 // cleanupRoom removes a room and cleans up resources
 func (tm *TracksManager) cleanupRoom(roomID string, pm *PeerManager) {
 	// Close peer manager

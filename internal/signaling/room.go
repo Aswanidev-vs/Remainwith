@@ -65,6 +65,14 @@ func (r *Room) AddParticipant(id, name string, role ParticipantRole) *Participan
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	if existing, ok := r.Participants[id]; ok {
+		existing.Name = name
+		existing.Role = role
+		existing.IsOnline = true
+		r.LastActivity = time.Now()
+		return existing
+	}
+
 	participant := &Participant{
 		ID:          id,
 		Name:        name,
@@ -77,6 +85,7 @@ func (r *Room) AddParticipant(id, name string, role ParticipantRole) *Participan
 	}
 
 	r.Participants[id] = participant
+	r.LastActivity = time.Now()
 	return participant
 }
 
@@ -122,6 +131,7 @@ func (r *Room) UpdateParticipant(id string, updates map[string]interface{}) {
 		if online, ok := updates["is_online"].(bool); ok {
 			p.IsOnline = online
 		}
+		r.LastActivity = time.Now()
 	}
 }
 

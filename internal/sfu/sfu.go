@@ -19,6 +19,12 @@ import (
 	"github.com/pion/webrtc/v4"
 )
 
+const (
+	sfuWriteWait  = 10 * time.Second
+	sfuPongWait   = 30 * time.Second
+	sfuPingPeriod = 10 * time.Second
+)
+
 // SFU represents the Selective Forwarding Unit server
 type SFU struct {
 	tracksManager *TracksManager
@@ -36,10 +42,16 @@ type Client struct {
 	mu        sync.Mutex // Protects renegotiation
 	// Pending track subscriptions waiting for answer
 	pendingSubs map[string]*pendingSub
+	// Active video subscriptions keyed by logical source key.
+	activeVideoSubs map[string]*activeVideoSub
 	// Track events queue for initial connection
 	initialTrackEvents []pubsub.PubTrackEvent
+	// Track events queued while a renegotiation offer is already in flight.
+	queuedTrackEvents []pubsub.PubTrackEvent
 	// Flag to indicate if initial connection is established
 	initialConnected bool
+	// True when the SFU has sent an offer and is waiting for the client's answer.
+	awaitingAnswer bool
 	// Pending ICE candidates waiting for remote description
 	pendingCandidates []*webrtc.ICECandidate
 	// Channel to signal when local description is set (for ICE candidates)
@@ -53,14 +65,27 @@ type Client struct {
 	connectionState webrtc.PeerConnectionState
 	// Write channel for serializing WebSocket writes
 	writeCh chan interface{}
+	// Preferred incoming video quality for this client.
+	receiveQuality string
 }
 
 // pendingSub represents a pending track subscription
 type pendingSub struct {
+	subscriptionKey string
+	sourceKey       string
 	pubTrack   pubsub.PubTrack
 	trackLocal *trackLocalImpl
 	rtcpReader *rtcpReaderImpl
 	rtpSender  *webrtc.RTPSender
+}
+
+type activeVideoSub struct {
+	subscriptionKey string
+	sourceKey       string
+	pubTrack        pubsub.PubTrack
+	trackLocal      *trackLocalImpl
+	rtcpReader      *rtcpReaderImpl
+	rtpSender       *webrtc.RTPSender
 }
 
 // SignalMessage represents a signaling message
@@ -73,6 +98,7 @@ type SignalMessage struct {
 	Candidate   map[string]interface{} `json:"candidate,omitempty"`
 	TrackID     string                 `json:"track_id,omitempty"`
 	PubClientID string                 `json:"pub_client_id,omitempty"`
+	Quality     string                 `json:"quality,omitempty"`
 	// Ready indicates client is ready to receive offers
 	Ready bool `json:"ready,omitempty"`
 	// Phase 10: ICE restart flag
@@ -126,6 +152,13 @@ func (s *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := conn.SetReadDeadline(time.Now().Add(sfuPongWait)); err != nil {
+		log.Printf("SFU: Failed to set initial read deadline: %v", err)
+	}
+	conn.SetPongHandler(func(string) error {
+		return conn.SetReadDeadline(time.Now().Add(sfuPongWait))
+	})
+
 	// Create WebRTC transport with STUN and TURN servers
 	// Phase 9: Enhanced ICE configuration for connection stability
 	iceServers := []webrtc.ICEServer{
@@ -177,19 +210,31 @@ func (s *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Conn:               conn,
 		Transport:          webrtcTransport,
 		pendingSubs:        make(map[string]*pendingSub),
+		activeVideoSubs:    make(map[string]*activeVideoSub),
 		initialTrackEvents: make([]pubsub.PubTrackEvent, 0),
+		queuedTrackEvents:  make([]pubsub.PubTrackEvent, 0),
 		initialConnected:   false,
 		pendingCandidates:  make([]*webrtc.ICECandidate, 0),
 		descriptionSent:    make(chan struct{}),
 		lastActivity:       time.Now(),
 		connectionState:    webrtc.PeerConnectionStateNew,
 		writeCh:            make(chan interface{}, 256),
+		receiveQuality:     "auto",
 	}
 
 	// Start dedicated write goroutine to serialize WebSocket writes
 	go s.writePump(client)
 
 	s.mu.Lock()
+	if existing, ok := s.clients[clientID]; ok {
+		log.Printf("SFU: Replacing existing client session for %s", clientID)
+		if existing.Conn != nil {
+			existing.Conn.Close()
+		}
+		if existing.Transport != nil {
+			existing.Transport.Close()
+		}
+	}
 	s.clients[clientID] = client
 	s.mu.Unlock()
 
@@ -223,12 +268,16 @@ func (s *SFU) writePump(client *Client) {
 		switch m := msg.(type) {
 		case string:
 			// Ping message
-			if err := client.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+			if err := client.Conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(sfuWriteWait)); err != nil {
 				log.Printf("SFU: Error sending ping to client %s: %v", client.ID, err)
 				return
 			}
 		default:
 			// JSON message
+			if err := client.Conn.SetWriteDeadline(time.Now().Add(sfuWriteWait)); err != nil {
+				log.Printf("SFU: Error setting write deadline for client %s: %v", client.ID, err)
+				return
+			}
 			if err := client.Conn.WriteJSON(m); err != nil {
 				log.Printf("SFU: Error writing to client %s: %v", client.ID, err)
 				return
@@ -397,24 +446,62 @@ func (s *SFU) handlePubTrackEvents(client *Client, eventsCh <-chan pubsub.PubTra
 
 		// If this is a new track from another peer, add it to this client's peer connection
 		if event.Type == pubsub.TrackEventTypeAdd && event.PubTrack.ClientID != client.ID {
+			client.mu.Lock()
+			quality := client.receiveQuality
+			client.mu.Unlock()
+			selectedTrack, ok := s.selectTrackForQuality(client.RoomID, quality, event.PubTrack)
+			if !ok {
+				continue
+			}
+
+			subKey := subscriptionKeyForTrack(selectedTrack)
+
 			log.Printf("SFU: Track ADD event - track %s (kind=%s) from %s for client %s, initialConnected=%v",
-				event.PubTrack.TrackID, event.PubTrack.Kind, event.PubTrack.ClientID, client.ID, client.initialConnected)
+				selectedTrack.TrackID, selectedTrack.Kind, selectedTrack.ClientID, client.ID, client.initialConnected)
+
+			client.mu.Lock()
+			if pending, exists := client.pendingSubs[subKey]; exists && pending.pubTrack.TrackID != selectedTrack.TrackID {
+				pending.pubTrack = selectedTrack
+				client.mu.Unlock()
+				continue
+			}
+			if active, exists := client.activeVideoSubs[subKey]; exists {
+				currentTrackID := active.pubTrack.TrackID
+				client.mu.Unlock()
+				if currentTrackID != selectedTrack.TrackID {
+					s.switchActiveVideoLayer(client, active, selectedTrack)
+				}
+				continue
+			}
 
 			// If initial connection not yet established, queue the track event
-			client.mu.Lock()
 			if !client.initialConnected {
 				log.Printf("SFU: QUEUING track %s from %s for client %s (initial connection pending)",
-					event.PubTrack.TrackID, event.PubTrack.ClientID, client.ID)
-				client.initialTrackEvents = append(client.initialTrackEvents, event)
+					selectedTrack.TrackID, selectedTrack.ClientID, client.ID)
+				client.initialTrackEvents = append(client.initialTrackEvents, pubsub.PubTrackEvent{
+					PubTrack: selectedTrack,
+					Type:     event.Type,
+				})
+				client.mu.Unlock()
+				continue
+			}
+
+			pc := client.Transport.GetPeerConnection()
+			if client.awaitingAnswer || (pc != nil && pc.SignalingState() != webrtc.SignalingStateStable) {
+				log.Printf("SFU: QUEUING track %s from %s for client %s (renegotiation in progress, signaling=%v awaitingAnswer=%v)",
+					selectedTrack.TrackID, selectedTrack.ClientID, client.ID, pc.SignalingState(), client.awaitingAnswer)
+				client.queuedTrackEvents = append(client.queuedTrackEvents, pubsub.PubTrackEvent{
+					PubTrack: selectedTrack,
+					Type:     event.Type,
+				})
 				client.mu.Unlock()
 				continue
 			}
 			client.mu.Unlock()
 
-			// Get the track from the publisher and add it to this client
 			log.Printf("SFU: IMMEDIATELY adding track %s from %s to client %s",
-				event.PubTrack.TrackID, event.PubTrack.ClientID, client.ID)
-			go s.addTrackToClient(client, event.PubTrack)
+				selectedTrack.TrackID, selectedTrack.ClientID, client.ID)
+			go s.addTrackToClient(client, selectedTrack)
 		} else if event.Type == pubsub.TrackEventTypeAdd {
 			log.Printf("SFU: Ignoring own track event - track %s from self (%s)",
 				event.PubTrack.TrackID, client.ID)
@@ -434,8 +521,20 @@ func (s *SFU) processQueuedTrackEvents(client *Client) {
 
 	log.Printf("SFU: BATCH processing %d queued track events for client %s", len(client.initialTrackEvents), client.ID)
 
-	var addedAny bool
+	selectedEvents := make(map[string]pubsub.PubTrackEvent)
 	for _, event := range client.initialTrackEvents {
+		selected, ok := s.selectTrackForQuality(client.RoomID, client.receiveQuality, event.PubTrack)
+		if !ok {
+			continue
+		}
+		selectedEvents[subscriptionKeyForTrack(selected)] = pubsub.PubTrackEvent{
+			PubTrack: selected,
+			Type:     event.Type,
+		}
+	}
+
+	var addedAny bool
+	for _, event := range selectedEvents {
 		log.Printf("SFU: Batching queued track %s from %s for client %s",
 			event.PubTrack.TrackID, event.PubTrack.ClientID, client.ID)
 
@@ -464,6 +563,7 @@ func (s *SFU) processQueuedTrackEvents(client *Client) {
 
 		select {
 		case client.writeCh <- msg:
+			client.awaitingAnswer = true
 			log.Printf("SFU: Sent batch renegotiation offer to client %s", client.ID)
 		default:
 			log.Printf("SFU: [BATCH] Error sending offer: write channel full")
@@ -471,10 +571,179 @@ func (s *SFU) processQueuedTrackEvents(client *Client) {
 	}
 }
 
+func (s *SFU) processQueuedRenegotiationEvents(client *Client) {
+	client.mu.Lock()
+	defer client.mu.Unlock()
+
+	if len(client.queuedTrackEvents) == 0 {
+		return
+	}
+
+	pc := client.Transport.GetPeerConnection()
+	if pc == nil {
+		return
+	}
+
+	if client.awaitingAnswer || pc.SignalingState() != webrtc.SignalingStateStable {
+		log.Printf("SFU: Deferring queued renegotiation events for client %s (awaitingAnswer=%v signaling=%v)",
+			client.ID, client.awaitingAnswer, pc.SignalingState())
+		return
+	}
+
+	log.Printf("SFU: Processing %d queued renegotiation events for client %s", len(client.queuedTrackEvents), client.ID)
+
+	selectedEvents := make(map[string]pubsub.PubTrackEvent)
+	for _, event := range client.queuedTrackEvents {
+		selected, ok := s.selectTrackForQuality(client.RoomID, client.receiveQuality, event.PubTrack)
+		if !ok {
+			continue
+		}
+		selectedEvents[subscriptionKeyForTrack(selected)] = pubsub.PubTrackEvent{
+			PubTrack: selected,
+			Type:     event.Type,
+		}
+	}
+
+	client.queuedTrackEvents = client.queuedTrackEvents[:0]
+
+	var addedAny bool
+	for _, event := range selectedEvents {
+		if event.Type != pubsub.TrackEventTypeAdd {
+			continue
+		}
+
+		subKey := subscriptionKeyForTrack(event.PubTrack)
+		if _, exists := client.pendingSubs[subKey]; exists {
+			continue
+		}
+		if active, exists := client.activeVideoSubs[subKey]; exists {
+			if active.pubTrack.TrackID != event.PubTrack.TrackID {
+				go s.switchActiveVideoLayer(client, active, event.PubTrack)
+			}
+			continue
+		}
+
+		log.Printf("SFU: Batch-adding queued track %s from %s for client %s",
+			event.PubTrack.TrackID, event.PubTrack.ClientID, client.ID)
+		if _, err := s.addTrackInternal(client, event.PubTrack); err == nil {
+			addedAny = true
+		}
+	}
+
+	if !addedAny {
+		return
+	}
+
+	log.Printf("SFU: Creating queued renegotiation offer for client %s", client.ID)
+	offer, err := client.Transport.CreateOffer()
+	if err != nil {
+		log.Printf("SFU: [QUEUED BATCH] ERROR creating offer: %v", err)
+		return
+	}
+
+	msg := SignalMessage{
+		Type:  "offer",
+		Offer: offer.SDP,
+	}
+
+	select {
+	case client.writeCh <- msg:
+		client.awaitingAnswer = true
+		log.Printf("SFU: Sent queued renegotiation offer to client %s", client.ID)
+	default:
+		log.Printf("SFU: [QUEUED BATCH] Error sending offer: write channel full")
+	}
+}
+
+func subscriptionKeyForTrack(track pubsub.PubTrack) string {
+	if track.Kind == "video" && track.BaseTrackID != "" {
+		return fmt.Sprintf("%s:%s:%s", track.ClientID, track.BaseTrackID, track.Kind)
+	}
+	return fmt.Sprintf("%s:%s:%s", track.ClientID, track.TrackID, track.Kind)
+}
+
+func ridRank(rid string) int {
+	switch rid {
+	case "q", "low":
+		return 1
+	case "h", "mid", "medium":
+		return 2
+	case "f", "high":
+		return 3
+	default:
+		return 0
+	}
+}
+
+func targetRankForQuality(quality string) int {
+	switch quality {
+	case "360p":
+		return 1
+	case "480p", "720p":
+		return 2
+	case "1080p":
+		return 3
+	default:
+		return 3
+	}
+}
+
+func pickPreferredTrack(tracks []pubsub.PubTrack, quality string) (pubsub.PubTrack, bool) {
+	if len(tracks) == 0 {
+		return pubsub.PubTrack{}, false
+	}
+
+	best := tracks[0]
+	bestScore := -1
+	target := targetRankForQuality(quality)
+
+	for _, track := range tracks {
+		if track.Kind != "video" {
+			return track, true
+		}
+
+		rank := ridRank(track.RID)
+		score := 0
+		if quality == "auto" {
+			score = rank
+		} else {
+			diff := target - rank
+			if diff < 0 {
+				diff = -diff
+			}
+			score = 100 - diff*10 + rank
+		}
+
+		if score > bestScore {
+			best = track
+			bestScore = score
+		}
+	}
+
+	return best, true
+}
+
+func (s *SFU) selectTrackForQuality(roomID, quality string, candidate pubsub.PubTrack) (pubsub.PubTrack, bool) {
+	if candidate.Kind != "video" || candidate.BaseTrackID == "" {
+		return candidate, true
+	}
+
+	allTracks := s.tracksManager.GetTracksForPublisher(roomID, candidate.ClientID)
+	matching := make([]pubsub.PubTrack, 0)
+	for _, track := range allTracks {
+		if track.Kind == "video" && track.BaseTrackID == candidate.BaseTrackID {
+			matching = append(matching, track)
+		}
+	}
+
+	return pickPreferredTrack(matching, quality)
+}
+
 // addTrackInternal performs the track setup without triggering a renegotiation offer.
 // Must be called with client.mu locked.
 func (s *SFU) addTrackInternal(client *Client, pubTrack pubsub.PubTrack) (*webrtc.RTPSender, error) {
 	log.Printf("SFU: [ADD TRACK INTERNAL] track %s (kind=%s) from %s to client %s", pubTrack.TrackID, pubTrack.Kind, pubTrack.ClientID, client.ID)
+	subscriptionKey := subscriptionKeyForTrack(pubTrack)
 
 	// Get codec capability based on track kind
 	var codecCapability webrtc.RTPCodecCapability
@@ -497,10 +766,15 @@ func (s *SFU) addTrackInternal(client *Client, pubTrack pubsub.PubTrack) (*webrt
 		return nil, fmt.Errorf("unknown track kind: %v", pubTrack.Kind)
 	}
 
-	streamID := fmt.Sprintf("pub-%s-%s", pubTrack.ClientID, pubTrack.TrackID)
+	forwardTrackID := pubTrack.TrackID
+	if pubTrack.Kind == "video" && pubTrack.BaseTrackID != "" {
+		forwardTrackID = pubTrack.BaseTrackID
+	}
+
+	streamID := fmt.Sprintf("pub-%s-%s", pubTrack.ClientID, forwardTrackID)
 	trackToForward, err := webrtc.NewTrackLocalStaticRTP(
 		codecCapability,
-		pubTrack.TrackID,
+		forwardTrackID,
 		streamID,
 	)
 	if err != nil {
@@ -524,15 +798,17 @@ func (s *SFU) addTrackInternal(client *Client, pubTrack pubsub.PubTrack) (*webrt
 	trackLocal := &trackLocalImpl{track: trackToForward}
 
 	// Store as pending subscription
-	client.pendingSubs[pubTrack.TrackID] = &pendingSub{
-		pubTrack:   pubTrack,
-		trackLocal: trackLocal,
-		rtcpReader: rtcpReader,
-		rtpSender:  rtpSender,
+	client.pendingSubs[subscriptionKey] = &pendingSub{
+		subscriptionKey: subscriptionKey,
+		sourceKey:       subscriptionKey,
+		pubTrack:        pubTrack,
+		trackLocal:      trackLocal,
+		rtcpReader:      rtcpReader,
+		rtpSender:       rtpSender,
 	}
 
-	// Start RTCP processing
-	go s.processRTCP(rtpSender)
+	// Route RTCP feedback for this subscribed track back to its publisher.
+	go s.processRTCP(rtpSender, pubTrack)
 
 	return rtpSender, nil
 }
@@ -556,7 +832,7 @@ func (s *SFU) addTrackToClient(client *Client, pubTrack pubsub.PubTrack) {
 	if err != nil {
 		log.Printf("SFU: [ADD TRACK] ERROR creating offer: %v", err)
 		// Clean up pending sub
-		delete(client.pendingSubs, pubTrack.TrackID)
+		delete(client.pendingSubs, subscriptionKeyForTrack(pubTrack))
 		client.Transport.GetPeerConnection().RemoveTrack(rtpSender)
 		return
 	}
@@ -569,13 +845,52 @@ func (s *SFU) addTrackToClient(client *Client, pubTrack pubsub.PubTrack) {
 
 	select {
 	case client.writeCh <- msg:
+		client.awaitingAnswer = true
 		log.Printf("SFU: Sent renegotiation offer to client %s for track %s", client.ID, pubTrack.TrackID)
 	default:
 		log.Printf("SFU: [ADD TRACK] Error sending offer: write channel full")
 		// Clean up pending sub
-		delete(client.pendingSubs, pubTrack.TrackID)
+		delete(client.pendingSubs, subscriptionKeyForTrack(pubTrack))
 		client.Transport.GetPeerConnection().RemoveTrack(rtpSender)
 	}
+}
+
+func (s *SFU) switchActiveVideoLayer(client *Client, active *activeVideoSub, nextTrack pubsub.PubTrack) {
+	log.Printf("SFU: Switching active video layer for client %s source %s from %s to %s",
+		client.ID, active.sourceKey, active.pubTrack.TrackID, nextTrack.TrackID)
+
+	if active.pubTrack.TrackID == nextTrack.TrackID {
+		return
+	}
+
+	oldParams := SubParams{
+		PubClientID: active.pubTrack.ClientID,
+		RoomID:      client.RoomID,
+		TrackID:     active.pubTrack.TrackID,
+		SubClientID: client.ID,
+	}
+	_ = s.tracksManager.Unsub(oldParams)
+
+	newParams := SubParams{
+		PubClientID: nextTrack.ClientID,
+		RoomID:      client.RoomID,
+		TrackID:     nextTrack.TrackID,
+		SubClientID: client.ID,
+	}
+
+	if err := s.tracksManager.Sub(newParams, active.trackLocal, active.rtcpReader); err != nil {
+		log.Printf("SFU: Failed to switch video layer for client %s: %v", client.ID, err)
+		_ = s.tracksManager.Sub(oldParams, active.trackLocal, active.rtcpReader)
+		return
+	}
+
+	client.mu.Lock()
+	if stored, ok := client.activeVideoSubs[active.sourceKey]; ok {
+		stored.pubTrack = nextTrack
+	}
+	client.mu.Unlock()
+
+	s.requestKeyframe(nextTrack.ClientID, nextTrack.TrackID)
 }
 
 // completePendingSubscriptions completes pending track subscriptions after answer is received
@@ -586,42 +901,50 @@ func (s *SFU) completePendingSubscriptions(client *Client) {
 	log.Printf("SFU: [COMPLETE PENDING] START for client %s, pending count=%d", client.ID, len(client.pendingSubs))
 
 	// Log all pending track IDs
-	for trackID, pending := range client.pendingSubs {
-		log.Printf("SFU: [COMPLETE PENDING] Pending track: %s (kind=%s) from %s",
-			trackID, pending.pubTrack.Kind, pending.pubTrack.ClientID)
+	for subKey, pending := range client.pendingSubs {
+		log.Printf("SFU: [COMPLETE PENDING] Pending track: %s => %s (kind=%s) from %s",
+			subKey, pending.pubTrack.TrackID, pending.pubTrack.Kind, pending.pubTrack.ClientID)
 	}
 
-	for trackID, pending := range client.pendingSubs {
+	for subKey, pending := range client.pendingSubs {
 		log.Printf("SFU: [COMPLETE PENDING] Processing track %s (kind=%s) from %s for client %s",
-			trackID, pending.pubTrack.Kind, pending.pubTrack.ClientID, client.ID)
+			pending.pubTrack.TrackID, pending.pubTrack.Kind, pending.pubTrack.ClientID, client.ID)
 
 		// Subscribe to the track through the tracks manager
 		// This connects the PubSub system to forward RTP packets to this writer
 		subParams := SubParams{
 			PubClientID: pending.pubTrack.ClientID,
 			RoomID:      client.RoomID,
-			TrackID:     trackID,
+			TrackID:     pending.pubTrack.TrackID,
 			SubClientID: client.ID,
 		}
 
 		if err := s.tracksManager.Sub(subParams, pending.trackLocal, pending.rtcpReader); err != nil {
-			log.Printf("SFU: [COMPLETE PENDING] ERROR subscribing to track %s: %v", trackID, err)
+			log.Printf("SFU: [COMPLETE PENDING] ERROR subscribing to track %s: %v", pending.pubTrack.TrackID, err)
 			// Remove the track we added
 			client.Transport.GetPeerConnection().RemoveTrack(pending.rtpSender)
 		} else {
 			log.Printf("SFU: [COMPLETE PENDING] SUCCESS - client %s subscribed to track %s (kind=%s) from %s",
-				client.ID, trackID, pending.pubTrack.Kind, pending.pubTrack.ClientID)
+				client.ID, pending.pubTrack.TrackID, pending.pubTrack.Kind, pending.pubTrack.ClientID)
 
 			// CRITICAL: Request a keyframe from the publisher to ensure the subscriber
 			// receives a valid video stream immediately
 			if pending.pubTrack.Kind == "video" {
-				log.Printf("SFU: [COMPLETE PENDING] Requesting keyframe for video track %s from %s", trackID, pending.pubTrack.ClientID)
-				s.requestKeyframe(pending.pubTrack.ClientID, trackID)
+				client.activeVideoSubs[pending.sourceKey] = &activeVideoSub{
+					subscriptionKey: pending.subscriptionKey,
+					sourceKey:       pending.sourceKey,
+					pubTrack:        pending.pubTrack,
+					trackLocal:      pending.trackLocal,
+					rtcpReader:      pending.rtcpReader,
+					rtpSender:       pending.rtpSender,
+				}
+				log.Printf("SFU: [COMPLETE PENDING] Requesting keyframe for video track %s from %s", pending.pubTrack.TrackID, pending.pubTrack.ClientID)
+				s.requestKeyframe(pending.pubTrack.ClientID, pending.pubTrack.TrackID)
 			}
 		}
 
 		// Remove from pending
-		delete(client.pendingSubs, trackID)
+		delete(client.pendingSubs, subKey)
 	}
 
 	log.Printf("SFU: [COMPLETE PENDING] END for client %s", client.ID)
@@ -659,7 +982,7 @@ func (s *SFU) requestKeyframe(pubClientID, trackID string) {
 
 // processRTCP processes RTCP packets for a sender and forwards PLI to publisher
 
-func (s *SFU) processRTCP(rtpSender *webrtc.RTPSender) {
+func (s *SFU) processRTCP(rtpSender *webrtc.RTPSender, pubTrack pubsub.PubTrack) {
 	rtcpBuf := make([]byte, 1500)
 	for {
 		n, _, err := rtpSender.Read(rtcpBuf)
@@ -676,10 +999,9 @@ func (s *SFU) processRTCP(rtpSender *webrtc.RTPSender) {
 		for _, packet := range packets {
 			switch p := packet.(type) {
 			case *rtcp.PictureLossIndication:
-				// CRITICAL: PLI received from subscriber - forward to publisher
-				log.Printf("SFU: Received PLI from subscriber for SSRC %d - forwarding to publisher", p.MediaSSRC)
-				// Forward PLI to the publisher to request a keyframe
-				s.forwardPLIToPublisher(p)
+				log.Printf("SFU: Received PLI from subscriber for track %s (publisher %s, SSRC %d)",
+					pubTrack.TrackID, pubTrack.ClientID, p.MediaSSRC)
+				s.requestKeyframe(pubTrack.ClientID, pubTrack.TrackID)
 			case *rtcp.ReceiverEstimatedMaximumBitrate:
 				log.Printf("SFU: Received REMB from subscriber: %f bps", p.Bitrate)
 			case *rtcp.TransportLayerNack:
@@ -851,7 +1173,9 @@ func (s *SFU) handleClientMessages(client *Client) {
 
 	defer func() {
 		s.mu.Lock()
-		delete(s.clients, client.ID)
+		if current, ok := s.clients[client.ID]; ok && current == client {
+			delete(s.clients, client.ID)
+		}
 		s.mu.Unlock()
 
 		// Close signaling channel and connection
@@ -864,7 +1188,7 @@ func (s *SFU) handleClientMessages(client *Client) {
 	}()
 
 	// Set up ping ticker to keep connection alive
-	pingTicker := time.NewTicker(30 * time.Second)
+	pingTicker := time.NewTicker(sfuPingPeriod)
 	defer pingTicker.Stop()
 
 	// Reconnection tracking
@@ -949,6 +1273,8 @@ func (s *SFU) handleClientMessages(client *Client) {
 			s.handleSubTrack(client, msg)
 		case "unsub_track":
 			s.handleUnsubTrack(client, msg)
+		case "quality_preference":
+			s.handleQualityPreference(client, msg)
 		case "leave":
 			return
 		default:
@@ -1048,6 +1374,7 @@ func (s *SFU) handleAnswer(client *Client, msg SignalMessage) {
 		client.initialConnected = true
 		log.Printf("SFU: Initial connection established for client %s", client.ID)
 	}
+	client.awaitingAnswer = false
 	pendingCount := len(client.pendingSubs)
 	client.mu.Unlock()
 
@@ -1062,6 +1389,8 @@ func (s *SFU) handleAnswer(client *Client, msg SignalMessage) {
 	if pendingCount > 0 {
 		s.completePendingSubscriptions(client)
 	}
+
+	s.processQueuedRenegotiationEvents(client)
 
 }
 
@@ -1154,6 +1483,59 @@ func (s *SFU) handleUnsubTrack(client *Client, msg SignalMessage) {
 	if err := s.tracksManager.Unsub(params); err != nil {
 		log.Printf("SFU: Error unsubscribing from track: %v", err)
 	}
+}
+
+func (s *SFU) handleQualityPreference(client *Client, msg SignalMessage) {
+	quality := msg.Quality
+	if quality == "" {
+		quality = "auto"
+	}
+
+	client.mu.Lock()
+	client.receiveQuality = quality
+
+	pendingKeys := make([]string, 0, len(client.pendingSubs))
+	for key := range client.pendingSubs {
+		pendingKeys = append(pendingKeys, key)
+	}
+
+	activeSubs := make([]*activeVideoSub, 0, len(client.activeVideoSubs))
+	for _, sub := range client.activeVideoSubs {
+		activeSubs = append(activeSubs, sub)
+	}
+	client.mu.Unlock()
+
+	for _, key := range pendingKeys {
+		client.mu.Lock()
+		pending, ok := client.pendingSubs[key]
+		client.mu.Unlock()
+		if !ok || pending.pubTrack.Kind != "video" {
+			continue
+		}
+
+		selected, found := s.selectTrackForQuality(client.RoomID, quality, pending.pubTrack)
+		if !found {
+			continue
+		}
+
+		client.mu.Lock()
+		if current, ok := client.pendingSubs[key]; ok {
+			current.pubTrack = selected
+		}
+		client.mu.Unlock()
+	}
+
+	for _, sub := range activeSubs {
+		selected, found := s.selectTrackForQuality(client.RoomID, quality, sub.pubTrack)
+		if !found {
+			continue
+		}
+		if selected.TrackID != sub.pubTrack.TrackID {
+			s.switchActiveVideoLayer(client, sub, selected)
+		}
+	}
+
+	log.Printf("SFU: Updated receive quality for client %s to %s", client.ID, quality)
 }
 
 // sendInitialOffer is no longer used - client sends the offer now

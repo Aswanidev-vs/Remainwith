@@ -19,6 +19,9 @@ import (
 type PubTrack struct {
 	ClientID string
 	TrackID  string
+	BaseTrackID string
+	RID      string
+	StreamID string
 	PeerID   string
 	Kind     string
 	Codec    string // MimeType of the negotiated codec e.g. "video/vp8", "video/vp9", "audio/opus"
@@ -262,7 +265,12 @@ func (ps *PubSub) Pub(clientID string, reader *TrackReader) error {
 	ps.mu.Lock()
 
 	track := reader.track
-	trackID := track.Track().ID()
+	baseTrackID := track.Track().ID()
+	rid := track.RID()
+	trackID := baseTrackID
+	if rid != "" {
+		trackID = fmt.Sprintf("%s:%s", baseTrackID, rid)
+	}
 	trackKind := track.Track().Kind().String()
 
 	// Initialize published tracks map for client if needed
@@ -272,12 +280,15 @@ func (ps *PubSub) Pub(clientID string, reader *TrackReader) error {
 
 	// Create pub track
 	pubTrack := &PubTrack{
-		ClientID: clientID,
-		TrackID:  trackID,
-		PeerID:   clientID, // peerID is same as clientID for WebRTC
-		Kind:     trackKind,
-		Codec:    reader.Codec, // use actual negotiated codec
-		Reader:   track,
+		ClientID:    clientID,
+		TrackID:     trackID,
+		BaseTrackID: baseTrackID,
+		RID:         rid,
+		StreamID:    track.Track().StreamID(),
+		PeerID:      clientID, // peerID is same as clientID for WebRTC
+		Kind:        trackKind,
+		Codec:       reader.Codec, // use actual negotiated codec
+		Reader:      track,
 	}
 
 	ps.publishedTracks[clientID][trackID] = pubTrack
@@ -295,8 +306,8 @@ func (ps *PubSub) Pub(clientID string, reader *TrackReader) error {
 			}
 		}
 	}
-	log.Printf("PubSub: [TRACK %s] PUBLISHED - clientID: %s, kind: %s, streamID: %s, current subs: %d",
-		trackID, clientID, trackKind, track.Track().StreamID(), subCount)
+	log.Printf("PubSub: [TRACK %s] PUBLISHED - clientID: %s, kind: %s, streamID: %s, rid: %s, current subs: %d",
+		trackID, clientID, trackKind, track.Track().StreamID(), rid, subCount)
 
 	// Notify subscribers (within lock to ensure consistency)
 	ps.notifyEventSubscribers(PubTrackEvent{
