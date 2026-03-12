@@ -67,6 +67,10 @@ func (c *signalingConn) Close() error {
 	return c.conn.Close()
 }
 
+func signalingSessionKey(roomID, userID string) string {
+	return roomID + ":" + userID
+}
+
 // SignalingServer handles WebRTC signaling
 type SignalingServer struct {
 	upgrader      websocket.Upgrader
@@ -116,14 +120,14 @@ func (s *SignalingServer) HandleConnection(w http.ResponseWriter, r *http.Reques
 		return conn.SetReadDeadline(time.Now().Add(signalingPongWait))
 	})
 
-	sessionKey := roomID + ":" + userID
+	sessionKey := signalingSessionKey(roomID, userID)
 
 	s.mu.Lock()
 	if timer := s.offlineTimers[sessionKey]; timer != nil {
 		timer.Stop()
 		delete(s.offlineTimers, sessionKey)
 	}
-	if existing := s.clients[userID]; existing != nil {
+	if existing := s.clients[sessionKey]; existing != nil {
 		_ = existing.Close()
 	}
 	if existingRoomClients := s.rooms[roomID]; existingRoomClients != nil {
@@ -131,7 +135,7 @@ func (s *SignalingServer) HandleConnection(w http.ResponseWriter, r *http.Reques
 			_ = existing.Close()
 		}
 	}
-	s.clients[userID] = clientConn
+	s.clients[sessionKey] = clientConn
 	if s.rooms[roomID] == nil {
 		s.rooms[roomID] = make(map[string]*signalingConn)
 	}
@@ -165,9 +169,10 @@ func (s *SignalingServer) handleMessages(conn *signalingConn, userID, roomID str
 
 	defer func() {
 		close(done)
+		sessionKey := signalingSessionKey(roomID, userID)
 		s.mu.Lock()
-		if current, exists := s.clients[userID]; exists && current == conn {
-			delete(s.clients, userID)
+		if current, exists := s.clients[sessionKey]; exists && current == conn {
+			delete(s.clients, sessionKey)
 		}
 		if roomClients, exists := s.rooms[roomID]; exists {
 			if current, ok := roomClients[userID]; ok && current == conn {
@@ -205,7 +210,7 @@ func (s *SignalingServer) handleMessages(conn *signalingConn, userID, roomID str
 }
 
 func (s *SignalingServer) scheduleOfflineTransition(roomID, userID string, conn *signalingConn) {
-	sessionKey := roomID + ":" + userID
+	sessionKey := signalingSessionKey(roomID, userID)
 
 	s.mu.Lock()
 	if timer := s.offlineTimers[sessionKey]; timer != nil {
@@ -214,7 +219,7 @@ func (s *SignalingServer) scheduleOfflineTransition(roomID, userID string, conn 
 
 	s.offlineTimers[sessionKey] = time.AfterFunc(signalingLeaveGrace, func() {
 		s.mu.Lock()
-		currentConn := s.clients[userID]
+		currentConn := s.clients[sessionKey]
 		if currentConn != nil && currentConn != conn {
 			delete(s.offlineTimers, sessionKey)
 			s.mu.Unlock()

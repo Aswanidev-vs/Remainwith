@@ -59,9 +59,9 @@ func (tm *TracksManager) Add(roomID string, tr transport.Transport) (<-chan pubs
 	go func() {
 		<-tr.Done()
 
-		tm.mu.Lock()
-		defer tm.mu.Unlock()
+		var shouldCloseRoom bool
 
+		tm.mu.Lock()
 		// Update room activity on transport removal
 		tm.roomActivity[roomID] = time.Now()
 
@@ -75,13 +75,15 @@ func (tm *TracksManager) Add(roomID string, tr transport.Transport) (<-chan pubs
 		// Clean up empty rooms
 		if pm.Size() == 0 {
 			log.Printf("TracksManager: Cleaning up empty room %s", roomID)
-
-			// Close peer manager
-			<-pm.Close()
-
 			// Remove from maps
 			delete(tm.peerManagers, roomID)
 			delete(tm.roomActivity, roomID)
+			shouldCloseRoom = true
+		}
+		tm.mu.Unlock()
+
+		if shouldCloseRoom {
+			<-pm.Close()
 		}
 	}()
 

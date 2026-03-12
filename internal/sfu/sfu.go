@@ -128,6 +128,10 @@ func NewSFU() *SFU {
 	}
 }
 
+func sfuSessionKey(roomID, clientID string) string {
+	return roomID + ":" + clientID
+}
+
 // New creates a new SFU server (compatibility with existing code)
 func New(ctx context.Context, opts interface{}) *SFU {
 	return NewSFU()
@@ -228,17 +232,19 @@ func (s *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Start dedicated write goroutine to serialize WebSocket writes
 	go s.writePump(client)
 
+	sessionKey := sfuSessionKey(roomID, clientID)
+
 	s.mu.Lock()
-	if existing, ok := s.clients[clientID]; ok {
-		log.Printf("SFU: Replacing existing client session for %s", clientID)
+	if existing, ok := s.clients[sessionKey]; ok {
+		log.Printf("SFU: Replacing existing client session for %s in room %s", clientID, roomID)
 		if existing.Conn != nil {
-			existing.Conn.Close()
+			_ = existing.Conn.Close()
 		}
 		if existing.Transport != nil {
-			existing.Transport.Close()
+			_ = existing.Transport.Close()
 		}
 	}
-	s.clients[clientID] = client
+	s.clients[sessionKey] = client
 	s.mu.Unlock()
 
 	log.Printf("SFU: Client %s joined room %s", clientID, roomID)
@@ -257,6 +263,12 @@ func (s *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Handle WebRTC signals
 	go s.handleSignals(client)
+
+	// Ensure abrupt transport shutdowns always evict the client session.
+	go func() {
+		<-webrtcTransport.Done()
+		s.shutdownClient(client)
+	}()
 
 	// Phase 9: Start connection monitoring
 	go s.monitorConnection(client)
@@ -321,9 +333,11 @@ func (s *SFU) enqueueClientMessage(client *Client, msg interface{}, reason strin
 
 func (s *SFU) shutdownClient(client *Client) {
 	client.closedOnce.Do(func() {
+		sessionKey := sfuSessionKey(client.RoomID, client.ID)
+
 		s.mu.Lock()
-		if current, ok := s.clients[client.ID]; ok && current == client {
-			delete(s.clients, client.ID)
+		if current, ok := s.clients[sessionKey]; ok && current == client {
+			delete(s.clients, sessionKey)
 		}
 		s.mu.Unlock()
 
@@ -866,7 +880,7 @@ func (s *SFU) addTrackInternal(client *Client, pubTrack pubsub.PubTrack) (*webrt
 	}
 
 	// Route RTCP feedback for this subscribed track back to its publisher.
-	go s.processRTCP(rtpSender, pubTrack)
+	go s.processRTCP(client.RoomID, rtpSender, pubTrack)
 
 	return rtpSender, nil
 }
@@ -956,7 +970,7 @@ func (s *SFU) switchActiveVideoLayer(client *Client, active *activeVideoSub, nex
 	}
 	client.mu.Unlock()
 
-	s.requestKeyframe(nextTrack.ClientID, nextTrack.TrackID)
+	s.requestKeyframe(client.RoomID, nextTrack.ClientID, nextTrack.TrackID)
 }
 
 // completePendingSubscriptions completes pending track subscriptions after answer is received
@@ -1005,7 +1019,7 @@ func (s *SFU) completePendingSubscriptions(client *Client) {
 					rtpSender:       pending.rtpSender,
 				}
 				log.Printf("SFU: [COMPLETE PENDING] Requesting keyframe for video track %s from %s", pending.pubTrack.TrackID, pending.pubTrack.ClientID)
-				s.requestKeyframe(pending.pubTrack.ClientID, pending.pubTrack.TrackID)
+				s.requestKeyframe(client.RoomID, pending.pubTrack.ClientID, pending.pubTrack.TrackID)
 			}
 		}
 
@@ -1017,13 +1031,13 @@ func (s *SFU) completePendingSubscriptions(client *Client) {
 }
 
 // requestKeyframe sends a PLI to the publisher to request a keyframe
-func (s *SFU) requestKeyframe(pubClientID, trackID string) {
+func (s *SFU) requestKeyframe(roomID, pubClientID, trackID string) {
 	s.mu.RLock()
-	pubClient, ok := s.clients[pubClientID]
+	pubClient, ok := s.clients[sfuSessionKey(roomID, pubClientID)]
 	s.mu.RUnlock()
 
 	if !ok {
-		log.Printf("SFU: Cannot request keyframe - publisher %s not found", pubClientID)
+		log.Printf("SFU: Cannot request keyframe - publisher %s not found in room %s", pubClientID, roomID)
 		return
 	}
 
@@ -1042,13 +1056,13 @@ func (s *SFU) requestKeyframe(pubClientID, trackID string) {
 	if err := pc.WriteRTCP([]rtcp.Packet{pli}); err != nil {
 		log.Printf("SFU: Error requesting keyframe from %s: %v", pubClientID, err)
 	} else {
-		log.Printf("SFU: Successfully requested keyframe from %s for track %s", pubClientID, trackID)
+		log.Printf("SFU: Successfully requested keyframe from %s for track %s in room %s", pubClientID, trackID, roomID)
 	}
 }
 
 // processRTCP processes RTCP packets for a sender and forwards PLI to publisher
 
-func (s *SFU) processRTCP(rtpSender *webrtc.RTPSender, pubTrack pubsub.PubTrack) {
+func (s *SFU) processRTCP(roomID string, rtpSender *webrtc.RTPSender, pubTrack pubsub.PubTrack) {
 	rtcpBuf := make([]byte, 1500)
 	for {
 		n, _, err := rtpSender.Read(rtcpBuf)
@@ -1067,7 +1081,7 @@ func (s *SFU) processRTCP(rtpSender *webrtc.RTPSender, pubTrack pubsub.PubTrack)
 			case *rtcp.PictureLossIndication:
 				log.Printf("SFU: Received PLI from subscriber for track %s (publisher %s, SSRC %d)",
 					pubTrack.TrackID, pubTrack.ClientID, p.MediaSSRC)
-				s.requestKeyframe(pubTrack.ClientID, pubTrack.TrackID)
+				s.requestKeyframe(roomID, pubTrack.ClientID, pubTrack.TrackID)
 			case *rtcp.ReceiverEstimatedMaximumBitrate:
 				log.Printf("SFU: Received REMB from subscriber: %f bps", p.Bitrate)
 			case *rtcp.TransportLayerNack:
