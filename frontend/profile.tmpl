@@ -378,6 +378,35 @@
         display: none;
     }
 
+    /* Settings Sections */
+    .settings-card {
+        margin-bottom: 2rem;
+    }
+
+    .section-title {
+        font-family: var(--font-display);
+        font-size: 1.5rem;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        color: var(--text-main);
+    }
+
+    .section-desc {
+        font-size: 0.95rem;
+        color: var(--text-muted);
+        margin-bottom: 1rem;
+    }
+
+    .theme-btn:hover {
+        border-color: var(--primary) !important;
+        transform: translateY(-2px);
+    }
+    
+    .theme-btn.active {
+        border-color: var(--primary) !important;
+        box-shadow: 0 0 0 4px var(--primary-light);
+    }
+
     @media (max-width: 768px) {
         .mobile-menu-btn {
             display: block;
@@ -420,110 +449,169 @@
     <!-- Main Content -->
     <main class="profile-area">
 
-        <h1 class="profile-header">My Profile</h1>
+        <h1 class="profile-header">Settings</h1>
+
+        {{if .Success}}
+        <div class="success-message" style="background: #ecfdf5; color: #065f46; padding: 1.25rem; border-radius: var(--radius-md); margin-bottom: 2rem; border: 1px solid #d1fae5; display: flex; align-items: center; gap: 0.75rem;">
+            <span class="material-symbols-outlined" style="color: #10b981;">check_circle</span>
+            {{.Success}}
+        </div>
+        {{end}}
 
         {{if .Error}}
-        <div class="error-message" style="background: #fee; color: #c33; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; border: 1px solid #fcc;">
+        <div class="error-message" style="background: #fef2f2; color: #991b1b; padding: 1.25rem; border-radius: var(--radius-md); margin-bottom: 2rem; border: 1px solid #fee2e2; display: flex; align-items: center; gap: 0.75rem;">
+            <span class="material-symbols-outlined" style="color: #ef4444;">error</span>
             {{.Error}}
         </div>
         {{end}}
 
-        <!-- Profile Card -->
-        <div class="profile-card">
-            <div class="user-info">
-                <div class="user-name">{{.Name}}</div>
-                <div class="user-email">{{.Email}}</div>
-            </div>
+        <!-- Personal Info Section -->
+        <section class="settings-card profile-card">
+            <h2 class="section-title">Personal Information</h2>
+            <p class="section-desc">Manage your basic account details.</p>
+            
+            <form action="/settings" method="POST" style="display: flex; flex-direction: column; gap: 1.5rem; margin-top: 1.5rem;">
+                <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                <input type="hidden" name="action" value="update_profile">
+                <input type="hidden" name="session_id" value="{{.SessionID}}">
 
-            <div class="interests-section">
-                <div class="interests-header">
-                    <div class="interests-title">Interests</div>
-                    <button class="btn-edit" onclick="toggleEditInterests()">
-                        <span class="material-symbols-outlined">edit</span>
-                        Edit
-                    </button>
+                <div class="input-group">
+                    <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.5rem;">Full Name</label>
+                    <input type="text" name="name" value="{{.Name}}" class="interests-input" style="min-height: auto; margin-bottom: 0;" required>
                 </div>
 
-                <div id="interests-display" class="interests-display" {{if not .UserInterests}}style="display:none;"{{end}}>
-                    {{range $index, $interest := .UserInterests}}
-                        <span class="interest-tag">{{$interest}}</span>
-                    {{end}}
+                <div class="input-group">
+                    <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.5rem;">Email Address</label>
+                    <input type="email" name="email" value="{{.Email}}" class="interests-input" style="min-height: auto; margin-bottom: 0;" required>
                 </div>
 
-                <form id="interests-form" class="interests-form {{if not .UserInterests}}active{{end}}" action="/profile" method="POST">
-                    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
-                    <input type="hidden" name="interests" id="interests-hidden" value="{{range $index, $interest := .UserInterests}}{{if $index}},{{end}}{{$interest}}{{end}}">
-                    <input type="hidden" name="user_email" value="{{.Email}}">
-                    <input type="hidden" name="user_id" value="{{.UserID}}">
-                    <input type="hidden" name="session_id" value="{{.SessionID}}">
-                    
-                    <div class="category-group">
-                        <div class="category-title">🧠 How You’ve Been Feeling</div>
-                        <div class="chip-grid">
-                            <div class="chip-option" onclick="toggleInterest(this, 'Anxiety')">Anxiety</div>
-                            <div class="chip-option" onclick="toggleInterest(this, 'Overthinking')">Overthinking</div>
-                            <div class="chip-option" onclick="toggleInterest(this, 'Stress')">Stress</div>
-                            <div class="chip-option" onclick="toggleInterest(this, 'Loneliness')">Loneliness</div>
-                            <div class="chip-option" onclick="toggleInterest(this, 'Emotional exhaustion')">Emotional exhaustion</div>
-                            <div class="chip-option" onclick="toggleInterest(this, 'Calm & clarity')">Calm & clarity</div>
-                            <div class="chip-option" onclick="toggleInterest(this, 'Gratitude')">Gratitude</div>
-                        </div>
-                    </div>
+                <button class="btn-save" type="submit" style="width: fit-content;">Update Profile</button>
+            </form>
+        </section>
 
-                    <div class="category-group">
-                        <div class="category-title">🎯 What You’re Working On</div>
-                        <div class="chip-grid">
-                            <div class="chip-option" onclick="toggleInterest(this, 'Self-discipline')">Self-discipline</div>
-                            <div class="chip-option" onclick="toggleInterest(this, 'Staying consistent')">Staying consistent</div>
-                            <div class="chip-option" onclick="toggleInterest(this, 'Finding motivation')">Finding motivation</div>
-                            <div class="chip-option" onclick="toggleInterest(this, 'Breaking a habit')">Breaking a habit</div>
-                            <div class="chip-option" onclick="toggleInterest(this, 'Improving focus')">Improving focus</div>
-                            <div class="chip-option" onclick="toggleInterest(this, 'Building confidence')">Building confidence</div>
-                        </div>
-                    </div>
+        <!-- Security Section -->
+        <section class="settings-card profile-card">
+            <h2 class="section-title">Security</h2>
+            <p class="section-desc">Update your password to keep your account safe.</p>
 
-                    <div class="category-group">
-                        <div class="category-title">🧍 Life Situations</div>
-                        <div class="chip-grid">
-                            <div class="chip-option" onclick="toggleInterest(this, 'Student life')">Student life</div>
-                            <div class="chip-option" onclick="toggleInterest(this, 'Career confusion')">Career confusion</div>
-                            <div class="chip-option" onclick="toggleInterest(this, 'Relationship struggles')">Relationship struggles</div>
-                            <div class="chip-option" onclick="toggleInterest(this, 'Family pressure')">Family pressure</div>
-                            <div class="chip-option" onclick="toggleInterest(this, 'Living alone')">Living alone</div>
-                            <div class="chip-option" onclick="toggleInterest(this, 'Feeling stuck')">Feeling stuck</div>
-                        </div>
-                    </div>
+            <form action="/settings" method="POST" style="display: flex; flex-direction: column; gap: 1.5rem; margin-top: 1.5rem;">
+                <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                <input type="hidden" name="action" value="update_password">
+                <input type="hidden" name="session_id" value="{{.SessionID}}">
 
-                    <div class="category-group">
-                        <div class="category-title">🌱 Reflection & Meaning</div>
-                        <div class="chip-grid">
-                            <div class="chip-option" onclick="toggleInterest(this, 'Self-reflection')">Self-reflection</div>
-                            <div class="chip-option" onclick="toggleInterest(this, 'Finding purpose')">Finding purpose</div>
-                            <div class="chip-option" onclick="toggleInterest(this, 'Letting go')">Letting go</div>
-                            <div class="chip-option" onclick="toggleInterest(this, 'Acceptance')">Acceptance</div>
-                            <div class="chip-option" onclick="toggleInterest(this, 'Mindfulness')">Mindfulness</div>
-                            <div class="chip-option" onclick="toggleInterest(this, 'Understanding myself better')">Understanding myself better</div>
-                        </div>
-                    </div>
+                <div class="input-group">
+                    <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.5rem;">Current Password</label>
+                    <input type="password" name="current_password" class="interests-input" style="min-height: auto; margin-bottom: 0;" placeholder="••••••••" required>
+                </div>
 
-                    <div class="category-group">
-                        <div class="category-title">🌙 Time & Energy States</div>
-                        <div class="chip-grid">
-                            <div class="chip-option" onclick="toggleInterest(this, 'Late-night thoughts')">Late-night thoughts</div>
-                            <div class="chip-option" onclick="toggleInterest(this, 'Low-energy days')">Low-energy days</div>
-                            <div class="chip-option" onclick="toggleInterest(this, 'Need encouragement')">Need encouragement</div>
-                            <div class="chip-option" onclick="toggleInterest(this, 'Quiet reflection')">Quiet reflection</div>
-                            <div class="chip-option" onclick="toggleInterest(this, 'Morning motivation')">Morning motivation</div>
-                        </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="input-group">
+                        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.5rem;">New Password</label>
+                        <input type="password" name="new_password" class="interests-input" style="min-height: auto; margin-bottom: 0;" placeholder="At least 8 chars" required>
                     </div>
+                    <div class="input-group">
+                        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.5rem;">Confirm New Password</label>
+                        <input type="password" name="confirm_password" class="interests-input" style="min-height: auto; margin-bottom: 0;" placeholder="Confirm" required>
+                    </div>
+                </div>
 
-                    <div class="form-actions">
-                        <button class="btn-save" type="submit">Save Interests</button>
-                        {{if .UserInterests}}<button class="btn-cancel" type="button" onclick="cancelEditInterests()">Cancel</button>{{end}}
-                    </div>
-                </form>
+                <button class="btn-save" type="submit" style="width: fit-content;">Change Password</button>
+            </form>
+        </section>
+
+        <!-- Appearance Section -->
+        <section class="settings-card profile-card">
+            <h2 class="section-title">Appearance</h2>
+            <p class="section-desc">Choose a theme that suits your mood and environment.</p>
+            
+            <div class="theme-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1rem; margin-top: 1.5rem;">
+                <button class="theme-btn" onclick="saveTheme('light')" style="background: #ffffff; border: 2px solid #e7e5e4; border-radius: 12px; padding: 1rem; cursor: pointer; text-align: center; transition: all 0.2s;">
+                    <div style="height: 40px; background: #f7f7f7; border-radius: 6px; margin-bottom: 0.5rem;"></div>
+                    <div style="font-weight: 600; color: #292524;">Light</div>
+                </button>
+                <button class="theme-btn" onclick="saveTheme('dark')" style="background: #1c1917; border: 2px solid #292524; border-radius: 12px; padding: 1rem; cursor: pointer; text-align: center; transition: all 0.2s;">
+                    <div style="height: 40px; background: #191a18; border-radius: 6px; margin-bottom: 0.5rem;"></div>
+                    <div style="font-weight: 600; color: #e7e5e4;">Dark</div>
+                </button>
+                <button class="theme-btn" onclick="saveTheme('sepia')" style="background: #fdf6e3; border: 2px solid #e6dcc6; border-radius: 12px; padding: 1rem; cursor: pointer; text-align: center; transition: all 0.2s;">
+                    <div style="height: 40px; background: #f4ecd8; border-radius: 6px; margin-bottom: 0.5rem;"></div>
+                    <div style="font-weight: 600; color: #433422;">Sepia</div>
+                </button>
+                <button class="theme-btn" onclick="saveTheme('forest')" style="background: #222b26; border: 2px solid #2f3b34; border-radius: 12px; padding: 1rem; cursor: pointer; text-align: center; transition: all 0.2s;">
+                    <div style="height: 40px; background: #1a211e; border-radius: 6px; margin-bottom: 0.5rem;"></div>
+                    <div style="font-weight: 600; color: #dcece1;">Forest</div>
+                </button>
             </div>
-        </div>
+        </section>
+
+        <!-- Interests Section -->
+        <section class="settings-card profile-card">
+            <div class="interests-header">
+                <div>
+                    <h2 class="section-title">Interests</h2>
+                    <p class="section-desc">Select what you’re focused on to help us personalize your experience.</p>
+                </div>
+                <button class="btn-edit" onclick="toggleEditInterests()">
+                    <span class="material-symbols-outlined">edit</span>
+                    Update
+                </button>
+            </div>
+
+            <div id="interests-display" class="interests-display" style="margin-top: 1rem; {{if not .UserInterests}}display:none;{{end}}">
+                {{range $index, $interest := .UserInterests}}
+                    <span class="interest-tag">{{$interest}}</span>
+                {{end}}
+            </div>
+
+            <form id="interests-form" class="interests-form {{if not .UserInterests}}active{{end}}" action="/settings" method="POST" style="margin-top: 1.5rem;">
+                <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                <input type="hidden" name="action" value="update_interests">
+                <input type="hidden" name="interests" id="interests-hidden" value="{{range $index, $interest := .UserInterests}}{{if $index}},{{end}}{{$interest}}{{end}}">
+                <input type="hidden" name="session_id" value="{{.SessionID}}">
+                
+                <div class="category-group">
+                    <div class="category-title">🧠 How You’ve Been Feeling</div>
+                    <div class="chip-grid">
+                        <div class="chip-option" onclick="toggleInterest(this, 'Anxiety')">Anxiety</div>
+                        <div class="chip-option" onclick="toggleInterest(this, 'Overthinking')">Overthinking</div>
+                        <div class="chip-option" onclick="toggleInterest(this, 'Stress')">Stress</div>
+                        <div class="chip-option" onclick="toggleInterest(this, 'Loneliness')">Loneliness</div>
+                        <div class="chip-option" onclick="toggleInterest(this, 'Emotional exhaustion')">Emotional exhaustion</div>
+                        <div class="chip-option" onclick="toggleInterest(this, 'Calm & clarity')">Calm & clarity</div>
+                        <div class="chip-option" onclick="toggleInterest(this, 'Gratitude')">Gratitude</div>
+                    </div>
+                </div>
+
+                <div class="category-group">
+                    <div class="category-title">🎯 What You’re Working On</div>
+                    <div class="chip-grid">
+                        <div class="chip-option" onclick="toggleInterest(this, 'Self-discipline')">Self-discipline</div>
+                        <div class="chip-option" onclick="toggleInterest(this, 'Staying consistent')">Staying consistent</div>
+                        <div class="chip-option" onclick="toggleInterest(this, 'Finding motivation')">Finding motivation</div>
+                        <div class="chip-option" onclick="toggleInterest(this, 'Breaking a habit')">Breaking a habit</div>
+                        <div class="chip-option" onclick="toggleInterest(this, 'Improving focus')">Improving focus</div>
+                        <div class="chip-option" onclick="toggleInterest(this, 'Building confidence')">Building confidence</div>
+                    </div>
+                </div>
+
+                <div class="category-group">
+                    <div class="category-title">🧍 Life Situations</div>
+                    <div class="chip-grid">
+                        <div class="chip-option" onclick="toggleInterest(this, 'Student life')">Student life</div>
+                        <div class="chip-option" onclick="toggleInterest(this, 'Career confusion')">Career confusion</div>
+                        <div class="chip-option" onclick="toggleInterest(this, 'Relationship struggles')">Relationship struggles</div>
+                        <div class="chip-option" onclick="toggleInterest(this, 'Family pressure')">Family pressure</div>
+                        <div class="chip-option" onclick="toggleInterest(this, 'Living alone')">Living alone</div>
+                        <div class="chip-option" onclick="toggleInterest(this, 'Feeling stuck')">Feeling stuck</div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button class="btn-save" type="submit">Save Interests</button>
+                    {{if .UserInterests}}<button class="btn-cancel" type="button" onclick="cancelEditInterests()">Cancel</button>{{end}}
+                </div>
+            </form>
+        </section>
 
     </main>
 </div>
@@ -627,6 +715,24 @@ function setTheme(theme) {
 const savedTheme = getCookie(storageKey);
 if (savedTheme) {
     setTheme(savedTheme);
+    updateThemeVisuals(savedTheme);
+}
+
+function saveTheme(theme) {
+    setTheme(theme);
+    // Set cookie for 1 year
+    document.cookie = `${storageKey}=${theme}; path=/; max-age=${60*60*24*365}`;
+    updateThemeVisuals(theme);
+}
+
+function updateThemeVisuals(activeTheme) {
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+        if (btn.innerText.toLowerCase().trim() === activeTheme) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
 }
 
 function toggleEditInterests() {

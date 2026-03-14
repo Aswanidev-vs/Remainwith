@@ -3,6 +3,8 @@ package db
 import (
 	"Remainwith/config"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"time"
@@ -24,6 +26,13 @@ type Journal struct {
 	Title     string
 	Desc      string
 	CreatedAt time.Time // or time.Time, but for simplicity string
+}
+
+type PasswordResetToken struct {
+	ID        int
+	UserID    int
+	TokenHash string
+	ExpiresAt time.Time
 }
 
 func GetUserByEmail(ctx context.Context, email string) (*Userinfo, error) {
@@ -238,6 +247,79 @@ func NewJournal(ctx context.Context, userID int, title, description string) (int
 	}
 
 	return journalID, nil
+}
+
+func hashToken(token string) string {
+	hash := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(hash[:])
+}
+
+func CreatePasswordResetToken(ctx context.Context, userID int, token string, expiresAt time.Time) error {
+	tokenHash := hashToken(token)
+	_, err := config.DB.Exec(ctx,
+		`INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3) ON CONFLICT (user_id) DO UPDATE SET token_hash = EXCLUDED.token_hash, expires_at = EXCLUDED.expires_at`,
+		userID, tokenHash, expiresAt)
+	return err
+}
+
+func GetPasswordResetToken(ctx context.Context, token string) (*PasswordResetToken, error) {
+	tokenHash := hashToken(token)
+	var prt PasswordResetToken
+	err := config.DB.QueryRow(ctx,
+		`SELECT id, user_id, token_hash, expires_at FROM password_reset_tokens WHERE token_hash = $1`,
+		tokenHash).Scan(&prt.ID, &prt.UserID, &prt.TokenHash, &prt.ExpiresAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, fmt.Errorf("token not found")
+		}
+		return nil, err
+	}
+	return &prt, nil
+}
+
+func UpdateUserPassword(ctx context.Context, userID int, newPasswordHash string) error {
+	_, err := config.DB.Exec(ctx,
+		`UPDATE users SET password = $1 WHERE id = $2`,
+		newPasswordHash, userID)
+	return err
+}
+
+func UpdateUserInfo(ctx context.Context, userID int, name, email string) error {
+	_, err := config.DB.Exec(ctx,
+		`UPDATE users SET name = $1, email = $2 WHERE id = $3`,
+		name, email, userID)
+	return err
+}
+
+func DeletePasswordResetToken(ctx context.Context, token string) error {
+	tokenHash := hashToken(token)
+	_, err := config.DB.Exec(ctx,
+		`DELETE FROM password_reset_tokens WHERE token_hash = $1`,
+		tokenHash)
+	return err
+}
+
+// CreatePasswordResetTable creates the password_reset_tokens table if it doesn't exist.
+func CreatePasswordResetTable(ctx context.Context) error {
+	if config.DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	// I've added ON DELETE CASCADE to automatically remove reset tokens if a user is deleted.
+	// I also added a UNIQUE constraint on user_id to ensure a user only has one active token,
+	// and used ON CONFLICT to update it if a new one is requested.
+	_, err := config.DB.Exec(ctx, `
+		CREATE TABLE IF NOT EXISTS password_reset_tokens (
+			id SERIAL PRIMARY KEY,
+			user_id INT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+			token_hash TEXT NOT NULL UNIQUE,
+			expires_at TIMESTAMPTZ NOT NULL
+		);
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to create password_reset_tokens table: %w", err)
+	}
+	return nil
 }
 
 // func NewJournal(ctx context.Context, title string, desc string) error {

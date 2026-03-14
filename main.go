@@ -29,6 +29,10 @@ func main() {
 	if err := db.SeedInterests(context.Background()); err != nil {
 		log.Println("Warning: Failed to seed interests:", err)
 	}
+	// Create password reset tokens table if it doesn't exist
+	if err := db.CreatePasswordResetTable(context.Background()); err != nil {
+		log.Println("Warning: Failed to create password_reset_tokens table:", err)
+	}
 
 	// Initialize websocket hub
 	hub := ws.NewHub()
@@ -49,6 +53,15 @@ func main() {
 
 	// router.Handle("POST /login", handler.CSRFMiddleware()(http.HandlerFunc(handler.LoginHandler)))
 	router.HandleFunc("POST /login", handler.LoginHandler)
+
+	// Forgot Password routes
+	// Note: The CSRF middleware is applied to GET handlers that render forms
+	// and POST handlers that process them.
+	router.Handle("GET /forgot-password", handler.CSRFMiddleware()(http.HandlerFunc(handler.ForgotPasswordPageHandler)))
+	router.Handle("POST /forgot-password", handler.CSRFMiddleware()(http.HandlerFunc(handler.ForgotPasswordHandler)))
+	router.HandleFunc("GET /forgot-password-success", handler.ForgotPasswordSuccessPageHandler)
+	router.Handle("GET /reset-password", handler.CSRFMiddleware()(http.HandlerFunc(handler.ResetPasswordPageHandler)))
+	router.Handle("POST /reset-password", handler.CSRFMiddleware()(http.HandlerFunc(handler.ResetPasswordHandler)))
 
 	router.HandleFunc("GET /dashboard", func(w http.ResponseWriter, r *http.Request) {
 		handler.JWTMiddleware(http.HandlerFunc(handler.DashboardHandler)).ServeHTTP(w, r)
@@ -106,6 +119,7 @@ func main() {
 		handler.JWTMiddleware(http.HandlerFunc(handler.ListParticipantsHandler)).ServeHTTP(w, r)
 	})
 
+	router.Handle("/settings", handler.JWTMiddleware(handler.CSRFMiddleware()(http.HandlerFunc(handler.ProfilePageHandler))))
 	router.Handle("/profile", handler.JWTMiddleware(handler.CSRFMiddleware()(http.HandlerFunc(handler.ProfilePageHandler))))
 
 	// Start session cleanup goroutine

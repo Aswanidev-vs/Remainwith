@@ -1376,7 +1376,12 @@ func (s *SFU) handleOffer(client *Client, msg SignalMessage) {
 
 	// Process any queued track events that arrived before the initial connection
 	if wasInitial {
-		s.processQueuedTrackEvents(client)
+		// Execute in a goroutine with a delay to allow the client to process the Answer first.
+		// This prevents race conditions where the client receives a new Offer before the Answer processing is complete.
+		go func() {
+			time.Sleep(1 * time.Second)
+			s.processQueuedTrackEvents(client)
+		}()
 	}
 }
 
