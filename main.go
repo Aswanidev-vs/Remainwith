@@ -34,6 +34,12 @@ func main() {
 		log.Println("Warning: Failed to create password_reset_tokens table:", err)
 	}
 
+	// Add new columns to users table if they don't exist
+	_, _ = config.DB.Exec(context.Background(), `
+		ALTER TABLE users ADD COLUMN IF NOT EXISTS email_notifications BOOLEAN DEFAULT TRUE;
+		ALTER TABLE users ADD COLUMN IF NOT EXISTS privacy_visibility TEXT DEFAULT 'public';
+	`)
+
 	// Initialize websocket hub
 	hub := ws.NewHub()
 
@@ -119,8 +125,8 @@ func main() {
 		handler.JWTMiddleware(http.HandlerFunc(handler.ListParticipantsHandler)).ServeHTTP(w, r)
 	})
 
-	router.Handle("/settings", handler.JWTMiddleware(handler.CSRFMiddleware()(http.HandlerFunc(handler.ProfilePageHandler))))
-	router.Handle("/profile", handler.JWTMiddleware(handler.CSRFMiddleware()(http.HandlerFunc(handler.ProfilePageHandler))))
+	router.Handle("/settings/", handler.JWTMiddleware(handler.CSRFMiddleware()(http.HandlerFunc(handler.SettingsPageHandler))))
+	router.Handle("/profile/", handler.JWTMiddleware(handler.CSRFMiddleware()(http.HandlerFunc(handler.ProfilePageHandler))))
 
 	// Start session cleanup goroutine
 	go func() {
@@ -136,7 +142,7 @@ func main() {
 
 	logger := handler.Logger(router)
 	srv := &http.Server{
-		Addr:    ":8080",
+		Addr:    ":8080", // Change to a different port
 		Handler: logger,
 		// ReadTimeout:  10 * time.Second,
 		// WriteTimeout: 10 * time.Second,
@@ -144,6 +150,6 @@ func main() {
 	}
 
 	log.Println("Server listening on http://localhost:8080")
-
+	// log.Println("Server listening on http://localhost:8081")
 	log.Fatal(srv.ListenAndServe())
 }

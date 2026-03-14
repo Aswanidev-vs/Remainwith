@@ -18,6 +18,9 @@ type Userinfo struct {
 	Name     string
 	Email    string
 	Password string // store hashed password
+	// New Settings Features
+	EmailNotifications bool   `json:"email_notifications"`
+	PrivacyVisibility  string `json:"privacy_visibility"` // "public", "private", "contacts"
 }
 
 type Journal struct {
@@ -40,7 +43,7 @@ func GetUserByEmail(ctx context.Context, email string) (*Userinfo, error) {
 
 	err := config.DB.QueryRow(
 		ctx,
-		`SELECT id, name, email, password
+		`SELECT id, name, email, password, COALESCE(email_notifications, true), COALESCE(privacy_visibility, 'public')
          FROM users
          WHERE email = $1`,
 		email,
@@ -49,6 +52,8 @@ func GetUserByEmail(ctx context.Context, email string) (*Userinfo, error) {
 		&user.Name,
 		&user.Email,
 		&user.Password,
+		&user.EmailNotifications,
+		&user.PrivacyVisibility,
 	)
 
 	if err != nil {
@@ -288,6 +293,18 @@ func UpdateUserInfo(ctx context.Context, userID int, name, email string) error {
 	_, err := config.DB.Exec(ctx,
 		`UPDATE users SET name = $1, email = $2 WHERE id = $3`,
 		name, email, userID)
+	return err
+}
+
+func UpdateUserSettings(ctx context.Context, userID int, emailNotifications bool, privacyVisibility string) error {
+	_, err := config.DB.Exec(ctx,
+		`UPDATE users SET email_notifications = $1, privacy_visibility = $2 WHERE id = $3`,
+		emailNotifications, privacyVisibility, userID)
+	return err
+}
+
+func DeleteUserAccount(ctx context.Context, userID int) error {
+	_, err := config.DB.Exec(ctx, `DELETE FROM users WHERE id = $1`, userID)
 	return err
 }
 
