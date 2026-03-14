@@ -1,0 +1,16 @@
+./livekit_agent.pb.go
+./livekit_analytics.pb.go
+./livekit_analytics_grpc.pb.go
+./livekit_egress.pb.go
+./livekit_egress.twirp.go
+./livekit_ingress.pb.go
+./livekit_ingress.twirp.go
+./livekit_internal.pb.go
+./livekit_models.pb.go
+./livekit_room.pb.go
+./livekit_room.twirp.go
+./livekit_rtc.pb.go
+./livekit_sip.pb.go
+./livekit_sip.twirp.go
+./livekit_webhook.pb.go
+./types.go

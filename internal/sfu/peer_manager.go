@@ -112,7 +112,7 @@ func (pm *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent,
 		remoteTracksCh := tr.RemoteTracksChannel()
 		doneCh := tr.Done()
 
-		trackReceiveTimeout := time.NewTimer(15 * time.Second)
+		trackReceiveTimeout := time.NewTimer(30 * time.Second)
 		trackReceived := false
 
 		log.Printf("PeerManager: [TRACK RECEIVER] STARTED for client %s - waiting for tracks from channel", clientID)
@@ -225,7 +225,7 @@ func (pm *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent,
 
 			case <-trackReceiveTimeout.C:
 				if !trackReceived {
-					log.Printf("PeerManager: WARNING - No tracks received from client %s within 15 seconds. Check if browser is sending media tracks. Media may not work.", clientID)
+					log.Printf("PeerManager: WARNING - No tracks received from client %s within 30 seconds. Check if browser is sending media tracks. Media may not work.", clientID)
 				}
 
 			case <-doneCh:

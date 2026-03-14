@@ -5,7 +5,6 @@ import (
 	"html/template"
 	"log"
 	"net/http"
-	"strings"
 
 	"github.com/justinas/nosurf"
 )
@@ -32,49 +31,15 @@ func ProfilePageHandler(w http.ResponseWriter, r *http.Request) {
 		interests = []string{}
 	}
 
+	var successMsg string
+	var errorMsg string
+
 	if r.Method == http.MethodPost {
-		// Handle updating interests
-		err := r.ParseForm()
-		if err != nil {
-			log.Printf("Error parsing form: %v", err)
-			http.Error(w, "Bad request", http.StatusBadRequest)
-			return
-		}
-
-		// Verify session matches the form session to prevent cross-tab data overwrites
-		formSessionID := r.FormValue("session_id")
-		sessionID, _ := claims["session_id"].(string)
-		if formSessionID == "" || formSessionID != sessionID {
-			log.Printf("Session mismatch: Form session '%s' != Current session '%s'. Redirecting to refresh.", formSessionID, sessionID)
-			http.Redirect(w, r, "/profile", http.StatusSeeOther)
-			return
-		}
-
-		var interests []string
-		// Handle both multiple input values (checkboxes) and comma-separated strings
-		for _, v := range r.Form["interests"] {
-			parts := strings.Split(v, ",")
-			for _, part := range parts {
-				trimmed := strings.TrimSpace(part)
-				if trimmed != "" {
-					interests = append(interests, trimmed)
-				}
-			}
-		}
-
-		err = db.SaveUserInterestsByNames(r.Context(), userID, interests)
-		if err != nil {
-			log.Printf("Error saving interests: %v", err)
-			http.Error(w, "Failed to save interests", http.StatusInternalServerError)
-			return
-		}
-
-		// Redirect back to profile to show updated interests
-		http.Redirect(w, r, "/profile", http.StatusSeeOther)
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	// GET request: display profile
+	// GET request or after POST processing: display profile
 	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
 	w.Header().Set("Pragma", "no-cache")
 	w.Header().Set("Expires", "0")
@@ -89,6 +54,7 @@ func ProfilePageHandler(w http.ResponseWriter, r *http.Request) {
 		UserInterests []string
 		CSRFToken     string
 		Error         string
+		Success       string
 	}{
 		Name:          name,
 		Email:         email,
@@ -96,7 +62,8 @@ func ProfilePageHandler(w http.ResponseWriter, r *http.Request) {
 		SessionID:     sessionID,
 		UserInterests: interests,
 		CSRFToken:     nosurf.Token(r),
-		Error:         "",
+		Error:         errorMsg,
+		Success:       successMsg,
 	}
 
 	tmpl, err := template.ParseFiles("frontend/profile.tmpl")

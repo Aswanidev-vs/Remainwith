@@ -1,2 +1,5 @@
 .env
 tmp/*.exe
+tmp/*
+*.md
+!README.md

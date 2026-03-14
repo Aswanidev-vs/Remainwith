@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Settings - Remainwith</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Newsreader:ital,wght@0,300;0,400;0,700;1,300&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+
+    <style>
+    :root {
+        --font-display: "Newsreader", serif;
+        --font-sans: "Manrope", sans-serif;
+        --radius-md: 0.75rem;
+        --radius-lg: 1rem;
+        --primary: #7d8471;
+        --primary-light: rgba(125, 132, 113, 0.08);
+        --bg-body: #f7f7f7;
+        --card-bg: #ffffff;
+        --text-main: #292524;
+        --text-muted: #57534e;
+        --divider: #f5f5f4;
+        --shadow-soft: 0 4px 20px -2px rgba(45, 58, 48, 0.04);
+    }
+
+    [data-theme="dark"] {
+        --bg-body: #191a18;
+        --card-bg: #1c1917;
+        --text-main: #e7e5e4;
+        --text-muted: #a8a29e;
+        --divider: #292524;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font-sans); background: var(--bg-body); color: var(--text-main); line-height: 1.5; }
+
+    .app-layout {
+        display: grid;
+        grid-template-columns: 280px 1fr;
+        max-width: 1200px;
+        margin: 0 auto;
+        min-height: 100vh;
+    }
+
+    .sidebar {
+        padding: 3rem 2rem;
+        background: var(--card-bg);
+        border-right: 1px solid var(--divider);
+        position: sticky;
+        top: 0;
+        height: 100vh;
+    }
+
+    .brand-text { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; color: var(--primary); margin-bottom: 3rem; display: block; text-decoration: none; }
+
+    .nav-links { display: flex; flex-direction: column; gap: 0.75rem; }
+    .nav-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border-radius: var(--radius-md); color: var(--text-muted); text-decoration: none; font-weight: 500; transition: all 0.2s; }
+    .nav-item:hover { background: var(--primary-light); color: var(--primary); }
+    .nav-item.active { background: var(--primary); color: white; }
+
+    .main-content { padding: 4rem 3rem; }
+    .settings-grid { display: flex; flex-direction: column; gap: 3rem; max-width: 800px; }
+
+    .section-header { margin-bottom: 1.5rem; }
+    .section-title { font-family: var(--font-display); font-size: 2rem; font-weight: 500; }
+    .section-desc { color: var(--text-muted); font-size: 0.95rem; }
+
+    .settings-card { background: var(--card-bg); padding: 2rem; border-radius: var(--radius-lg); box-shadow: var(--shadow-soft); border: 1px solid var(--divider); }
+
+    .form-group { margin-bottom: 2rem; }
+    label { display: block; font-size: 0.9rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0.5rem; }
+    .input-field { width: 100%; padding: 0.75rem 1rem; border: 1.5px solid var(--divider); border-radius: var(--radius-md); background: transparent; color: var(--text-main); font-family: inherit; font-size: 1rem; outline: none; transition: border-color 0.2s; }
+    .input-field:focus { border-color: var(--primary); }
+
+    .toggle-group { display: flex; align-items: center; justify-content: space-between; padding: 1rem 0; border-bottom: 1px solid var(--divider); }
+    .toggle-group:last-child { border-bottom: none; }
+    .toggle-info h4 { font-size: 1rem; margin-bottom: 0.25rem; }
+    .toggle-info p { font-size: 0.85rem; color: var(--text-muted); }
+
+    .btn { padding: 0.75rem 2rem; border-radius: 2rem; font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; border: none; font-family: inherit; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-danger { background: #fef2f2; color: #991b1b; border: 1px solid #fee2e2; }
+    .btn-danger:hover { background: #fee2e2; }
+
+    .alert { padding: 1rem 1.5rem; border-radius: var(--radius-md); margin-bottom: 2rem; display: flex; align-items: center; gap: 0.75rem; font-weight: 500; }
+    .alert-success { background: #ecfdf5; color: #065f46; border: 1px solid #d1fae5; }
+    .alert-error { background: #fef2f2; color: #991b1b; border: 1px solid #fee2e2; }
+
+    @media (max-width: 900px) {
+        .app-layout { grid-template-columns: 1fr; }
+        .sidebar { display: none; }
+        .main-content { padding: 2rem; }
+    }
+    </style>
+</head>
+<body>
+
+<div class="app-layout">
+    <aside class="sidebar">
+        <a href="/" class="brand-text">Remainwith</a>
+        <nav class="nav-links">
+            <a href="/dashboard" class="nav-item">
+                <span class="material-symbols-outlined">dashboard</span>
+                Dashboard
+            </a>
+            <a href="/profile" class="nav-item">
+                <span class="material-symbols-outlined">person</span>
+                Public Profile
+            </a>
+            <a href="/settings" class="nav-item active">
+                <span class="material-symbols-outlined">settings</span>
+                Settings
+            </a>
+            <form action="/logout" method="POST" style="margin-top: auto;">
+                <button type="submit" class="nav-item" style="background: none; border: none; width: 100%; cursor: pointer;">
+                    <span class="material-symbols-outlined">logout</span>
+                    Logout
+                </button>
+            </form>
+        </nav>
+    </aside>
+
+    <main class="main-content">
+        <div class="settings-grid">
+            
+            <header class="section-header">
+                <h1 class="section-title">Settings</h1>
+                <p class="section-desc">Manage your account preferences and personal information.</p>
+            </header>
+
+            {{if .Success}}
+            <div class="alert alert-success">
+                <span class="material-symbols-outlined">check_circle</span>
+                {{.Success}}
+            </div>
+            {{end}}
+
+            {{if .Error}}
+            <div class="alert alert-error">
+                <span class="material-symbols-outlined">error</span>
+                {{.Error}}
+            </div>
+            {{end}}
+
+            <!-- Account Section -->
+            <section class="settings-card">
+                <div class="section-header">
+                    <h3>Account Information</h3>
+                    <p class="section-desc">Update your name and email address.</p>
+                </div>
+                <form action="/settings" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                    <input type="hidden" name="action" value="update_profile">
+                    <input type="hidden" name="session_id" value="{{.SessionID}}">
+
+                    <div class="form-group">
+                        <label>Full Name</label>
+                        <input type="text" name="name" value="{{.User.Name}}" class="input-field" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <input type="email" name="email" value="{{.User.Email}}" class="input-field" required>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </form>
+            </section>
+
+            <!-- Notification Section -->
+            <section class="settings-card">
+                <div class="section-header">
+                    <h3>Notifications</h3>
+                    <p class="section-desc">Choose how you want to be notified.</p>
+                </div>
+                <form action="/settings" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                    <input type="hidden" name="action" value="update_preferences">
+                    <input type="hidden" name="session_id" value="{{.SessionID}}">
+
+                    <div class="toggle-group">
+                        <div class="toggle-info">
+                            <h4>Email Notifications</h4>
+                            <p>Receive updates about your account and activity via email.</p>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" name="email_notifications" {{if .User.EmailNotifications}}checked{{end}}>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 2rem;">
+                        <label>Profile Visibility</label>
+                        <select name="privacy_visibility" class="input-field">
+                            <option value="public" {{if eq .User.PrivacyVisibility "public"}}selected{{end}}>Public (Everyone)</option>
+                            <option value="contacts" {{if eq .User.PrivacyVisibility "contacts"}}selected{{end}}>Contacts Only</option>
+                            <option value="private" {{if eq .User.PrivacyVisibility "private"}}selected{{end}}>Private (Only Me)</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">Update Preferences</button>
+                </form>
+            </section>
+
+            <!-- Danger Zone -->
+            <section class="settings-card" style="border-color: #fee2e2;">
+                <div class="section-header">
+                    <h3 style="color: #991b1b;">Danger Zone</h3>
+                    <p class="section-desc">Irreversible actions for your account.</p>
+                </div>
+                
+                <div class="toggle-group" style="border-bottom: none;">
+                    <div class="toggle-info">
+                        <h4>Delete Account</h4>
+                        <p>Permanently remove your account and all associated data.</p>
+                    </div>
+                    <form action="/settings" method="POST" onsubmit="return confirm('Wait! Are you absolutely sure? This action cannot be undone.')">
+                        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+                        <input type="hidden" name="action" value="delete_account">
+                        <input type="hidden" name="session_id" value="{{.SessionID}}">
+                        <button type="submit" class="btn btn-danger">Delete Account</button>
+                    </form>
+                </div>
+            </section>
+
+        </div>
+    </main>
+</div>
+
+</body>
+</html>

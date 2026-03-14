@@ -29,12 +29,20 @@ func LoginPageHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Template parsing failed", http.StatusInternalServerError)
 		return
 	}
+
+	successMsg := ""
+	if r.URL.Query().Get("status") == "password_reset_success" {
+		successMsg = "Your password has been reset successfully. You can now log in with your new password."
+	}
+
 	data := struct {
 		CSRFToken string
 		Error     string
+		Success   string
 	}{
 		CSRFToken: nosurf.Token(r),
 		Error:     "",
+		Success:   successMsg,
 	}
 	tmpl.Execute(w, data)
 }
@@ -61,9 +69,11 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		data := struct {
 			CSRFToken string
 			Error     string
+			Success   string
 		}{
 			CSRFToken: nosurf.Token(r),
 			Error:     "Invalid email or password",
+			Success:   "",
 		}
 		tmpl.Execute(w, data)
 		return
@@ -82,9 +92,11 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		data := struct {
 			CSRFToken string
 			Error     string
+			Success   string
 		}{
 			CSRFToken: nosurf.Token(r),
 			Error:     "Invalid email or password",
+			Success:   "",
 		}
 		tmpl.Execute(w, data)
 		return

@@ -12,9 +12,11 @@ require (
 	github.com/justinas/nosurf v1.2.0
 	github.com/livekit/protocol v1.9.7
 	github.com/pion/interceptor v0.1.40
+	github.com/pion/opus v0.0.0-20260122090349-7342caad2cf7
 	github.com/pion/rtcp v1.2.15
 	github.com/pion/rtp v1.8.20
 	github.com/pion/webrtc/v4 v4.1.3
+	github.com/wneessen/go-mail v0.7.2
 	golang.org/x/crypto v0.46.0
 	golang.org/x/time v0.14.0
 )
@@ -31,7 +33,6 @@ require (
 	github.com/pion/ice/v4 v4.0.10 // indirect
 	github.com/pion/logging v0.2.4 // indirect
 	github.com/pion/mdns/v2 v2.0.7 // indirect
-	github.com/pion/opus v0.0.0-20260122090349-7342caad2cf7 // indirect
 	github.com/pion/randutil v0.1.0 // indirect
 	github.com/pion/sctp v1.8.39 // indirect
 	github.com/pion/sdp/v3 v3.0.14 // indirect

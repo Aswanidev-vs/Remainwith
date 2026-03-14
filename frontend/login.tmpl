@@ -378,6 +378,12 @@
                 {{.Error}}
             </div>
             {{end}}
+            {{if .Success}}
+            <div class="success-message" style="background-color: #dcfce7; border: 1px solid #bbf7d0; color: #166534; padding: 0.75rem 1rem; border-radius: 0.5rem; font-size: 0.875rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                <span class="material-symbols-outlined" style="font-size: 1rem; flex-shrink: 0;">check_circle</span>
+                {{.Success}}
+            </div>
+            {{end}}
             <form action="/login" method="post" class="login-form">
                 <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
                 <div class="form-group">
@@ -388,6 +394,7 @@
                 <div class="form-group">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <label class="form-label" for="password">Password</label>
+                        <a href="/forgot-password" class="link-primary" style="font-size: 0.85rem; border-bottom: none;">Forgot password?</a>
                     </div>
                     <div class="password-input-container">
                         <input class="form-input" id="password" name="password" placeholder="••••••••" type="password" required/>

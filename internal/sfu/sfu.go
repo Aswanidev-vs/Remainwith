@@ -64,7 +64,9 @@ type Client struct {
 	lastActivity    time.Time
 	connectionState webrtc.PeerConnectionState
 	// Write channel for serializing WebSocket writes
-	writeCh chan interface{}
+	writeCh    chan interface{}
+	closed     chan struct{}
+	closedOnce sync.Once
 	// Preferred incoming video quality for this client.
 	receiveQuality string
 }
@@ -73,10 +75,10 @@ type Client struct {
 type pendingSub struct {
 	subscriptionKey string
 	sourceKey       string
-	pubTrack   pubsub.PubTrack
-	trackLocal *trackLocalImpl
-	rtcpReader *rtcpReaderImpl
-	rtpSender  *webrtc.RTPSender
+	pubTrack        pubsub.PubTrack
+	trackLocal      *trackLocalImpl
+	rtcpReader      *rtcpReaderImpl
+	rtpSender       *webrtc.RTPSender
 }
 
 type activeVideoSub struct {
@@ -124,6 +126,10 @@ func NewSFU() *SFU {
 		},
 		clients: make(map[string]*Client),
 	}
+}
+
+func sfuSessionKey(roomID, clientID string) string {
+	return roomID + ":" + clientID
 }
 
 // New creates a new SFU server (compatibility with existing code)
@@ -219,23 +225,26 @@ func (s *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		lastActivity:       time.Now(),
 		connectionState:    webrtc.PeerConnectionStateNew,
 		writeCh:            make(chan interface{}, 256),
+		closed:             make(chan struct{}),
 		receiveQuality:     "auto",
 	}
 
 	// Start dedicated write goroutine to serialize WebSocket writes
 	go s.writePump(client)
 
+	sessionKey := sfuSessionKey(roomID, clientID)
+
 	s.mu.Lock()
-	if existing, ok := s.clients[clientID]; ok {
-		log.Printf("SFU: Replacing existing client session for %s", clientID)
+	if existing, ok := s.clients[sessionKey]; ok {
+		log.Printf("SFU: Replacing existing client session for %s in room %s", clientID, roomID)
 		if existing.Conn != nil {
-			existing.Conn.Close()
+			_ = existing.Conn.Close()
 		}
 		if existing.Transport != nil {
-			existing.Transport.Close()
+			_ = existing.Transport.Close()
 		}
 	}
-	s.clients[clientID] = client
+	s.clients[sessionKey] = client
 	s.mu.Unlock()
 
 	log.Printf("SFU: Client %s joined room %s", clientID, roomID)
@@ -255,6 +264,12 @@ func (s *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Handle WebRTC signals
 	go s.handleSignals(client)
 
+	// Ensure abrupt transport shutdowns always evict the client session.
+	go func() {
+		<-webrtcTransport.Done()
+		s.shutdownClient(client)
+	}()
+
 	// Phase 9: Start connection monitoring
 	go s.monitorConnection(client)
 
@@ -264,26 +279,75 @@ func (s *SFU) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // writePump serializes WebSocket writes through a channel
 func (s *SFU) writePump(client *Client) {
-	for msg := range client.writeCh {
-		switch m := msg.(type) {
-		case string:
-			// Ping message
-			if err := client.Conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(sfuWriteWait)); err != nil {
-				log.Printf("SFU: Error sending ping to client %s: %v", client.ID, err)
-				return
-			}
-		default:
-			// JSON message
-			if err := client.Conn.SetWriteDeadline(time.Now().Add(sfuWriteWait)); err != nil {
-				log.Printf("SFU: Error setting write deadline for client %s: %v", client.ID, err)
-				return
-			}
-			if err := client.Conn.WriteJSON(m); err != nil {
-				log.Printf("SFU: Error writing to client %s: %v", client.ID, err)
-				return
+	for {
+		select {
+		case <-client.closed:
+			return
+		case msg := <-client.writeCh:
+			switch m := msg.(type) {
+			case string:
+				// Ping message
+				if err := client.Conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(sfuWriteWait)); err != nil {
+					log.Printf("SFU: Error sending ping to client %s: %v", client.ID, err)
+					s.shutdownClient(client)
+					return
+				}
+			default:
+				// JSON message
+				if err := client.Conn.SetWriteDeadline(time.Now().Add(sfuWriteWait)); err != nil {
+					log.Printf("SFU: Error setting write deadline for client %s: %v", client.ID, err)
+					s.shutdownClient(client)
+					return
+				}
+				if err := client.Conn.WriteJSON(m); err != nil {
+					log.Printf("SFU: Error writing to client %s: %v", client.ID, err)
+					s.shutdownClient(client)
+					return
+				}
 			}
 		}
 	}
+}
+
+func (s *SFU) enqueueClientMessage(client *Client, msg interface{}, reason string) bool {
+	select {
+	case <-client.closed:
+		return false
+	case <-client.Transport.Done():
+		return false
+	default:
+	}
+
+	select {
+	case <-client.closed:
+		return false
+	case <-client.Transport.Done():
+		return false
+	case client.writeCh <- msg:
+		return true
+	default:
+		log.Printf("SFU: Failed to queue %s for client %s: write channel full", reason, client.ID)
+		return false
+	}
+}
+
+func (s *SFU) shutdownClient(client *Client) {
+	client.closedOnce.Do(func() {
+		sessionKey := sfuSessionKey(client.RoomID, client.ID)
+
+		s.mu.Lock()
+		if current, ok := s.clients[sessionKey]; ok && current == client {
+			delete(s.clients, sessionKey)
+		}
+		s.mu.Unlock()
+
+		close(client.closed)
+		_ = client.Conn.Close()
+		if err := client.Transport.Close(); err != nil {
+			log.Printf("SFU: Error closing transport for client %s: %v", client.ID, err)
+		}
+		log.Printf("SFU: Client %s disconnected and cleanup completed", client.ID)
+	})
 }
 
 // Phase 9: monitorConnection monitors the peer connection state and handles recovery
@@ -332,10 +396,7 @@ func (s *SFU) monitorConnection(client *Client) {
 			if inactive && state != webrtc.PeerConnectionStateClosed {
 				log.Printf("SFU: Client %s inactive for 60 seconds, checking health", client.ID)
 				// Send a keepalive ping via WebSocket
-				select {
-				case client.writeCh <- "ping":
-				default:
-					log.Printf("SFU: Failed to queue ping for client %s", client.ID)
+				if !s.enqueueClientMessage(client, "ping", "keepalive ping") {
 					client.mu.Unlock()
 					return
 				}
@@ -389,6 +450,10 @@ func (s *SFU) handleConnectionFailure(client *Client) {
 	}
 
 	select {
+	case <-client.closed:
+		log.Printf("SFU: Client %s closed before ICE restart offer could be sent", client.ID)
+	case <-client.Transport.Done():
+		log.Printf("SFU: Transport already closed for client %s before ICE restart offer could be sent", client.ID)
 	case client.writeCh <- msg:
 		log.Printf("SFU: Sent ICE restart offer to client %s", client.ID)
 	default:
@@ -417,12 +482,7 @@ func (s *SFU) waitForRecovery(client *Client) {
 
 // closeClient closes a client connection cleanly
 func (s *SFU) closeClient(client *Client) {
-	s.mu.Lock()
-	delete(s.clients, client.ID)
-	s.mu.Unlock()
-
-	client.Conn.Close()
-	client.Transport.Close()
+	s.shutdownClient(client)
 	log.Printf("SFU: Closed client %s connection", client.ID)
 }
 
@@ -439,6 +499,10 @@ func (s *SFU) handlePubTrackEvents(client *Client, eventsCh <-chan pubsub.PubTra
 		}
 
 		select {
+		case <-client.closed:
+			return
+		case <-client.Transport.Done():
+			return
 		case client.writeCh <- msg:
 		default:
 			log.Printf("SFU: WARNING - dropping pub track event for client %s: write channel full", client.ID)
@@ -562,6 +626,10 @@ func (s *SFU) processQueuedTrackEvents(client *Client) {
 		}
 
 		select {
+		case <-client.closed:
+			return
+		case <-client.Transport.Done():
+			return
 		case client.writeCh <- msg:
 			client.awaitingAnswer = true
 			log.Printf("SFU: Sent batch renegotiation offer to client %s", client.ID)
@@ -647,6 +715,10 @@ func (s *SFU) processQueuedRenegotiationEvents(client *Client) {
 	}
 
 	select {
+	case <-client.closed:
+		return
+	case <-client.Transport.Done():
+		return
 	case client.writeCh <- msg:
 		client.awaitingAnswer = true
 		log.Printf("SFU: Sent queued renegotiation offer to client %s", client.ID)
@@ -808,7 +880,7 @@ func (s *SFU) addTrackInternal(client *Client, pubTrack pubsub.PubTrack) (*webrt
 	}
 
 	// Route RTCP feedback for this subscribed track back to its publisher.
-	go s.processRTCP(rtpSender, pubTrack)
+	go s.processRTCP(client.RoomID, rtpSender, pubTrack)
 
 	return rtpSender, nil
 }
@@ -844,6 +916,14 @@ func (s *SFU) addTrackToClient(client *Client, pubTrack pubsub.PubTrack) {
 	}
 
 	select {
+	case <-client.closed:
+		delete(client.pendingSubs, subscriptionKeyForTrack(pubTrack))
+		client.Transport.GetPeerConnection().RemoveTrack(rtpSender)
+		return
+	case <-client.Transport.Done():
+		delete(client.pendingSubs, subscriptionKeyForTrack(pubTrack))
+		client.Transport.GetPeerConnection().RemoveTrack(rtpSender)
+		return
 	case client.writeCh <- msg:
 		client.awaitingAnswer = true
 		log.Printf("SFU: Sent renegotiation offer to client %s for track %s", client.ID, pubTrack.TrackID)
@@ -890,7 +970,7 @@ func (s *SFU) switchActiveVideoLayer(client *Client, active *activeVideoSub, nex
 	}
 	client.mu.Unlock()
 
-	s.requestKeyframe(nextTrack.ClientID, nextTrack.TrackID)
+	s.requestKeyframe(client.RoomID, nextTrack.ClientID, nextTrack.TrackID)
 }
 
 // completePendingSubscriptions completes pending track subscriptions after answer is received
@@ -939,7 +1019,7 @@ func (s *SFU) completePendingSubscriptions(client *Client) {
 					rtpSender:       pending.rtpSender,
 				}
 				log.Printf("SFU: [COMPLETE PENDING] Requesting keyframe for video track %s from %s", pending.pubTrack.TrackID, pending.pubTrack.ClientID)
-				s.requestKeyframe(pending.pubTrack.ClientID, pending.pubTrack.TrackID)
+				s.requestKeyframe(client.RoomID, pending.pubTrack.ClientID, pending.pubTrack.TrackID)
 			}
 		}
 
@@ -951,13 +1031,13 @@ func (s *SFU) completePendingSubscriptions(client *Client) {
 }
 
 // requestKeyframe sends a PLI to the publisher to request a keyframe
-func (s *SFU) requestKeyframe(pubClientID, trackID string) {
+func (s *SFU) requestKeyframe(roomID, pubClientID, trackID string) {
 	s.mu.RLock()
-	pubClient, ok := s.clients[pubClientID]
+	pubClient, ok := s.clients[sfuSessionKey(roomID, pubClientID)]
 	s.mu.RUnlock()
 
 	if !ok {
-		log.Printf("SFU: Cannot request keyframe - publisher %s not found", pubClientID)
+		log.Printf("SFU: Cannot request keyframe - publisher %s not found in room %s", pubClientID, roomID)
 		return
 	}
 
@@ -976,13 +1056,13 @@ func (s *SFU) requestKeyframe(pubClientID, trackID string) {
 	if err := pc.WriteRTCP([]rtcp.Packet{pli}); err != nil {
 		log.Printf("SFU: Error requesting keyframe from %s: %v", pubClientID, err)
 	} else {
-		log.Printf("SFU: Successfully requested keyframe from %s for track %s", pubClientID, trackID)
+		log.Printf("SFU: Successfully requested keyframe from %s for track %s in room %s", pubClientID, trackID, roomID)
 	}
 }
 
 // processRTCP processes RTCP packets for a sender and forwards PLI to publisher
 
-func (s *SFU) processRTCP(rtpSender *webrtc.RTPSender, pubTrack pubsub.PubTrack) {
+func (s *SFU) processRTCP(roomID string, rtpSender *webrtc.RTPSender, pubTrack pubsub.PubTrack) {
 	rtcpBuf := make([]byte, 1500)
 	for {
 		n, _, err := rtpSender.Read(rtcpBuf)
@@ -1001,7 +1081,7 @@ func (s *SFU) processRTCP(rtpSender *webrtc.RTPSender, pubTrack pubsub.PubTrack)
 			case *rtcp.PictureLossIndication:
 				log.Printf("SFU: Received PLI from subscriber for track %s (publisher %s, SSRC %d)",
 					pubTrack.TrackID, pubTrack.ClientID, p.MediaSSRC)
-				s.requestKeyframe(pubTrack.ClientID, pubTrack.TrackID)
+				s.requestKeyframe(roomID, pubTrack.ClientID, pubTrack.TrackID)
 			case *rtcp.ReceiverEstimatedMaximumBitrate:
 				log.Printf("SFU: Received REMB from subscriber: %f bps", p.Bitrate)
 			case *rtcp.TransportLayerNack:
@@ -1158,6 +1238,10 @@ func (s *SFU) handleSignals(client *Client) {
 		}
 
 		select {
+		case <-client.closed:
+			return
+		case <-client.Transport.Done():
+			return
 		case client.writeCh <- msg:
 		default:
 			log.Printf("SFU: Error sending signal: write channel full")
@@ -1172,19 +1256,8 @@ func (s *SFU) handleClientMessages(client *Client) {
 	done := make(chan struct{})
 
 	defer func() {
-		s.mu.Lock()
-		if current, ok := s.clients[client.ID]; ok && current == client {
-			delete(s.clients, client.ID)
-		}
-		s.mu.Unlock()
-
-		// Close signaling channel and connection
 		close(done)
-		close(client.writeCh)
-		client.Conn.Close()
-
-		client.Transport.Close()
-		log.Printf("SFU: Client %s disconnected and cleanup completed", client.ID)
+		s.shutdownClient(client)
 	}()
 
 	// Set up ping ticker to keep connection alive
@@ -1200,10 +1273,7 @@ func (s *SFU) handleClientMessages(client *Client) {
 		for {
 			select {
 			case <-pingTicker.C:
-				select {
-				case client.writeCh <- "ping":
-				default:
-					log.Printf("SFU: Error sending ping to client %s: write channel full", client.ID)
+				if !s.enqueueClientMessage(client, "ping", "ping") {
 					return
 				}
 			case <-done:
@@ -1233,11 +1303,8 @@ func (s *SFU) handleClientMessages(client *Client) {
 
 				// Signal the client to reconnect by sending a special message
 				// The client should handle this and reconnect
-				select {
-				case client.writeCh <- SignalMessage{Type: "reconnect", ClientID: client.ID}:
+				if s.enqueueClientMessage(client, SignalMessage{Type: "reconnect", ClientID: client.ID}, "reconnect signal") {
 					log.Printf("SFU: Sent reconnect signal to client %s", client.ID)
-				default:
-					// Write channel full, just break
 				}
 			}
 
@@ -1309,7 +1376,12 @@ func (s *SFU) handleOffer(client *Client, msg SignalMessage) {
 
 	// Process any queued track events that arrived before the initial connection
 	if wasInitial {
-		s.processQueuedTrackEvents(client)
+		// Execute in a goroutine with a delay to allow the client to process the Answer first.
+		// This prevents race conditions where the client receives a new Offer before the Answer processing is complete.
+		go func() {
+			time.Sleep(1 * time.Second)
+			s.processQueuedTrackEvents(client)
+		}()
 	}
 }
 

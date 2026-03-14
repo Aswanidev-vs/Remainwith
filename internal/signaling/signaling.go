@@ -38,13 +38,46 @@ type ActiveSpeakerInfo struct {
 	IsSpeaking bool    `json:"is_speaking"`
 }
 
+type signalingConn struct {
+	conn    *websocket.Conn
+	writeMu sync.Mutex
+}
+
+func (c *signalingConn) WriteJSON(msg interface{}) error {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+
+	if err := c.conn.SetWriteDeadline(time.Now().Add(signalingWriteWait)); err != nil {
+		return err
+	}
+
+	return c.conn.WriteJSON(msg)
+}
+
+func (c *signalingConn) WritePing() error {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+
+	return c.conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(signalingWriteWait))
+}
+
+func (c *signalingConn) Close() error {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+	return c.conn.Close()
+}
+
+func signalingSessionKey(roomID, userID string) string {
+	return roomID + ":" + userID
+}
+
 // SignalingServer handles WebRTC signaling
 type SignalingServer struct {
-	upgrader websocket.Upgrader
-	clients  map[string]*websocket.Conn            // userID -> conn
-	rooms    map[string]map[string]*websocket.Conn // roomID -> userID -> conn
+	upgrader      websocket.Upgrader
+	clients       map[string]*signalingConn            // userID -> conn
+	rooms         map[string]map[string]*signalingConn // roomID -> userID -> conn
 	offlineTimers map[string]*time.Timer
-	mu       sync.RWMutex
+	mu            sync.RWMutex
 }
 
 // NewSignalingServer creates a new signaling server
@@ -55,8 +88,8 @@ func NewSignalingServer() *SignalingServer {
 				return true // Allow all origins for now
 			},
 		},
-		clients:       make(map[string]*websocket.Conn),
-		rooms:         make(map[string]map[string]*websocket.Conn),
+		clients:       make(map[string]*signalingConn),
+		rooms:         make(map[string]map[string]*signalingConn),
 		offlineTimers: make(map[string]*time.Timer),
 	}
 
@@ -78,6 +111,7 @@ func (s *SignalingServer) HandleConnection(w http.ResponseWriter, r *http.Reques
 		log.Printf("Failed to upgrade connection: %v", err)
 		return
 	}
+	clientConn := &signalingConn{conn: conn}
 
 	if err := conn.SetReadDeadline(time.Now().Add(signalingPongWait)); err != nil {
 		log.Printf("Failed to set initial signaling read deadline: %v", err)
@@ -86,36 +120,36 @@ func (s *SignalingServer) HandleConnection(w http.ResponseWriter, r *http.Reques
 		return conn.SetReadDeadline(time.Now().Add(signalingPongWait))
 	})
 
-	sessionKey := roomID + ":" + userID
+	sessionKey := signalingSessionKey(roomID, userID)
 
 	s.mu.Lock()
 	if timer := s.offlineTimers[sessionKey]; timer != nil {
 		timer.Stop()
 		delete(s.offlineTimers, sessionKey)
 	}
-	if existing := s.clients[userID]; existing != nil {
-		existing.Close()
+	if existing := s.clients[sessionKey]; existing != nil {
+		_ = existing.Close()
 	}
 	if existingRoomClients := s.rooms[roomID]; existingRoomClients != nil {
 		if existing := existingRoomClients[userID]; existing != nil {
-			existing.Close()
+			_ = existing.Close()
 		}
 	}
-	s.clients[userID] = conn
+	s.clients[sessionKey] = clientConn
 	if s.rooms[roomID] == nil {
-		s.rooms[roomID] = make(map[string]*websocket.Conn)
+		s.rooms[roomID] = make(map[string]*signalingConn)
 	}
-	s.rooms[roomID][userID] = conn
+	s.rooms[roomID][userID] = clientConn
 	s.mu.Unlock()
 
 	log.Printf("User %s joined room %s", userID, roomID)
 
 	// Handle messages
-	go s.handleMessages(conn, userID, roomID)
+	go s.handleMessages(clientConn, userID, roomID)
 }
 
 // handleMessages processes incoming WebSocket messages
-func (s *SignalingServer) handleMessages(conn *websocket.Conn, userID, roomID string) {
+func (s *SignalingServer) handleMessages(conn *signalingConn, userID, roomID string) {
 	done := make(chan struct{})
 	pingTicker := time.NewTicker(signalingPingPeriod)
 	defer pingTicker.Stop()
@@ -124,7 +158,7 @@ func (s *SignalingServer) handleMessages(conn *websocket.Conn, userID, roomID st
 		for {
 			select {
 			case <-pingTicker.C:
-				if err := conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(signalingWriteWait)); err != nil {
+				if err := conn.WritePing(); err != nil {
 					return
 				}
 			case <-done:
@@ -135,9 +169,10 @@ func (s *SignalingServer) handleMessages(conn *websocket.Conn, userID, roomID st
 
 	defer func() {
 		close(done)
+		sessionKey := signalingSessionKey(roomID, userID)
 		s.mu.Lock()
-		if current, exists := s.clients[userID]; exists && current == conn {
-			delete(s.clients, userID)
+		if current, exists := s.clients[sessionKey]; exists && current == conn {
+			delete(s.clients, sessionKey)
 		}
 		if roomClients, exists := s.rooms[roomID]; exists {
 			if current, ok := roomClients[userID]; ok && current == conn {
@@ -151,13 +186,13 @@ func (s *SignalingServer) handleMessages(conn *websocket.Conn, userID, roomID st
 
 		s.scheduleOfflineTransition(roomID, userID, conn)
 
-		conn.Close()
+		_ = conn.Close()
 		log.Printf("User %s left room %s", userID, roomID)
 	}()
 
 	for {
 		var msg SignalMessage
-		err := conn.ReadJSON(&msg)
+		err := conn.conn.ReadJSON(&msg)
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure, websocket.CloseNoStatusReceived) {
 				log.Printf("User %s signaling socket closed unexpectedly in room %s: %v", userID, roomID, err)
@@ -174,8 +209,8 @@ func (s *SignalingServer) handleMessages(conn *websocket.Conn, userID, roomID st
 	}
 }
 
-func (s *SignalingServer) scheduleOfflineTransition(roomID, userID string, conn *websocket.Conn) {
-	sessionKey := roomID + ":" + userID
+func (s *SignalingServer) scheduleOfflineTransition(roomID, userID string, conn *signalingConn) {
+	sessionKey := signalingSessionKey(roomID, userID)
 
 	s.mu.Lock()
 	if timer := s.offlineTimers[sessionKey]; timer != nil {
@@ -184,7 +219,7 @@ func (s *SignalingServer) scheduleOfflineTransition(roomID, userID string, conn 
 
 	s.offlineTimers[sessionKey] = time.AfterFunc(signalingLeaveGrace, func() {
 		s.mu.Lock()
-		currentConn := s.clients[userID]
+		currentConn := s.clients[sessionKey]
 		if currentConn != nil && currentConn != conn {
 			delete(s.offlineTimers, sessionKey)
 			s.mu.Unlock()
