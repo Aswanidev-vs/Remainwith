@@ -150,6 +150,6 @@ func main() {
 	}
 
 	log.Println("Server listening on http://localhost:8080")
-	// log.Println("Server listening on http://localhost:8081")
+
 	log.Fatal(srv.ListenAndServe())
 }
