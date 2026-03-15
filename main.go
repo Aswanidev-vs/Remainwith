@@ -129,6 +129,23 @@ func main() {
 	router.Handle("/profile/", handler.JWTMiddleware(handler.CSRFMiddleware()(http.HandlerFunc(handler.ProfilePageHandler))))
 
 	// Start session cleanup goroutine
+	// Initialize Group Tables
+	if err := db.InitGroupTables(context.Background()); err != nil {
+		log.Fatalf("Failed to initialize group tables: %v", err)
+	}
+
+	// Group API Routes
+	router.HandleFunc("/api/groups/create", chat.CreateGroupHandler)
+	router.HandleFunc("/api/groups/my", chat.GetMyGroupsHandler)
+	router.HandleFunc("/api/groups/public", chat.GetPublicGroupsHandler)
+	router.HandleFunc("/api/groups/join", chat.JoinPublicGroupHandler)
+	router.HandleFunc("/api/groups/join-code", chat.JoinByCodeHandler)
+	router.HandleFunc("/api/groups/remove-member", chat.RemoveMemberHandler)
+	router.HandleFunc("/api/groups/delete", chat.DeleteGroupHandler)
+	router.HandleFunc("/api/groups/leave", chat.LeaveGroupHandler)
+	router.HandleFunc("/api/groups/members", chat.GetGroupMembersHandler)
+	router.HandleFunc("/api/groups/regenerate-code", chat.RegenerateCodeHandler)
+
 	go func() {
 		ticker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()
@@ -150,6 +167,6 @@ func main() {
 	}
 
 	log.Println("Server listening on http://localhost:8080")
-	// log.Println("Server listening on http://localhost:8081")
+
 	log.Fatal(srv.ListenAndServe())
 }
