@@ -5,6 +5,7 @@ import (
 	"Remainwith/db"
 	"Remainwith/internal/about"
 	"Remainwith/internal/chat"
+	"Remainwith/internal/chat_history"
 	"Remainwith/internal/handler"
 	"Remainwith/internal/message"
 	"Remainwith/internal/sfu"
@@ -88,6 +89,7 @@ func main() {
 	router.Handle("GET /campfire", http.HandlerFunc(chat.CampfirePageHandler))
 
 	router.Handle("GET /campfire/chat", handler.JWTMiddleware(http.HandlerFunc(chat.ChatPageHandler)))
+	router.Handle("GET /api/chat/history", handler.JWTMiddleware(http.HandlerFunc(chat_history.ChatHistoryHandler)))
 
 	// Interests API routes
 	router.HandleFunc("GET /api/interests", handler.GetInterestsHandler)
@@ -100,6 +102,7 @@ func main() {
 
 	// Websocket routes
 	router.HandleFunc("/ws", hub.HandleConnection)
+	router.Handle("GET /ws/chat", handler.JWTMiddleware(http.HandlerFunc(chat.ChatHandler)))
 
 	router.Handle("GET /campfire/video", handler.JWTMiddleware(http.HandlerFunc(handler.VideoHandler)))
 
@@ -133,18 +136,21 @@ func main() {
 	if err := db.InitGroupTables(context.Background()); err != nil {
 		log.Fatalf("Failed to initialize group tables: %v", err)
 	}
+	if err := db.InitMessageTable(context.Background()); err != nil {
+		log.Fatalf("Failed to initialize message tables: %v", err)
+	}
 
 	// Group API Routes
-	router.HandleFunc("/api/groups/create", chat.CreateGroupHandler)
-	router.HandleFunc("/api/groups/my", chat.GetMyGroupsHandler)
-	router.HandleFunc("/api/groups/public", chat.GetPublicGroupsHandler)
-	router.HandleFunc("/api/groups/join", chat.JoinPublicGroupHandler)
-	router.HandleFunc("/api/groups/join-code", chat.JoinByCodeHandler)
-	router.HandleFunc("/api/groups/remove-member", chat.RemoveMemberHandler)
-	router.HandleFunc("/api/groups/delete", chat.DeleteGroupHandler)
-	router.HandleFunc("/api/groups/leave", chat.LeaveGroupHandler)
-	router.HandleFunc("/api/groups/members", chat.GetGroupMembersHandler)
-	router.HandleFunc("/api/groups/regenerate-code", chat.RegenerateCodeHandler)
+	router.Handle("/api/groups/create", handler.JWTMiddleware(http.HandlerFunc(chat.CreateGroupHandler)))
+	router.Handle("/api/groups/my", handler.JWTMiddleware(http.HandlerFunc(chat.GetMyGroupsHandler)))
+	router.Handle("/api/groups/public", handler.JWTMiddleware(http.HandlerFunc(chat.GetPublicGroupsHandler)))
+	router.Handle("/api/groups/join", handler.JWTMiddleware(http.HandlerFunc(chat.JoinPublicGroupHandler)))
+	router.Handle("/api/groups/join-code", handler.JWTMiddleware(http.HandlerFunc(chat.JoinByCodeHandler)))
+	router.Handle("/api/groups/remove-member", handler.JWTMiddleware(http.HandlerFunc(chat.RemoveMemberHandler)))
+	router.Handle("/api/groups/delete", handler.JWTMiddleware(http.HandlerFunc(chat.DeleteGroupHandler)))
+	router.Handle("/api/groups/leave", handler.JWTMiddleware(http.HandlerFunc(chat.LeaveGroupHandler)))
+	router.Handle("/api/groups/members", handler.JWTMiddleware(http.HandlerFunc(chat.GetGroupMembersHandler)))
+	router.Handle("/api/groups/regenerate-code", handler.JWTMiddleware(http.HandlerFunc(chat.RegenerateCodeHandler)))
 
 	go func() {
 		ticker := time.NewTicker(5 * time.Minute)

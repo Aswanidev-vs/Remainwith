@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Groups - Remainwith</title>
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Newsreader&family=Noto+Sans&display=swap" rel="stylesheet"/>
+
+    <style>
+        :root {
+            --primary: #7d8471;
+            --bg-body: #f7f7f7;
+            --card-bg: #ffffff;
+            --card-border: #e7e5e4;
+            --text-main: #292524;
+            --divider: #f5f5f4;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+        }
+
+        body {
+            background: var(--bg-body);
+            font-family: "Noto Sans", sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h2 { margin-bottom: 10px; }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: var(--radius-md);
+            cursor: pointer;
+        }
+
+        .btn-secondary {
+            border: 1px solid var(--card-border);
+            padding: 10px 16px;
+            border-radius: var(--radius-md);
+            background: white;
+            cursor: pointer;
+        }
+
+        .group-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: var(--radius-lg);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+        }
+
+        .modal.visible {
+            display: block;
+        }
+
+        .modal-content {
+            background: white;
+            margin: 10% auto;
+            padding: 20px;
+            width: 90%;
+            max-width: 400px;
+            border-radius: var(--radius-lg);
+        }
+
+        .close-modal {
+            float: right;
+            cursor: pointer;
+            font-size: 20px;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .toggle-label {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>Create Group</h2>
+    <button id="new-group-btn" class="btn-primary">Create New Group</button>
+
+    <h2>Join Group</h2>
+    <button id="open-join-modal-btn" class="btn-primary">Join with Code</button>
+
+    <h2>My Groups</h2>
+    <div id="my-groups-list">Loading...</div>
+
+    <h2>Public Groups</h2>
+    <div id="public-groups-list">Loading...</div>
+
+    <h2>People with Similar Interests</h2>
+    <div id="interests-people-list">Loading...</div>
+
+    <!-- ================= CREATE GROUP MODAL ================= -->
+    <div id="groupModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h3>Create Group</h3>
+
+            <input type="text" id="groupNameInput" placeholder="Enter group name"/>
+
+            <div class="toggle-label">
+                <label>
+                    <input type="checkbox" id="groupPrivateToggle"/>
+                    Private Group
+                </label>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-secondary cancel-btn">Cancel</button>
+                <button id="create-btn" class="btn-primary">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= JOIN GROUP MODAL ================= -->
+    <div id="joinCodeModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <h3>Join Group</h3>
+
+            <input type="text" id="joinCodeInput" maxlength="8" placeholder="Enter join code"/>
+
+            <div class="modal-actions">
+                <button class="btn-secondary cancel-btn">Cancel</button>
+                <button id="join-code-btn" class="btn-primary">Join</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CSRF -->
+    <input type="hidden" id="csrf-token" value="{{.CSRFToken}}">
+
+    <!-- SCRIPT -->
+    <script src="/static/js/groups.js"></script>
+
+</body>
+</html>

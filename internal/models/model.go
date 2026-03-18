@@ -4,9 +4,9 @@ import "time"
 
 type Message struct {
 	ID         uint
-	SenderID   string
+	SenderID   string `json:\"senderID,string\"`
 	SenderName string
-	ReceiverID string
+	ReceiverID string `json:\"receiverID,string\"`
 	Content    string
 	IsGroup    bool
 	CreatedAt  time.Time

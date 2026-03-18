@@ -1407,6 +1407,10 @@
         const createdRoomIdDiv = document.getElementById('createdRoomId');
         const roomIdText = document.getElementById('roomIdText');
         const joinRoomIdInput = document.getElementById('joinRoomId');
+        const pageParams = new URLSearchParams(window.location.search);
+        const autoRoomName = pageParams.get('room_name');
+        const autoRoomLabel = pageParams.get('room_label');
+        const initialCallMode = pageParams.get('mode') === 'audio' ? 'audio' : 'video';
 
         let localStream = null;
         let pc = null; // Peer connection to SFU
@@ -1424,6 +1428,7 @@
         let screenStream = null;
         let cameraVideoTrack = null;
         let videoSender = null;
+        let callMode = initialCallMode;
         let selectedQuality = 'auto';
         let selectedReceiveQuality = 'auto';
         let statsInterval = null;
@@ -2082,7 +2087,7 @@
             videoStage.style.display = 'flex';
             
             // Update header
-            document.querySelector('.participant-info h2').textContent = 'Room: ' + roomID;
+            document.querySelector('.participant-info h2').textContent = autoRoomLabel ? autoRoomLabel : 'Room: ' + roomID;
             
             // Start local stream first
             await startLocalStream();
@@ -2619,7 +2624,7 @@
             try {
                 console.log('Requesting user media...');
                 localStream = await navigator.mediaDevices.getUserMedia({ 
-    video: videoConstraints, 
+    video: callMode === 'audio' ? false : videoConstraints, 
     audio: audioConstraints 
 });
                 cameraVideoTrack = localStream.getVideoTracks()[0] || null;
@@ -3516,7 +3521,21 @@
             console.log('💡 Tip: Use window.debugVideoCall() in console to see current participant count');
         }
 
+        if (callMode === 'audio') {
+            btnCam.style.display = 'none';
+            btnShare.style.display = 'none';
+        }
+
         init();
+
+        if (autoRoomName) {
+            roomID = autoRoomName;
+            joinRoomIdInput.value = autoRoomName;
+            startVideoCall().catch((error) => {
+                console.error('Auto-start call failed:', error);
+                alert('Could not join the call automatically. ' + error.message);
+            });
+        }
 
 
     </script>

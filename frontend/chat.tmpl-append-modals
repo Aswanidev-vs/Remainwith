@@ -1,0 +1,13 @@
+<!-- Append our modals -->
+  <!-- New Group Modal -->
+  <div id="create-group-modal" class="modal">
+    <div class="modal-content">
+      <span class="close-modal">&times;</span>
+      <h3>Create New Group</h3>
+      <input type="text" id="group-name" placeholder="Group name" />
+      <label>
+        <input type="checkbox" id="is-public" /> Public group
+      </label>
+      <button id="create-btn" class="btn-primary">Create</button>
+    </div>
+  </div>

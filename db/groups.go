@@ -50,6 +50,51 @@ func InitGroupTables(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to create group tables: %w", err)
 	}
+
+	// Migrate older databases that were created before the latest group fields existed.
+	_, err = config.DB.Exec(ctx, `
+		ALTER TABLE chat_groups ADD COLUMN IF NOT EXISTS is_private BOOLEAN DEFAULT FALSE;
+		ALTER TABLE chat_groups ADD COLUMN IF NOT EXISTS invite_code TEXT;
+		ALTER TABLE chat_groups ADD COLUMN IF NOT EXISTS creator_id INT REFERENCES users(id) ON DELETE CASCADE;
+		ALTER TABLE chat_groups ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+
+		ALTER TABLE group_members ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'member';
+		ALTER TABLE group_members ADD COLUMN IF NOT EXISTS joined_at TIMESTAMPTZ DEFAULT NOW();
+
+		CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_groups_invite_code_unique
+		ON chat_groups(invite_code)
+		WHERE invite_code IS NOT NULL;
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to migrate group tables: %w", err)
+	}
+
+	_, err = config.DB.Exec(ctx, `
+		UPDATE chat_groups g
+		SET creator_id = admin.user_id
+		FROM (
+			SELECT DISTINCT ON (gm.group_id) gm.group_id, gm.user_id
+			FROM group_members gm
+			WHERE gm.role = 'admin'
+			ORDER BY gm.group_id, gm.joined_at ASC NULLS LAST, gm.user_id ASC
+		) AS admin
+		WHERE g.id = admin.group_id
+		  AND g.creator_id IS NULL;
+
+		UPDATE chat_groups g
+		SET creator_id = member.user_id
+		FROM (
+			SELECT DISTINCT ON (gm.group_id) gm.group_id, gm.user_id
+			FROM group_members gm
+			ORDER BY gm.group_id, gm.joined_at ASC NULLS LAST, gm.user_id ASC
+		) AS member
+		WHERE g.id = member.group_id
+		  AND g.creator_id IS NULL;
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to backfill group creators: %w", err)
+	}
+
 	return nil
 }
 
@@ -95,7 +140,7 @@ func CreateGroup(ctx context.Context, name string, isPrivate bool, creatorID int
 // GetUserGroups retrieves all groups a user belongs to.
 func GetUserGroups(ctx context.Context, userID int) ([]Group, error) {
 	rows, err := config.DB.Query(ctx, `
-		SELECT g.id, g.name, g.is_private, g.invite_code, g.creator_id
+		SELECT g.id, g.name, g.is_private, COALESCE(g.invite_code, ''), COALESCE(g.creator_id, 0)
 		FROM chat_groups g
 		JOIN group_members gm ON g.id = gm.group_id
 		WHERE gm.user_id = $1
@@ -120,7 +165,7 @@ func GetUserGroups(ctx context.Context, userID int) ([]Group, error) {
 // GetPublicGroups retrieves all public groups.
 func GetPublicGroups(ctx context.Context) ([]Group, error) {
 	rows, err := config.DB.Query(ctx, `
-		SELECT id, name, is_private, invite_code, creator_id
+		SELECT id, name, is_private, COALESCE(invite_code, ''), COALESCE(creator_id, 0)
 		FROM chat_groups
 		WHERE is_private = FALSE
 		ORDER BY created_at DESC
@@ -155,7 +200,7 @@ func JoinGroup(ctx context.Context, groupID, userID int) error {
 func JoinGroupByCode(ctx context.Context, code string, userID int) (*Group, error) {
 	var g Group
 	err := config.DB.QueryRow(ctx, `
-		SELECT id, name, is_private, invite_code, creator_id
+		SELECT id, name, is_private, COALESCE(invite_code, ''), COALESCE(creator_id, 0)
 		FROM chat_groups
 		WHERE invite_code = $1
 	`, code).Scan(&g.ID, &g.Name, &g.IsPrivate, &g.InviteCode, &g.CreatorID)
