@@ -47,6 +47,9 @@ func InitMessageTable(ctx context.Context) error {
 		CREATE INDEX IF NOT EXISTS idx_messages_receiver_id ON messages(receiver_id);
 		CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id);
 		CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(created_at);
+		CREATE INDEX IF NOT EXISTS idx_messages_group_id_id_desc ON messages(group_id, id DESC);
+		CREATE INDEX IF NOT EXISTS idx_messages_receiver_id_id_desc ON messages(receiver_id, id DESC);
+		CREATE INDEX IF NOT EXISTS idx_messages_sender_receiver_id_desc ON messages(sender_id, receiver_id, id DESC);
 	`)
 	return err
 }
@@ -149,4 +152,23 @@ func SaveMessage(ctx context.Context, msg *Message) (int64, error) {
 	`, msg.SenderID, msg.ReceiverID, msg.GroupID, msg.Content, msg.MediaType, msg.MediaURL, msg.FileName).Scan(&messageID)
 
 	return messageID, err
+}
+
+// DeleteMessage deletes a message if it belongs to the requesting sender.
+func DeleteMessage(ctx context.Context, messageID int64, senderID int) error {
+	if config.DB == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	tag, err := config.DB.Exec(ctx, `
+		DELETE FROM messages
+		WHERE id = $1 AND sender_id = $2
+	`, messageID, senderID)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return fmt.Errorf("message not found or not owned by sender")
+	}
+	return nil
 }

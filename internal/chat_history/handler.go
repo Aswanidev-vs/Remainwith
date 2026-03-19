@@ -26,9 +26,15 @@ func ChatHistoryHandler(w http.ResponseWriter, r *http.Request) {
 		groupID = &gid
 	}
 
-	limit := 50
+	limit := 30
 	if limitStr != "" {
 		limit, _ = strconv.Atoi(limitStr)
+	}
+	if limit <= 0 {
+		limit = 30
+	}
+	if limit > 50 {
+		limit = 50
 	}
 
 	var beforeID *int64
@@ -51,4 +57,36 @@ func ChatHistoryHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(msgs)
+}
+
+func DeleteMessageHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID := handler.GetUserIDFromContext(r)
+	if userID == 0 {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var req struct {
+		MessageID int64 `json:"messageID"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	if req.MessageID == 0 {
+		http.Error(w, "messageID is required", http.StatusBadRequest)
+		return
+	}
+
+	if err := db.DeleteMessage(r.Context(), req.MessageID, userID); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

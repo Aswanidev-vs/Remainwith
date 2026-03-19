@@ -2881,6 +2881,16 @@
             }
         }
 
+        function notifyCallLeave() {
+            if (roomWs && roomWs.readyState === WebSocket.OPEN) {
+                try {
+                    roomWs.send(JSON.stringify({ type: 'leave' }));
+                } catch (error) {
+                    console.warn('Failed to send explicit leave signal', error);
+                }
+            }
+        }
+
         function handleSFUMessage(msg) {
             switch (msg.type) {
                 case 'offer':
@@ -3433,7 +3443,10 @@
 
 
         function endCall() {
+            pageUnloading = true;
+            clearReconnectTimer();
             stopStatsMonitoring();
+            notifyCallLeave();
             // Close peer connection
             if (pc) {
                 pc.close();
@@ -3478,6 +3491,7 @@
             pageUnloading = true;
             clearReconnectTimer();
             stopStatsMonitoring();
+            notifyCallLeave();
             if (pc) {
                 pc.close();
             }
@@ -3493,6 +3507,11 @@
             if (screenStream) {
                 screenStream.getTracks().forEach(track => track.stop());
             }
+        });
+
+        window.addEventListener('pagehide', () => {
+            pageUnloading = true;
+            notifyCallLeave();
         });
 
         // Debug function - call from console to see current participant status

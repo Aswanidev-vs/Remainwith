@@ -90,6 +90,7 @@ func main() {
 
 	router.Handle("GET /campfire/chat", handler.JWTMiddleware(http.HandlerFunc(chat.ChatPageHandler)))
 	router.Handle("GET /api/chat/history", handler.JWTMiddleware(http.HandlerFunc(chat_history.ChatHistoryHandler)))
+	router.Handle("POST /api/chat/delete", handler.JWTMiddleware(http.HandlerFunc(chat_history.DeleteMessageHandler)))
 
 	// Interests API routes
 	router.HandleFunc("GET /api/interests", handler.GetInterestsHandler)

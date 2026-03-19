@@ -144,7 +144,8 @@
       font-family: var(--font-sans);
       background: var(--bg-body);
       color: var(--text-main);
-      height: 100vh;
+      height: 100dvh;
+      min-height: 100dvh;
       overflow: hidden;
       display: flex;
       transition: background-color 0.4s ease, color 0.4s ease;
@@ -171,7 +172,8 @@
     #chat-app {
       display: flex;
       width: 100%;
-      height: 100vh;
+      height: 100dvh;
+      min-height: 100dvh;
     }
 
     /* ==================================================
@@ -184,7 +186,7 @@
       border-right: 1px solid var(--card-border);
       display: flex;
       flex-direction: column;
-      height: 100vh;
+      height: 100dvh;
       transition: background-color 0.4s ease, border-color 0.4s ease;
     }
 
@@ -367,7 +369,8 @@
       display: flex;
       flex-direction: column;
       min-width: 0;
-      height: 100vh;
+      min-height: 0;
+      height: 100dvh;
     }
 
     /* Chat Header */
@@ -401,6 +404,20 @@
       background: transparent;
       color: var(--text-muted);
       cursor: pointer;
+    }
+    .mobile-sidebar-close {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 38px;
+      height: 38px;
+      border: none;
+      border-radius: 0.8rem;
+      background: rgba(255,255,255,0.04);
+      color: var(--text-muted);
+      cursor: pointer;
+      margin-left: auto;
+      flex-shrink: 0;
     }
 
     .chat-header-avatar {
@@ -593,6 +610,7 @@
        ================================================== */
     #messages {
       flex: 1;
+      min-height: 0;
       overflow-y: auto;
       padding: 1.5rem;
       display: flex;
@@ -611,6 +629,40 @@
       position: relative;
       animation: msgIn 0.25s ease-out;
       word-break: break-word;
+    }
+    .msg-actions {
+      position: absolute;
+      top: 0.38rem;
+      right: 0.38rem;
+      display: flex;
+      gap: 0.25rem;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    .msg-bubble:hover .msg-actions {
+      opacity: 1;
+    }
+    .msg-action-btn {
+      width: 28px;
+      height: 28px;
+      border: none;
+      border-radius: 999px;
+      background: rgba(0,0,0,0.14);
+      color: inherit;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(8px);
+    }
+    .msg-bubble.received .msg-action-btn {
+      background: rgba(0,0,0,0.06);
+    }
+    .msg-action-btn .material-symbols-outlined {
+      font-size: 16px;
+    }
+    .msg-action-btn.copied {
+      background: rgba(22, 163, 74, 0.22);
     }
 
     @keyframes msgIn {
@@ -631,6 +683,20 @@
       border: 1px solid var(--card-border);
       border-bottom-left-radius: var(--radius-sm);
     }
+    .msg-bubble.pending {
+      opacity: 0.78;
+    }
+    .msg-bubble.pending::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      border: 1px dashed rgba(255,255,255,0.2);
+      pointer-events: none;
+    }
+    .msg-bubble.received.pending::after {
+      border-color: rgba(0,0,0,0.12);
+    }
 
     .msg-sender {
       display: block;
@@ -645,30 +711,74 @@
     .msg-text { white-space: pre-wrap; }
 
     .msg-time {
-      display: block;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.22rem;
       font-size: 0.65rem;
       margin-top: 0.35rem;
       opacity: 0.5;
-      text-align: right;
+      justify-content: flex-end;
+      width: 100%;
+    }
+    .msg-status {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.9;
+    }
+    .msg-status .material-symbols-outlined {
+      font-size: 14px;
+      line-height: 1;
+    }
+    .msg-status.pending {
+      gap: 0.32rem;
+      opacity: 1;
+    }
+    .msg-status.pending .material-symbols-outlined {
+      animation: pendingPulse 1s linear infinite;
+    }
+    .msg-status-text {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.28rem;
+      font-size: 0.64rem;
+      font-weight: 700;
+      opacity: 0.92;
+    }
+    .msg-status-text.failed {
+      color: #fecaca;
+    }
+    .msg-bubble.received .msg-status-text.failed {
+      color: var(--danger);
+    }
+    .msg-status-label {
+      font-size: 0.62rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+    @keyframes pendingPulse {
+      0% { opacity: 0.4; }
+      50% { opacity: 1; }
+      100% { opacity: 0.4; }
+    }
+    .spin {
+      animation: spinTurn 0.95s linear infinite;
+    }
+    @keyframes spinTurn {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
     }
 
     .msg-media-card {
       margin-top: 0.55rem;
-      border-radius: calc(var(--radius-lg) + 0.1rem);
+      border-radius: 1.35rem;
       overflow: hidden;
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.08);
-      min-width: 240px;
-      max-width: min(420px, 72vw);
-      box-shadow: 0 12px 28px rgba(0,0,0,0.18);
-    }
-    .msg-bubble.received .msg-media-card {
-      background: color-mix(in srgb, var(--received-bg) 90%, black 10%);
-      border-color: var(--card-border);
-    }
-    .msg-bubble.sent .msg-media-card {
-      background: color-mix(in srgb, var(--sent-bg) 80%, black 20%);
-      border-color: rgba(255,255,255,0.14);
+      background: transparent;
+      border: none;
+      min-width: 260px;
+      max-width: min(470px, 76vw);
+      box-shadow: none;
     }
     .msg-media {
       width: 100%;
@@ -687,12 +797,13 @@
       background:
         radial-gradient(circle at top left, rgba(255,255,255,0.12), transparent 28%),
         linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0.18));
-      padding: 0.9rem;
+      padding: 0.32rem;
+      border-radius: 0.95rem;
     }
     .msg-media-frame .msg-media.vid {
-      border-radius: calc(var(--radius-lg) - 0.1rem);
+      border-radius: 0.95rem;
       overflow: hidden;
-      box-shadow: 0 16px 40px rgba(0,0,0,0.28);
+      box-shadow: 0 12px 26px rgba(0,0,0,0.22);
       border: 1px solid rgba(255,255,255,0.08);
     }
     .msg-video-badge {
@@ -703,11 +814,11 @@
       display: inline-flex;
       align-items: center;
       gap: 0.35rem;
-      padding: 0.35rem 0.6rem;
+      padding: 0.42rem 0.7rem;
       border-radius: var(--radius-full);
       background: rgba(8, 10, 9, 0.6);
       color: #fff;
-      font-size: 0.68rem;
+      font-size: 0.78rem;
       font-weight: 700;
       letter-spacing: 0.03em;
       backdrop-filter: blur(10px);
@@ -716,11 +827,159 @@
       display: flex;
       flex-direction: column;
       gap: 0.7rem;
-      padding: 0.9rem;
+      padding: 0.95rem;
       min-width: 280px;
       background:
         radial-gradient(circle at top left, rgba(255,255,255,0.16), transparent 34%),
         linear-gradient(135deg, rgba(255,255,255,0.08), rgba(0,0,0,0.12));
+      border-radius: 1rem;
+    }
+    .msg-video-shell {
+      display: flex;
+      flex-direction: column;
+      gap: 0.42rem;
+      border-radius: 1rem;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at top left, rgba(255,255,255,0.16), transparent 34%),
+        linear-gradient(135deg, rgba(255,255,255,0.08), rgba(0,0,0,0.12));
+      padding: 0.24rem;
+    }
+    .msg-video-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.8rem;
+      padding: 0.25rem 0.2rem 0.15rem;
+    }
+    .msg-video-title-wrap {
+      min-width: 0;
+      flex: 1;
+    }
+    .msg-video-title {
+      font-size: 0.92rem;
+      font-weight: 700;
+      line-height: 1.35;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .msg-video-subtitle {
+      font-size: 0.7rem;
+      opacity: 0.72;
+      margin-top: 0.16rem;
+    }
+    .msg-file-card {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      padding: 0.85rem;
+      border-radius: 1rem;
+      background:
+        radial-gradient(circle at top left, rgba(255,255,255,0.14), transparent 30%),
+        linear-gradient(135deg, rgba(255,255,255,0.08), rgba(0,0,0,0.1));
+    }
+    .msg-image-shell {
+      border-radius: 1rem;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at top left, rgba(255,255,255,0.16), transparent 34%),
+        linear-gradient(135deg, rgba(255,255,255,0.08), rgba(0,0,0,0.12));
+      padding: 0.24rem;
+    }
+    .msg-image-shell .msg-media.img {
+      border-radius: 0.92rem;
+      display: block;
+      width: 100%;
+    }
+    .msg-file-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.14);
+      flex-shrink: 0;
+    }
+    .msg-bubble.received .msg-file-icon {
+      background: rgba(0,0,0,0.06);
+    }
+    .msg-file-info {
+      min-width: 0;
+      flex: 1;
+    }
+    .msg-file-title {
+      font-size: 0.9rem;
+      font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .msg-file-subtitle {
+      font-size: 0.72rem;
+      opacity: 0.74;
+      margin-top: 0.14rem;
+    }
+    .msg-file-link {
+      text-decoration: none;
+      color: inherit;
+    }
+    .msg-file-open {
+      width: 36px;
+      height: 36px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255,255,255,0.16);
+      color: inherit;
+      flex-shrink: 0;
+    }
+    .msg-bubble.received .msg-file-open {
+      background: rgba(0,0,0,0.07);
+    }
+    .image-lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 120;
+      background: rgba(6, 8, 7, 0.88);
+      backdrop-filter: blur(10px);
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    .image-lightbox.visible {
+      display: flex;
+    }
+    .image-lightbox-content {
+      max-width: min(92vw, 1100px);
+      max-height: 92vh;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+    .image-lightbox-img {
+      max-width: 100%;
+      max-height: calc(92vh - 70px);
+      object-fit: contain;
+      border-radius: 1rem;
+      box-shadow: 0 24px 60px rgba(0,0,0,0.35);
+    }
+    .image-lightbox-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      color: #fff;
+    }
+    .image-lightbox-name {
+      font-size: 0.95rem;
+      font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .msg-audio-top {
       display: flex;
@@ -827,20 +1086,31 @@
       align-items: center;
       justify-content: space-between;
       gap: 0.75rem;
-      padding: 0.65rem 0.85rem 0.75rem;
+      padding: 0.9rem 0.2rem 0.15rem;
       font-size: 0.72rem;
       color: rgba(255,255,255,0.82);
-      background: linear-gradient(180deg, rgba(0,0,0,0.06), rgba(0,0,0,0.22));
     }
     .msg-bubble.received .msg-media-meta {
       color: var(--text-muted);
-      background: linear-gradient(180deg, rgba(0,0,0,0.02), rgba(0,0,0,0.05));
     }
     .msg-media-name {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
       font-weight: 600;
+      font-size: 0.92rem;
+      line-height: 1.35;
+      flex: 1;
+    }
+    .msg-media-time {
+      font-size: 0.78rem;
+      font-weight: 600;
+      opacity: 0.82;
+      min-width: 38px;
+      text-align: right;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.2rem;
     }
 
     .system-msg {
@@ -884,6 +1154,9 @@
       background: var(--card-bg);
       align-items: center;
       gap: 0.75rem;
+      position: sticky;
+      bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+      z-index: 3;
     }
     #file-preview.visible { display: flex; }
 
@@ -920,6 +1193,10 @@
       font-size: 0.72rem;
       color: var(--text-subtle);
     }
+    .file-preview-size.is-processing {
+      color: var(--primary);
+      font-weight: 600;
+    }
     .file-preview-remove {
       width: 30px;
       height: 30px;
@@ -947,6 +1224,10 @@
       gap: 0.5rem;
       transition: all 0.4s ease;
       flex-shrink: 0;
+      position: sticky;
+      bottom: 0;
+      z-index: 4;
+      padding-bottom: calc(0.85rem + env(safe-area-inset-bottom, 0px));
     }
 
     .input-attach-btn {
@@ -1006,6 +1287,26 @@
     }
     .input-send-btn:hover { opacity: 0.85; transform: scale(1.05); }
     .input-send-btn .material-symbols-outlined { font-size: 20px; }
+    .input-send-btn.is-busy {
+      opacity: 0.9;
+      transform: none;
+      cursor: wait;
+    }
+    .input-send-btn.is-busy .material-symbols-outlined {
+      animation: pendingPulse 1s linear infinite;
+    }
+    .input-send-btn:disabled,
+    #msgInput:disabled {
+      cursor: not-allowed;
+      opacity: 0.72;
+    }
+    .input-attach-btn.is-disabled {
+      cursor: not-allowed;
+      opacity: 0.62;
+    }
+    .input-attach-btn.is-disabled input[type="file"] {
+      pointer-events: none;
+    }
 
     /* ==================================================
        Create Group Modal
@@ -1156,6 +1457,9 @@
         position: fixed;
         left: -100%;
         top: 0;
+        width: min(100vw, 360px);
+        min-width: min(100vw, 360px);
+        height: 100dvh;
         z-index: 50;
         box-shadow: 4px 0 20px rgba(0,0,0,0.15);
         transition: left 0.3s ease;
@@ -1163,6 +1467,7 @@
       #sidebar.open { left: 0; }
 
       .mobile-menu-btn { display: inline-flex; }
+      .mobile-sidebar-close { display: inline-flex; }
 
       .sidebar-overlay {
         display: none;
@@ -1173,7 +1478,207 @@
       }
       .sidebar-overlay.visible { display: block; }
 
-      .msg-bubble { max-width: 82%; }
+      .chat-header {
+        padding: 0 0.85rem;
+        gap: 0.75rem;
+      }
+      .chat-header-right {
+        gap: 0.35rem;
+      }
+      .header-action-btn {
+        width: 38px;
+        height: 38px;
+      }
+      .mobile-menu-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 0.8rem;
+        background: rgba(255,255,255,0.04);
+      }
+      #messages {
+        padding: 1rem 0.75rem;
+        gap: 0.7rem;
+      }
+      .msg-bubble {
+        max-width: 90%;
+        padding: 0.65rem 0.85rem;
+      }
+      .msg-actions {
+        opacity: 1;
+        position: static;
+        justify-content: flex-end;
+        margin-bottom: 0.35rem;
+      }
+      .msg-action-btn {
+        width: 34px;
+        height: 34px;
+      }
+      .msg-media-card {
+        min-width: 0;
+        max-width: 100%;
+      }
+      .msg-audio-player,
+      .msg-file-card {
+        min-width: 0;
+      }
+      .msg-audio-top,
+      .msg-file-card,
+      .msg-video-footer,
+      .msg-media-meta,
+      .call-shell-header,
+      .call-shell-actions,
+      .input-bar {
+        flex-wrap: wrap;
+      }
+      .msg-audio-controls {
+        margin-left: auto;
+      }
+      .msg-audio-progress {
+        width: 100%;
+      }
+      .msg-audio-time {
+        min-width: 44px;
+      }
+      .msg-file-open {
+        width: 32px;
+        height: 32px;
+      }
+      .call-shell {
+        margin: 0.65rem;
+        min-height: 440px;
+      }
+      .call-shell-header {
+        padding: 0.8rem 0.85rem;
+      }
+      .call-shell-btn {
+        flex: 1 1 0;
+        min-width: 0;
+        height: 36px;
+        padding: 0 0.75rem;
+      }
+      .call-embed-frame {
+        min-height: 450px;
+      }
+      .input-bar {
+        padding: 0.65rem 0.75rem;
+        gap: 0.55rem;
+        padding-bottom: calc(0.8rem + env(safe-area-inset-bottom, 0px));
+      }
+      .input-attach-btn,
+      .input-send-btn {
+        flex-shrink: 0;
+      }
+      #file-preview {
+        padding: 0.55rem 0.75rem;
+        bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+      }
+      #msgInput {
+        min-width: 0;
+        flex: 1 1 140px;
+      }
+      .modal-card {
+        width: min(92vw, 380px);
+        padding: 1.1rem;
+      }
+      .modal-actions {
+        flex-wrap: wrap;
+      }
+      .btn-modal-cancel,
+      .btn-modal-create,
+      .call-shell-btn {
+        width: 100%;
+        justify-content: center;
+      }
+      .image-lightbox {
+        padding: 1rem;
+      }
+      .image-lightbox-bar {
+        flex-wrap: wrap;
+      }
+    }
+
+    @media (max-width: 520px) {
+      #sidebar {
+        width: 100vw;
+        min-width: 100vw;
+      }
+      .sidebar-header,
+      .sidebar-actions {
+        padding-left: 0.9rem;
+        padding-right: 0.9rem;
+      }
+      .sidebar-header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 0.5rem;
+      }
+      .sidebar-back,
+      .sidebar-title,
+      .sidebar-subtitle {
+        width: 100%;
+      }
+      .chat-header-avatar {
+        width: 34px;
+        height: 34px;
+      }
+      .chat-header-name {
+        font-size: 1rem;
+      }
+      .chat-header-status {
+        display: none;
+      }
+      .msg-bubble {
+        max-width: 96%;
+        padding: 0.62rem 0.78rem;
+      }
+      .msg-media-card {
+        border-radius: 1.05rem;
+      }
+      .msg-video-shell,
+      .msg-image-shell,
+      .msg-audio-player,
+      .msg-file-card {
+        border-radius: 0.85rem;
+      }
+      .msg-video-title,
+      .msg-media-name,
+      .msg-file-title,
+      .msg-audio-title {
+        font-size: 0.85rem;
+      }
+      .msg-video-subtitle,
+      .msg-file-subtitle,
+      .msg-audio-subtitle {
+        font-size: 0.64rem;
+      }
+      .msg-media-time,
+      .msg-audio-time {
+        font-size: 0.68rem;
+      }
+      .msg-video-badge {
+        top: 0.7rem;
+        left: 0.7rem;
+        font-size: 0.72rem;
+      }
+      .msg-action-btn {
+        width: 30px;
+        height: 30px;
+      }
+      .input-bar {
+        padding: 0.6rem;
+        padding-bottom: calc(0.72rem + env(safe-area-inset-bottom, 0px));
+      }
+      #file-preview {
+        bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+      }
+      .call-shell {
+        margin: 0.5rem;
+        min-height: 380px;
+      }
+      .call-embed-frame {
+        min-height: 390px;
+      }
     }
 
     /* Switch Slider */
@@ -1201,6 +1706,9 @@
     <!-- ===== SIDEBAR ===== -->
     <aside id="sidebar">
       <div class="sidebar-header">
+        <button class="mobile-sidebar-close" onclick="closeSidebar()" aria-label="Back to chat">
+          <span class="material-symbols-outlined">arrow_back</span>
+        </button>
         <a href="/campfire" class="sidebar-back">
           <span class="material-symbols-outlined">arrow_back</span>
           Back to Campfire
@@ -1421,16 +1929,27 @@
     </div>
   </div>
 
-  <div class="modal-backdrop" id="videoQualityModal">
+  <div class="modal-backdrop" id="shareModal">
     <div class="modal-card">
-      <h3 class="modal-title">Video Upload Quality</h3>
-      <p class="modal-desc">Choose whether to send the original file or a compressed version that uploads faster.</p>
+      <h3 class="modal-title">Share</h3>
+      <p class="modal-desc" id="shareModalDesc">Choose how you want to share this message.</p>
       <div class="modal-actions" style="justify-content: stretch; gap: 0.75rem; flex-wrap: wrap;">
-        <button class="btn-modal-cancel" id="videoQualityCompressedBtn" style="flex: 1; min-width: 140px;">Compressed</button>
-        <button class="btn-modal-create" id="videoQualityHdBtn" style="flex: 1; min-width: 140px;">HD Original</button>
+        <button class="btn-modal-create" id="shareCopyBtn" style="flex: 1; min-width: 140px;">Copy</button>
+        <button class="btn-modal-cancel" id="shareOpenBtn" style="flex: 1; min-width: 140px;">Open</button>
+        <button class="btn-modal-cancel" id="shareEmailBtn" style="flex: 1; min-width: 140px;">Email</button>
       </div>
       <div class="modal-actions" style="margin-top: 0.75rem;">
-        <button class="btn-modal-cancel" id="videoQualityCancelBtn">Cancel</button>
+        <button class="btn-modal-cancel" id="shareCancelBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="image-lightbox" id="imageLightbox">
+    <div class="image-lightbox-content">
+      <img id="imageLightboxImg" class="image-lightbox-img" alt="Expanded preview">
+      <div class="image-lightbox-bar">
+        <div id="imageLightboxName" class="image-lightbox-name">Image</div>
+        <button class="call-shell-btn danger" onclick="closeImageLightbox()">Close</button>
       </div>
     </div>
   </div>
@@ -1511,9 +2030,12 @@
     const conversationMessages = {};
     const conversationHistoryLoaded = {};
     let confirmResolver = null;
-    let videoQualityResolver = null;
     let selectedFileQuality = '';
     let mediaPlayerCounter = 0;
+    let currentSharePayload = null;
+    let pendingMessageCounter = 0;
+    let composerBusy = false;
+    let historyRequestController = null;
 
     const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
@@ -1549,7 +2071,9 @@
       if (msg.type === 'signal') {
         await handleSignaling(msg);
       } else {
-        appendMessageToConversation(msg);
+        if (!reconcilePendingMessage(msg)) {
+          appendMessageToConversation(msg);
+        }
       }
     };
 
@@ -1579,6 +2103,103 @@
       `;
     }
 
+    function renderLoadingState() {
+      const container = document.getElementById('messages');
+      container.innerHTML = `
+        <div class="empty-state" id="emptyState">
+          <span class="material-symbols-outlined spin">progress_activity</span>
+          <h3>Loading conversation</h3>
+          <p>Pulling the latest messages for this chat.</p>
+        </div>
+      `;
+    }
+
+    function setComposerBusy(isBusy, statusText = '') {
+      composerBusy = isBusy;
+
+      const sendBtn = document.querySelector('.input-send-btn');
+      const attachBtn = document.querySelector('.input-attach-btn');
+      const input = document.getElementById('msgInput');
+      const icon = sendBtn?.querySelector('.material-symbols-outlined');
+      const sizeEl = document.getElementById('fileSize');
+
+      if (sendBtn) {
+        sendBtn.disabled = isBusy;
+        sendBtn.classList.toggle('is-busy', isBusy);
+        sendBtn.title = isBusy ? (statusText || 'Working...') : 'Send';
+      }
+      if (attachBtn) attachBtn.classList.toggle('is-disabled', isBusy);
+      if (input) input.disabled = isBusy;
+      if (icon) icon.textContent = isBusy ? 'hourglass_top' : 'send';
+
+      if (sizeEl && selectedFile) {
+        sizeEl.textContent = statusText || (formatFileSize(selectedFile.size) + (selectedFileQuality ? ` · ${selectedFileQuality}` : ''));
+        sizeEl.classList.toggle('is-processing', Boolean(statusText));
+      }
+    }
+
+    function createPendingMessage({ type, content = '', mediaType = '', fileName = '', pendingLabel = 'Sending' }) {
+      return {
+        clientTempID: `pending-${Date.now()}-${++pendingMessageCounter}`,
+        type,
+        senderID: currentUserID,
+        senderName: 'You',
+        receiverID: receiverID,
+        content,
+        mediaType,
+        fileName,
+        createdAt: new Date().toISOString(),
+        pendingLabel,
+        pendingState: 'pending',
+        isGroup: isGroupChat
+      };
+    }
+
+    function updatePendingMessage(clientTempID, updates = {}) {
+      Object.keys(conversationMessages).forEach((key) => {
+        const messages = conversationMessages[key];
+        if (!Array.isArray(messages)) return;
+        const index = messages.findIndex((msg) => msg.clientTempID === clientTempID);
+        if (index === -1) return;
+        messages[index] = { ...messages[index], ...updates };
+      });
+
+      if (getConversationKey() && document.getElementById('messages')) {
+        renderCurrentConversation();
+      }
+    }
+
+    function samePayload(pendingMsg, incomingMsg) {
+      const pendingType = pendingMsg.type || pendingMsg.Type || 'text';
+      const incomingType = incomingMsg.type || incomingMsg.Type || 'text';
+      const pendingMediaType = pendingMsg.mediaType || pendingMsg.MediaType || '';
+      const incomingMediaType = incomingMsg.mediaType || incomingMsg.MediaType || '';
+      const pendingContent = pendingMsg.content || pendingMsg.Content || '';
+      const incomingContent = incomingMsg.content || incomingMsg.Content || incomingMsg.mediaURL || incomingMsg.MediaURL || '';
+      const pendingFileName = pendingMsg.fileName || pendingMsg.FileName || '';
+      const incomingFileName = incomingMsg.fileName || incomingMsg.FileName || '';
+
+      if (pendingType !== incomingType) return false;
+      if (pendingMediaType !== incomingMediaType) return false;
+      if (pendingMsg.receiverID !== (incomingMsg.receiverID || incomingMsg.ReceiverID)) return false;
+
+      if (pendingType === 'media' || pendingMediaType) {
+        return pendingFileName === incomingFileName && pendingContent === incomingContent;
+      }
+      return pendingContent === incomingContent;
+    }
+
+    function reconcilePendingMessage(msg) {
+      const key = getConversationKeyForMessage(msg);
+      const messages = conversationMessages[key] || [];
+      const index = messages.findIndex((item) => item.clientTempID && String(item.senderID || item.SenderID) === String(currentUserID) && samePayload(item, msg));
+      if (index === -1) return false;
+
+      messages[index] = msg;
+      if (key === getConversationKey()) renderCurrentConversation();
+      return true;
+    }
+
     function renderCurrentConversation() {
       const container = document.getElementById('messages');
       const key = getConversationKey();
@@ -1600,7 +2221,16 @@
         return;
       }
 
-      const params = new URLSearchParams({ limit: '100' });
+      if (!conversationMessages[key]?.length) {
+        renderLoadingState();
+      }
+
+      if (historyRequestController) {
+        historyRequestController.abort();
+      }
+      historyRequestController = new AbortController();
+
+      const params = new URLSearchParams({ limit: '30' });
       if (receiverID === 'all') {
         params.set('receiver', 'all');
       } else if (receiverID.startsWith('group_')) {
@@ -1610,15 +2240,26 @@
       }
 
       try {
-        const res = await fetch(`/api/chat/history?${params.toString()}`);
+        const res = await fetch(`/api/chat/history?${params.toString()}`, {
+          signal: historyRequestController.signal
+        });
         if (!res.ok) throw new Error('Failed to load messages');
 
         const messages = await res.json();
         conversationMessages[key] = Array.isArray(messages) ? messages : [];
         conversationHistoryLoaded[key] = true;
-        renderCurrentConversation();
+        if (key === getConversationKey()) {
+          renderCurrentConversation();
+        }
       } catch (err) {
+        if (err.name === 'AbortError') {
+          return;
+        }
         addSystemMessage(err.message || 'Failed to load messages.');
+      } finally {
+        if (historyRequestController && !historyRequestController.signal.aborted) {
+          historyRequestController = null;
+        }
       }
     }
 
@@ -1645,23 +2286,136 @@
       });
     }
 
-    function openVideoQualityModal() {
-      document.getElementById('videoQualityModal').classList.add('visible');
+    function openImageLightbox(src, name = 'Image') {
+      document.getElementById('imageLightboxImg').src = src;
+      document.getElementById('imageLightboxName').textContent = name;
+      document.getElementById('imageLightbox').classList.add('visible');
     }
 
-    function closeVideoQualityModal(result = null) {
-      document.getElementById('videoQualityModal').classList.remove('visible');
-      if (videoQualityResolver) {
-        videoQualityResolver(result);
-        videoQualityResolver = null;
+    function closeImageLightbox() {
+      const img = document.getElementById('imageLightboxImg');
+      img.src = '';
+      document.getElementById('imageLightbox').classList.remove('visible');
+    }
+
+    async function deleteMessage(messageID) {
+      if (!messageID) return;
+      if (!await confirmAction('Delete Message', 'Delete this message for you and other participants?', 'Delete')) return;
+
+      try {
+        const numericMessageID = Number(messageID);
+        if (!Number.isFinite(numericMessageID) || numericMessageID <= 0) {
+          throw new Error('Invalid message ID');
+        }
+
+        const res = await fetch('/api/chat/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messageID: numericMessageID })
+        });
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(errText || 'Failed to delete message');
+        }
+
+        const key = getConversationKey();
+        conversationMessages[key] = (conversationMessages[key] || []).filter((msg) => String(msg.id || msg.ID) !== String(numericMessageID));
+        renderCurrentConversation();
+      } catch (err) {
+        alert(err.message);
       }
     }
 
-    function chooseVideoQuality() {
-      openVideoQualityModal();
-      return new Promise((resolve) => {
-        videoQualityResolver = resolve;
-      });
+    function getSharePayload(msg) {
+      const content = msg.content || msg.Content || msg.mediaURL || msg.MediaURL || '';
+      const fileName = msg.fileName || msg.FileName || 'attachment';
+      const mediaType = msg.mediaType || msg.MediaType || '';
+      const isMedia = (msg.type || msg.Type) === 'media' || !!mediaType;
+
+      if (isMedia) {
+        return {
+          title: fileName,
+          text: fileName,
+          url: content
+        };
+      }
+
+      return {
+        title: 'Message',
+        text: content
+      };
+    }
+
+    function dataUrlToFile(dataUrl, fileName) {
+      const match = dataUrl.match(/^data:([^;]+);base64,(.*)$/);
+      if (!match) return null;
+      const mime = match[1];
+      const bin = atob(match[2]);
+      const len = bin.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
+      return new File([bytes], fileName || 'attachment', { type: mime });
+    }
+
+    function openShareModal(payload) {
+      currentSharePayload = payload;
+      document.getElementById('shareModalDesc').textContent = payload.url
+        ? 'Native sharing is unavailable here. You can still copy, open, or email this attachment.'
+        : 'Share this message by copying it or opening your email app.';
+      document.getElementById('shareOpenBtn').style.display = payload.url ? 'inline-flex' : 'none';
+      document.getElementById('shareModal').classList.add('visible');
+    }
+
+    function closeShareModal() {
+      document.getElementById('shareModal').classList.remove('visible');
+      currentSharePayload = null;
+    }
+
+    async function copyMessageContent(msg, button) {
+      const content = msg.content || msg.Content || msg.mediaURL || msg.MediaURL || '';
+      const fileName = msg.fileName || msg.FileName || '';
+      const mediaType = msg.mediaType || msg.MediaType || '';
+      const isMedia = (msg.type || msg.Type) === 'media' || !!mediaType;
+      const payload = isMedia ? `${fileName || 'Attachment'}\n${content}` : content;
+
+      try {
+        await navigator.clipboard.writeText(payload);
+        if (button) {
+          button.classList.add('copied');
+          const icon = button.querySelector('.material-symbols-outlined');
+          const oldText = icon?.textContent;
+          if (icon) icon.textContent = 'check';
+          setTimeout(() => {
+            button.classList.remove('copied');
+            if (icon && oldText) icon.textContent = oldText;
+          }, 1200);
+        }
+      } catch (err) {
+        alert('Copy failed. Your browser blocked clipboard access.');
+      }
+    }
+
+    async function shareMessageContent(msg) {
+      const payload = getSharePayload(msg);
+      const fileName = msg.fileName || msg.FileName || 'attachment';
+      const file = payload.url && payload.url.startsWith('data:') ? dataUrlToFile(payload.url, fileName) : null;
+
+      try {
+        if (navigator.share) {
+          if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({ title: payload.title, text: payload.text, files: [file] });
+            return;
+          }
+          if (!file) {
+            await navigator.share(payload);
+            return;
+          }
+        }
+      } catch (err) {
+        if (err && err.name === 'AbortError') return;
+      }
+
+      openShareModal(payload);
     }
 
     function setReceiver(id, name, isGroup, isPrivate = false) {
@@ -1759,16 +2513,31 @@
       const emptyState = document.getElementById('emptyState');
       if (emptyState) emptyState.remove();
 
+      const pendingState = msg.pendingState || '';
+      const isPending = Boolean(pendingState);
       const div = document.createElement('div');
-      div.className = `msg-bubble ${isSent ? 'sent' : 'received'}`;
+      div.className = `msg-bubble ${isSent ? 'sent' : 'received'}${isPending ? ' pending' : ''}`;
 
       const createdAt = msg.createdAt || msg.CreatedAt;
       const ts = createdAt ? new Date(createdAt) : new Date();
       const time = ts.getHours().toString().padStart(2, '0') + ':' + ts.getMinutes().toString().padStart(2, '0');
       const fileName = msg.fileName || msg.FileName || '';
+      const messageID = msg.id || msg.ID || '';
       const playerId = `media-${++mediaPlayerCounter}`;
+      const pendingLabel = msg.pendingLabel || 'Sending';
+      let statusHtml = '';
+      if (isSent) {
+        if (pendingState === 'failed') {
+          statusHtml = `<span class="msg-status-text failed" title="Failed"><span class="material-symbols-outlined">error</span>${escapeHtml(pendingLabel)}</span>`;
+        } else if (pendingState) {
+          statusHtml = `<span class="msg-status pending" title="${escapeHtml(pendingLabel)}"><span class="material-symbols-outlined">schedule</span><span class="msg-status-label">${escapeHtml(pendingLabel)}</span></span>`;
+        } else {
+          statusHtml = `<span class="msg-status" title="Delivered"><span class="material-symbols-outlined">done_all</span></span>`;
+        }
+      }
 
       let html = '';
+      html += `<div class="msg-actions"></div>`;
       if (!isSent) {
         html += `<span class="msg-sender">${escapeHtml(senderName)}</span>`;
       }
@@ -1778,20 +2547,58 @@
       const mediaType = msg.mediaType || msg.MediaType || '';
 
       if (msgType === 'media' || mediaType) {
-        if (mediaType === 'image') {
-          html += `<div class="msg-media-card"><img src="${content}" class="msg-media img" onclick="window.open(this.src)"><div class="msg-media-meta"><span class="msg-media-name">${escapeHtml(fileName || 'Image')}</span><span>${time}</span></div></div>`;
+        if (pendingState && !content) {
+          const pendingTitle = mediaType === 'video'
+            ? (fileName || 'Video')
+            : mediaType === 'audio'
+              ? (fileName || 'Audio')
+              : mediaType === 'image'
+                ? (fileName || 'Image')
+                : (fileName || 'Attachment');
+          const pendingSubtitle = pendingLabel || 'Sending';
+          html += `<div class="msg-media-card"><div class="msg-file-card"><div class="msg-file-icon"><span class="material-symbols-outlined">${mediaType === 'video' ? 'movie' : mediaType === 'audio' ? 'audio_file' : mediaType === 'image' ? 'image' : 'description'}</span></div><div class="msg-file-info"><div class="msg-file-title">${escapeHtml(pendingTitle)}</div><div class="msg-file-subtitle">${escapeHtml(pendingSubtitle)}</div></div><div class="msg-file-open"><span class="material-symbols-outlined spin">progress_activity</span></div></div><div class="msg-media-meta"><span class="msg-media-name">${escapeHtml(pendingTitle)}</span><span class="msg-media-time">${time}${statusHtml}</span></div></div>`;
+        } else if (mediaType === 'image') {
+          html += `<div class="msg-media-card"><div class="msg-image-shell"><img src="${content}" class="msg-media img" onclick="openImageLightbox('${content}', '${escapeHtml(fileName || 'Image').replace(/'/g, '&#39;')}')"></div><div class="msg-media-meta"><span class="msg-media-name">${escapeHtml(fileName || 'Image')}</span><span class="msg-media-time">${time}${statusHtml}</span></div></div>`;
         } else if (mediaType === 'video') {
-          html += `<div class="msg-media-card"><div class="msg-media-frame"><span class="msg-video-badge"><span class="material-symbols-outlined" style="font-size:14px;">videocam</span>Video</span><video src="${content}" controls preload="metadata" class="msg-media vid"></video></div><div class="msg-media-meta"><span class="msg-media-name">${escapeHtml(fileName || 'Video')}</span><span>${time}</span></div></div>`;
+          html += `<div class="msg-media-card"><div class="msg-video-shell"><div class="msg-media-frame"><span class="msg-video-badge"><span class="material-symbols-outlined" style="font-size:14px;">videocam</span>Video</span><video src="${content}" controls preload="metadata" class="msg-media vid"></video></div><div class="msg-video-footer"><div class="msg-video-title-wrap"><div class="msg-video-title">${escapeHtml(fileName || 'Video')}</div><div class="msg-video-subtitle">Native playback controls preserved</div></div><span class="msg-media-time">${time}${statusHtml}</span></div></div></div>`;
         } else if (mediaType === 'audio') {
-          html += `<div class="msg-media-card"><div class="msg-audio-player" data-player-id="${playerId}"><audio src="${content}" preload="metadata"></audio><div class="msg-audio-top"><div class="msg-audio-icon"><span class="material-symbols-outlined">graphic_eq</span></div><div class="msg-audio-info"><div class="msg-audio-title">${escapeHtml(fileName || 'Audio')}</div><div class="msg-audio-subtitle">Voice and audio clip</div></div><div class="msg-audio-controls"><button class="msg-audio-btn" type="button" data-action="play"><span class="material-symbols-outlined">play_arrow</span></button><button class="msg-audio-btn" type="button" data-action="mute"><span class="material-symbols-outlined">volume_up</span></button></div></div><div class="msg-audio-progress"><input class="msg-audio-seek" type="range" min="0" max="100" value="0" step="0.1"><span class="msg-audio-time">0:00</span></div></div><div class="msg-media-meta"><span class="msg-media-name">${escapeHtml(fileName || 'Audio')}</span><span>${time}</span></div></div>`;
+          html += `<div class="msg-media-card"><div class="msg-audio-player" data-player-id="${playerId}"><audio src="${content}" preload="metadata"></audio><div class="msg-audio-top"><div class="msg-audio-icon"><span class="material-symbols-outlined">graphic_eq</span></div><div class="msg-audio-info"><div class="msg-audio-title">${escapeHtml(fileName || 'Audio')}</div><div class="msg-audio-subtitle">Voice and audio clip</div></div><div class="msg-audio-controls"><button class="msg-audio-btn" type="button" data-action="play"><span class="material-symbols-outlined">play_arrow</span></button><button class="msg-audio-btn" type="button" data-action="mute"><span class="material-symbols-outlined">volume_up</span></button></div></div><div class="msg-audio-progress"><input class="msg-audio-seek" type="range" min="0" max="100" value="0" step="0.1"><span class="msg-audio-time">0:00</span></div></div><div class="msg-media-meta"><span class="msg-media-name">${escapeHtml(fileName || 'Audio')}</span><span class="msg-media-time">${time}${statusHtml}</span></div></div>`;
         } else {
-          html += `<div class="msg-media-card"><div class="msg-media-meta"><span class="msg-media-name">${escapeHtml(fileName || 'File')}</span><span>${time}</span></div><span class="msg-text" style="display:block; padding: 0 0.85rem 0.85rem;">${escapeHtml(content || 'Attachment sent')}</span></div>`;
+          html += `<div class="msg-media-card"><a class="msg-file-link" href="${content}" download="${escapeHtml(fileName || 'attachment')}"><div class="msg-file-card"><div class="msg-file-icon"><span class="material-symbols-outlined">description</span></div><div class="msg-file-info"><div class="msg-file-title">${escapeHtml(fileName || 'Attachment')}</div><div class="msg-file-subtitle">Open or download file</div></div><div class="msg-file-open"><span class="material-symbols-outlined">download</span></div></div></a><div class="msg-media-meta"><span class="msg-media-name">${escapeHtml(fileName || 'File')}</span><span class="msg-media-time">${time}${statusHtml}</span></div></div>`;
         }
       } else {
         html += `<span class="msg-text">${escapeHtml(content)}</span>`;
-        html += `<span class="msg-time">${time}</span>`;
+        html += `<span class="msg-time">${time}${statusHtml}</span>`;
       }
       div.innerHTML = html;
+      const actions = div.querySelector('.msg-actions');
+      if (actions) {
+        const copyBtn = document.createElement('button');
+        copyBtn.type = 'button';
+        copyBtn.className = 'msg-action-btn';
+        copyBtn.title = 'Copy';
+        copyBtn.innerHTML = '<span class="material-symbols-outlined">content_copy</span>';
+        copyBtn.onclick = () => copyMessageContent(msg, copyBtn);
+        actions.appendChild(copyBtn);
+
+        const shareBtn = document.createElement('button');
+        shareBtn.type = 'button';
+        shareBtn.className = 'msg-action-btn';
+        shareBtn.title = 'Share';
+        shareBtn.innerHTML = '<span class="material-symbols-outlined">share</span>';
+        shareBtn.onclick = () => shareMessageContent(msg);
+        actions.appendChild(shareBtn);
+
+        if (isSent && messageID && !pendingState) {
+          const deleteBtn = document.createElement('button');
+          deleteBtn.type = 'button';
+          deleteBtn.className = 'msg-action-btn';
+          deleteBtn.title = 'Delete message';
+          deleteBtn.innerHTML = '<span class="material-symbols-outlined">delete</span>';
+          deleteBtn.onclick = () => deleteMessage(messageID);
+          actions.appendChild(deleteBtn);
+        }
+      }
       container.appendChild(div);
       const audioPlayer = div.querySelector('.msg-audio-player');
       if (audioPlayer) {
@@ -1895,11 +2702,12 @@
     }
 
     // ── Send Message ──
-    function sendMessage() {
+    async function sendMessage() {
       const input = document.getElementById('msgInput');
+      if (composerBusy) return;
 
       if (selectedFile) {
-        sendFileMessage();
+        await sendFileMessage();
         return;
       }
 
@@ -1914,7 +2722,27 @@
         isGroup: isGroupChat
       };
 
-      socket.send(JSON.stringify(msg));
+      const pendingMsg = createPendingMessage({
+        type: 'text',
+        content: text,
+        pendingLabel: 'Sending'
+      });
+      appendMessageToConversation(pendingMsg);
+
+      if (socket.readyState !== WebSocket.OPEN) {
+        updatePendingMessage(pendingMsg.clientTempID, { pendingState: 'failed', pendingLabel: 'Failed' });
+        addSystemMessage('Message could not be sent because the connection is offline.');
+        return;
+      }
+
+      try {
+        socket.send(JSON.stringify(msg));
+      } catch (err) {
+        updatePendingMessage(pendingMsg.clientTempID, { pendingState: 'failed', pendingLabel: 'Failed' });
+        addSystemMessage(err?.message || 'Message could not be sent.');
+        return;
+      }
+
       input.value = '';
       input.focus();
     }
@@ -1924,31 +2752,8 @@
       const file = event.target.files[0];
       if (!file) return;
 
-      let finalFile = file;
       selectedFileQuality = '';
-
-      if (file.type.startsWith('video/')) {
-        const quality = await chooseVideoQuality();
-        if (!quality) {
-          event.target.value = '';
-          return;
-        }
-
-        if (quality === 'compressed') {
-          try {
-            finalFile = await compressVideoFile(file);
-            selectedFileQuality = 'Compressed';
-          } catch (err) {
-            alert('Video compression failed. Sending original file instead.');
-            finalFile = file;
-            selectedFileQuality = 'HD Original';
-          }
-        } else {
-          selectedFileQuality = 'HD Original';
-        }
-      }
-
-      selectedFile = finalFile;
+      selectedFile = file;
 
       // Show preview
       const preview = document.getElementById('file-preview');
@@ -1957,7 +2762,9 @@
       const sizeEl = document.getElementById('fileSize');
 
       nameEl.textContent = selectedFile.name;
+      sizeEl.classList.remove('is-processing');
       sizeEl.textContent = formatFileSize(selectedFile.size) + (selectedFileQuality ? ` · ${selectedFileQuality}` : '');
+      sizeEl.classList.remove('is-processing');
 
       // Thumbnail
       if (selectedFile.type.startsWith('image/')) {
@@ -1982,6 +2789,7 @@
       selectedFileQuality = '';
       document.getElementById('file-preview').classList.remove('visible');
       document.getElementById('fileInput').value = '';
+      document.getElementById('fileSize')?.classList.remove('is-processing');
     }
 
     async function compressVideoFile(file) {
@@ -1996,10 +2804,42 @@
       video.playsInline = true;
       video.preload = 'metadata';
 
-      await new Promise((resolve, reject) => {
-        video.onloadedmetadata = resolve;
-        video.onerror = () => reject(new Error('Could not read selected video'));
+      const waitForVideoReady = (element, timeoutMs = 12000) => new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          cleanup();
+          reject(new Error('Timed out while preparing the selected video'));
+        }, timeoutMs);
+
+        const cleanup = () => {
+          clearTimeout(timer);
+          element.onloadedmetadata = null;
+          element.oncanplay = null;
+          element.onerror = null;
+        };
+
+        if (element.readyState >= 2 && element.videoWidth > 0 && element.videoHeight > 0) {
+          cleanup();
+          resolve();
+          return;
+        }
+
+        element.onloadedmetadata = () => {
+          if (element.readyState >= 2) {
+            cleanup();
+            resolve();
+          }
+        };
+        element.oncanplay = () => {
+          cleanup();
+          resolve();
+        };
+        element.onerror = () => {
+          cleanup();
+          reject(new Error('Could not prepare selected video'));
+        };
       });
+
+      await waitForVideoReady(video);
 
       const maxWidth = 1280;
       const scale = Math.min(1, maxWidth / (video.videoWidth || maxWidth));
@@ -2016,21 +2856,17 @@
       }
 
       const stream = canvas.captureStream(24);
-      const sourceStream = video.captureStream ? video.captureStream() : null;
-      const audioTrack = sourceStream?.getAudioTracks?.()[0];
-      if (audioTrack) {
-        stream.addTrack(audioTrack);
-      }
 
       const chunks = [];
-      const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
-        ? 'video/webm;codecs=vp9,opus'
-        : 'video/webm;codecs=vp8,opus';
+      const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+        ? 'video/webm;codecs=vp9'
+        : (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
+          ? 'video/webm;codecs=vp8'
+          : 'video/webm');
 
       const recorder = new MediaRecorder(stream, {
         mimeType,
-        videoBitsPerSecond: 1200000,
-        audioBitsPerSecond: 128000
+        videoBitsPerSecond: 1200000
       });
 
       recorder.ondataavailable = (event) => {
@@ -2048,48 +2884,116 @@
         requestAnimationFrame(drawFrame);
       };
 
-      recorder.start(1000);
+      recorder.start(250);
       await video.play();
+      ctx.drawImage(video, 0, 0, width, height);
       drawFrame();
 
-      await new Promise((resolve) => {
-        video.onended = resolve;
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          reject(new Error('Compression timed out before playback finished'));
+        }, Math.max(15000, Math.ceil((video.duration || 0) * 1000) + 4000));
+
+        video.onended = () => {
+          clearTimeout(timer);
+          resolve();
+        };
+        video.onerror = () => {
+          clearTimeout(timer);
+          reject(new Error('Video playback failed during compression'));
+        };
       });
 
       recorder.stop();
       await stopPromise;
+      video.pause();
+      stream.getTracks().forEach((track) => track.stop());
       URL.revokeObjectURL(objectUrl);
 
       const blob = new Blob(chunks, { type: mimeType });
-      return new File([blob], file.name.replace(/\.[^.]+$/, '.webm'), {
-        type: blob.type,
+      if (!blob.size) {
+        throw new Error('Compressed output was empty');
+      }
+
+      const finalFile = new File([blob], file.name.replace(/\.[^.]+$/, '.webm'), {
+        type: blob.type || 'video/webm',
         lastModified: Date.now()
+      });
+      if (!finalFile.size) {
+        throw new Error('Compressed file could not be created');
+      }
+
+      // If compression does not actually reduce size, keep the original upload path.
+      if (finalFile.size >= file.size) {
+        return file;
+      }
+      return finalFile;
+    }
+
+    function readFileAsDataURL(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Failed to read the selected file'));
+        reader.readAsDataURL(file);
       });
     }
 
-    function sendFileMessage() {
+    async function sendFileMessage() {
       if (!selectedFile) return;
+      if (composerBusy) return;
 
-      const reader = new FileReader();
-      reader.onload = () => {
-        let mediaType = 'file';
-        if (selectedFile.type.startsWith('image/')) mediaType = 'image';
-        else if (selectedFile.type.startsWith('video/')) mediaType = 'video';
-        else if (selectedFile.type.startsWith('audio/')) mediaType = 'audio';
+      let mediaType = 'file';
+      if (selectedFile.type.startsWith('image/')) mediaType = 'image';
+      else if (selectedFile.type.startsWith('video/')) mediaType = 'video';
+      else if (selectedFile.type.startsWith('audio/')) mediaType = 'audio';
 
-        const msg = {
+      const originalFile = selectedFile;
+      const previewURL = URL.createObjectURL(originalFile);
+      const pendingMsg = createPendingMessage({
+        type: 'media',
+        content: previewURL,
+        mediaType,
+        fileName: originalFile.name,
+        pendingLabel: mediaType === 'video' ? 'Reading video' : 'Reading file'
+      });
+      pendingMsg.objectURL = previewURL;
+      appendMessageToConversation(pendingMsg);
+      setComposerBusy(true, mediaType === 'video' ? 'Reading video...' : 'Reading file...');
+
+      try {
+        const uploadFile = originalFile;
+        const content = await readFileAsDataURL(uploadFile);
+        updatePendingMessage(pendingMsg.clientTempID, {
+          content,
+          fileName: uploadFile.name,
+          pendingLabel: 'Sending'
+        });
+
+        if (socket.readyState !== WebSocket.OPEN) {
+          throw new Error('Connection is offline');
+        }
+
+        socket.send(JSON.stringify({
           type: 'media',
           receiverID: receiverID,
-          content: reader.result,
+          content,
           mediaType,
-          fileName: selectedFile.name,
+          fileName: uploadFile.name,
           senderID: currentUserID,
           isGroup: isGroupChat
-        };
-        socket.send(JSON.stringify(msg));
+        }));
+
         clearFilePreview();
-      };
-      reader.readAsDataURL(selectedFile);
+      } catch (err) {
+        updatePendingMessage(pendingMsg.clientTempID, {
+          pendingState: 'failed',
+          pendingLabel: err?.message || 'Failed'
+        });
+        addSystemMessage(err?.message || 'File could not be sent.');
+      } finally {
+        setComposerBusy(false);
+      }
     }
 
     function formatFileSize(bytes) {
@@ -2488,12 +3392,39 @@
     });
     document.getElementById('confirmCancelBtn')?.addEventListener('click', () => closeConfirmModal(false));
     document.getElementById('confirmOkBtn')?.addEventListener('click', () => closeConfirmModal(true));
-    document.getElementById('videoQualityModal')?.addEventListener('click', (event) => {
-      if (event.target.id === 'videoQualityModal') closeVideoQualityModal(null);
+    document.getElementById('shareModal')?.addEventListener('click', (event) => {
+      if (event.target.id === 'shareModal') closeShareModal();
     });
-    document.getElementById('videoQualityCompressedBtn')?.addEventListener('click', () => closeVideoQualityModal('compressed'));
-    document.getElementById('videoQualityHdBtn')?.addEventListener('click', () => closeVideoQualityModal('hd'));
-    document.getElementById('videoQualityCancelBtn')?.addEventListener('click', () => closeVideoQualityModal(null));
+    document.getElementById('shareCancelBtn')?.addEventListener('click', closeShareModal);
+    document.getElementById('shareCopyBtn')?.addEventListener('click', async () => {
+      if (!currentSharePayload) return;
+      try {
+        await navigator.clipboard.writeText(currentSharePayload.url || currentSharePayload.text || '');
+        closeShareModal();
+        addSystemMessage('Content copied.');
+      } catch (err) {
+        addSystemMessage('Copy failed on this browser.');
+      }
+    });
+    document.getElementById('shareOpenBtn')?.addEventListener('click', () => {
+      if (!currentSharePayload?.url) return;
+      const a = document.createElement('a');
+      a.href = currentSharePayload.url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.click();
+      closeShareModal();
+    });
+    document.getElementById('shareEmailBtn')?.addEventListener('click', () => {
+      if (!currentSharePayload) return;
+      const subject = encodeURIComponent(currentSharePayload.title || 'Shared from chat');
+      const body = encodeURIComponent(currentSharePayload.url || currentSharePayload.text || '');
+      window.location.href = `mailto:?subject=${subject}&body=${body}`;
+      closeShareModal();
+    });
+    document.getElementById('imageLightbox')?.addEventListener('click', (event) => {
+      if (event.target.id === 'imageLightbox') closeImageLightbox();
+    });
 
     document.addEventListener('keydown', (event) => {
       if (event.key !== 'Escape') return;
@@ -2501,7 +3432,8 @@
       closeJoinCodeModal();
       closeGroupInfo();
       closeConfirmModal(false);
-      closeVideoQualityModal(null);
+      closeShareModal();
+      closeImageLightbox();
     });
 
     loadConversationHistory();

@@ -194,7 +194,7 @@ func (s *SignalingServer) handleMessages(conn *signalingConn, userID, roomID str
 		var msg SignalMessage
 		err := conn.conn.ReadJSON(&msg)
 		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure, websocket.CloseNoStatusReceived) {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("User %s signaling socket closed unexpectedly in room %s: %v", userID, roomID, err)
 			} else {
 				log.Printf("User %s signaling socket closed in room %s: %v", userID, roomID, err)
@@ -230,8 +230,11 @@ func (s *SignalingServer) scheduleOfflineTransition(roomID, userID string, conn 
 
 		rm := GetRoomManager()
 		if room, exists := rm.GetRoom(roomID); exists {
-			room.UpdateParticipant(userID, map[string]interface{}{"is_online": false})
 			if participant, ok := room.GetParticipant(userID); ok {
+				if !participant.IsOnline {
+					return
+				}
+				room.UpdateParticipant(userID, map[string]interface{}{"is_online": false})
 				s.broadcastToRoom(SignalMessage{
 					Type:   "participant_left",
 					RoomID: roomID,
@@ -249,6 +252,8 @@ func (s *SignalingServer) handleSignalMessage(msg SignalMessage) {
 	switch msg.Type {
 	case "join":
 		s.handleJoin(msg)
+	case "leave":
+		s.handleLeave(msg)
 	case "offer":
 		s.broadcastToRoom(msg, msg.UserID)
 	case "answer":
@@ -263,6 +268,24 @@ func (s *SignalingServer) handleSignalMessage(msg SignalMessage) {
 		s.handlePin(msg)
 	default:
 		log.Printf("Unknown message type: %s", msg.Type)
+	}
+}
+
+func (s *SignalingServer) handleLeave(msg SignalMessage) {
+	rm := GetRoomManager()
+	room, exists := rm.GetRoom(msg.RoomID)
+	if !exists {
+		return
+	}
+
+	room.UpdateParticipant(msg.UserID, map[string]interface{}{"is_online": false})
+	if participant, ok := room.GetParticipant(msg.UserID); ok {
+		s.broadcastToRoom(SignalMessage{
+			Type:   "participant_left",
+			RoomID: msg.RoomID,
+			UserID: msg.UserID,
+			Data:   participant,
+		}, msg.UserID)
 	}
 }
 
