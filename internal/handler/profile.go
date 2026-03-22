@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/justinas/nosurf"
 )
@@ -35,8 +36,53 @@ func ProfilePageHandler(w http.ResponseWriter, r *http.Request) {
 	var errorMsg string
 
 	if r.Method == http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
+		err := r.ParseForm()
+		if err != nil {
+			log.Printf("Error parsing form: %v", err)
+			http.Error(w, "Bad request", http.StatusBadRequest)
+			return
+		}
+
+		// Verify session matches
+		formSessionID := r.FormValue("session_id")
+		sessionID, _ := claims["session_id"].(string)
+		if formSessionID == "" || formSessionID != sessionID {
+			log.Printf("Session mismatch")
+			http.Redirect(w, r, "/profile", http.StatusSeeOther)
+			return
+		}
+
+		action := r.FormValue("action")
+		switch action {
+		case "update_interests":
+			interestsStr := r.FormValue("interests")
+			var interestsList []string
+			if interestsStr != "" {
+				interestsList = strings.Split(interestsStr, ",")
+				// Trim whitespace from each interest
+				for i := range interestsList {
+					interestsList[i] = strings.TrimSpace(interestsList[i])
+				}
+				// Filter out empty strings
+				var filteredInterests []string
+				for _, i := range interestsList {
+					if i != "" {
+						filteredInterests = append(filteredInterests, i)
+					}
+				}
+				interestsList = filteredInterests
+			}
+			err = db.SaveUserInterestsByNames(r.Context(), userID, interestsList)
+			if err != nil {
+				log.Printf("Error saving interests: %v", err)
+				errorMsg = "Failed to save interests. Please try again."
+			} else {
+				successMsg = "Your interests have been saved successfully!"
+				interests = interestsList // Update displayed interests
+			}
+		default:
+			log.Printf("Unknown action: %s", action)
+		}
 	}
 
 	// GET request or after POST processing: display profile

@@ -266,6 +266,25 @@
             text-decoration: none; transition: color 0.3s;
         }
         .btn-secondary-link:hover { color: var(--primary); text-decoration: underline; }
+        .camp-icon { color: #e2a07d; }
+
+        /* --- Presence Indicator --- */
+        .presence-container {
+            display: flex; align-items: center; justify-content: center;
+            gap: 0.5rem; padding: 0.5rem 0;
+            animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        .presence-dot-wrapper { position: relative; display: flex; height: 0.5rem; width: 0.5rem; }
+        .presence-ping {
+            position: absolute; display: inline-flex; height: 100%; width: 100%;
+            border-radius: 9999px; background-color: var(--primary);
+            opacity: 0.75; animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+        .presence-dot {
+            position: relative; display: inline-flex; border-radius: 9999px;
+            height: 0.5rem; width: 0.5rem; background-color: var(--primary);
+        }
+        .presence-text { color: var(--text-subtle); font-size: 0.875rem; font-style: italic; text-align: center; }
 
         /* Feed Cards */
         .feed-list { display: flex; flex-direction: column; gap: 2rem; }
@@ -281,12 +300,34 @@
         .avatar { height: 2rem; width: 2rem; border-radius: 9999px; background-color: var(--stone-200); overflow: hidden; }
         .avatar img { width: 100%; height: 100%; object-fit: cover; }
         .card-content { font-size: 1.05rem; line-height: 1.6; color: var(--text-main); font-family: var(--font-display); }
+        .card-footer {
+            padding-top: 1rem; border-top: 1px solid var(--divider);
+            display: flex; align-items: center; gap: 1.5rem;
+        }
+        .action-btn {
+            display: flex; align-items: center; gap: 0.5rem;
+            background: none; border: none; cursor: pointer;
+            color: var(--text-subtle); transition: color 0.4s ease-in-out; font-family: inherit;
+            padding: 0.25rem 0;
+        }
+        .action-btn:hover { color: var(--primary); }
+        .action-btn .material-symbols-outlined { font-size: 20px; transition: transform 0.2s; }
+        .action-btn:hover .material-symbols-outlined { transform: scale(1.1); }
+        .action-label { font-size: 0.875rem; font-weight: 500; }
+        .user-name { font-size: 0.875rem; font-weight: 700; color: var(--text-main); }
+        .timestamp { font-size: 0.75rem; color: var(--text-subtle); font-family: var(--font-sans); }
 
         /* Footer */
         .app-footer { text-align: center; padding: 2rem 0; color: var(--text-subtle); font-family: var(--font-display); font-style: italic; }
         
         /* Animations */
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+        @keyframes ping { 75%, 100% { transform: scale(2); opacity: 0; } }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        .spin { animation: spin 1s linear infinite; }
+        .loader-container { padding: 3rem 0; display: flex; justify-content: center; color: var(--text-subtle); }
 
         /* ==========================================================================
            ONBOARDING MODAL STYLES (New Addition)
@@ -474,6 +515,8 @@
                     <span class="material-symbols-outlined">book</span>
                     <span class="btn-text">Journal</span>
                 </a>
+                
+             
                 <div class="profile-menu">
                     <button class="profile-trigger" id="profileTrigger" aria-label="Open profile menu">
                         <div class="profile-pic-sm" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCaI3uBIWwC1noJFyIk3WzdR7lE7FuvDxtMu1QujzaYmKoVrakvYTPQFDQHcrkBkRh032COVx_l63E38Y9ndt3--8u44XMd-sdfXVp6dIx86kaLSbo7H79rcBRUtG9RJ2YTKOEy48i7TMejv4uszIFENN3lNitzaunaswSgjCWEevSSrqm6rXrgwBM2J0hkeh9-6pWMFbgLqRvDBv95uWLpVWZ6kjJLtW8_OLT0hX8ktgSZUucU__dea8pVH4M-yCdPcVMmIKPnVkzW');"></div>
@@ -607,6 +650,18 @@
 
     <!-- Application Logic -->
     <script>
+        // --- Server URL Fetcher ---
+        async function fetchServerURL() {
+            try {
+                const response = await fetch('/api/server-url');
+                const data = await response.json();
+                return data.url;
+            } catch (error) {
+                console.log('Server URL not available');
+                return null;
+            }
+        }
+
         // --- Theme Manager ---
         (function() {
             const htmlElement = document.documentElement;
@@ -646,6 +701,31 @@
             if (themeSelect) {
                 themeSelect.addEventListener('change', (e) => {
                     setTheme(e.target.value);
+                });
+            }
+        })();
+
+        // --- Share URL Button ---
+        (function() {
+            const shareBtn = document.getElementById('shareUrlBtn');
+            if (shareBtn) {
+                shareBtn.addEventListener('click', async function() {
+                    const url = await fetchServerURL();
+                    if (url) {
+                        try {
+                            await navigator.clipboard.writeText(url);
+                            // Show a brief visual feedback
+                            const originalIcon = shareBtn.innerHTML;
+                            shareBtn.innerHTML = '<span class="material-symbols-outlined" style="color: var(--primary);">check</span>';
+                            setTimeout(() => {
+                                shareBtn.innerHTML = originalIcon;
+                            }, 2000);
+                        } catch (err) {
+                            console.log('Could not copy URL:', err);
+                            // Fallback: show alert with URL
+                            alert('Server URL: ' + url);
+                        }
+                    }
                 });
             }
         })();
@@ -787,17 +867,33 @@
             }
 
             // 4. Handle Save/Continue
-            form.addEventListener('submit', (e) => {
+            form.addEventListener('submit', async (e) => {
                 e.preventDefault(); // Prevent dialog from closing immediately by default
                 
                 const checked = Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
                 
-                // In a real app: POST to /api/interests
-                // fetch('/api/interests', { method: 'POST', body: ... })
+                // Save interests via API
+                try {
+                    const response = await fetch('/api/interests', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ interest_names: checked })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to save interests');
+                    }
+                    
+                    console.log("Interests saved successfully:", checked);
+                } catch (error) {
+                    console.error('Error saving interests:', error);
+                    alert('Failed to save interests. Please try again.');
+                    return; // Don't close the dialog if save failed
+                }
                 
-                console.log("Saving Interests:", checked);
-                
-                // Mark onboarding as complete in simulation
+                // Mark onboarding as complete
                 localStorage.setItem('onboarding_complete', 'true');
                 
                 dialog.close();

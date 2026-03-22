@@ -162,14 +162,18 @@ func GetUserGroups(ctx context.Context, userID int) ([]Group, error) {
 	return groups, nil
 }
 
-// GetPublicGroups retrieves all public groups.
-func GetPublicGroups(ctx context.Context) ([]Group, error) {
+// GetPublicGroups retrieves all public groups that the user has not joined yet.
+func GetPublicGroups(ctx context.Context, userID int) ([]Group, error) {
 	rows, err := config.DB.Query(ctx, `
-		SELECT id, name, is_private, COALESCE(invite_code, ''), COALESCE(creator_id, 0)
-		FROM chat_groups
-		WHERE is_private = FALSE
-		ORDER BY created_at DESC
-	`)
+		SELECT g.id, g.name, g.is_private, COALESCE(g.invite_code, ''), COALESCE(g.creator_id, 0)
+		FROM chat_groups g
+		WHERE g.is_private = FALSE
+		AND NOT EXISTS (
+			SELECT 1 FROM group_members gm 
+			WHERE gm.group_id = g.id AND gm.user_id = $1
+		)
+		ORDER BY g.created_at DESC
+	`, userID)
 	if err != nil {
 		return nil, err
 	}

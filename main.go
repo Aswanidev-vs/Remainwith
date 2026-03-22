@@ -8,14 +8,21 @@ import (
 	"Remainwith/internal/chat_history"
 	"Remainwith/internal/handler"
 	"Remainwith/internal/message"
+	"Remainwith/internal/server"
 	"Remainwith/internal/sfu"
 	"Remainwith/internal/signaling"
 	"Remainwith/internal/ws"
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 )
+
+// ServerURL stores the public URL (can be set via NGROK_URL env var)
+var ServerURL string
 
 func main() {
 	config.Init()
@@ -45,6 +52,22 @@ func main() {
 	hub := ws.NewHub()
 
 	router := http.NewServeMux()
+
+	// Initialize ServerURL from environment (for ngrok or custom domain)
+	ServerURL = strings.TrimSpace(os.Getenv("NGROK_URL"))
+	if ServerURL == "" {
+		ServerURL = "http://localhost:8080"
+	} else {
+		log.Printf("Using custom server URL: %s", ServerURL)
+	}
+
+	// API endpoint to get server URL
+	router.HandleFunc("/api/server-url", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"url": ServerURL,
+		})
+	})
 
 	router.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("./assets"))))
 
@@ -173,7 +196,32 @@ func main() {
 		// IdleTimeout:  60 * time.Second,
 	}
 
-	log.Println("Server listening on http://localhost:8080")
+	// Start embedded ngrok tunnel if NGROK_AUTHTOKEN is set
+	ngrokURLChan := server.StartEmbeddedNgrokAsync(logger)
+	log.Printf("Server listening on http://localhost:8080")
+	// Wait for ngrok URL if available
+	select {
+	case ngrokURL := <-ngrokURLChan:
+		if ngrokURL != "" {
+			ServerURL = ngrokURL
+			log.Printf("\n========================================")
+			log.Printf("Server Public URL: %s", ServerURL)
+			log.Printf("Share this URL with others to join!")
+			log.Printf("========================================\n")
+		} else {
+			log.Println("Server listening on http://localhost:8080")
+		}
+	case <-time.After(2 * time.Second):
+		// If ngrok doesn't start within 2 seconds, just use localhost
+		if ServerURL != "http://localhost:8080" {
+			log.Printf("\n========================================")
+			log.Printf("Server Public URL: %s", ServerURL)
+			log.Printf("Share this URL with others to join!")
+			log.Printf("========================================\n")
+		} else {
+			log.Println("Server listening on http://localhost:8080")
+		}
+	}
 
 	log.Fatal(srv.ListenAndServe())
 }

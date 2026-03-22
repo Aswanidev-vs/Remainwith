@@ -71,6 +71,32 @@ func SettingsPageHandler(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
+		case "update_interests":
+			interestsStr := r.FormValue("interests")
+			var interests []string
+			if interestsStr != "" {
+				interests = strings.Split(interestsStr, ",")
+				// Trim whitespace from each interest
+				for i := range interests {
+					interests[i] = strings.TrimSpace(interests[i])
+				}
+				// Filter out empty strings
+				var filteredInterests []string
+				for _, i := range interests {
+					if i != "" {
+						filteredInterests = append(filteredInterests, i)
+					}
+				}
+				interests = filteredInterests
+			}
+			err = db.SaveUserInterestsByNames(r.Context(), userID, interests)
+			if err != nil {
+				log.Printf("Error saving interests: %v", err)
+				errorMsg = "Failed to save interests."
+			} else {
+				successMsg = "Interests saved successfully."
+			}
+
 		case "update_preferences":
 			emailNotifications := r.FormValue("email_notifications") == "on"
 			privacyVisibility := r.FormValue("privacy_visibility")

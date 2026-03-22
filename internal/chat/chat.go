@@ -68,7 +68,7 @@ func ChatPageHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("ChatPage: Failed to get user groups for user %d: %v", userID, err)
 	}
 
-	publicGroups, err := db.GetPublicGroups(r.Context())
+	publicGroups, err := db.GetPublicGroups(r.Context(), userID)
 	if err != nil {
 		log.Printf("ChatPage: Failed to get public groups: %v", err)
 	}

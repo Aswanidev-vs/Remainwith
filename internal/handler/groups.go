@@ -147,7 +147,13 @@ func GetMyGroupsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetPublicGroupsHandler(w http.ResponseWriter, r *http.Request) {
-	groups, err := db.GetPublicGroups(r.Context())
+	userID := GetUserIDFromContext(r)
+	if userID == 0 {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	groups, err := db.GetPublicGroups(r.Context(), userID)
 	if err != nil {
 		http.Error(w, "Database error", http.StatusInternalServerError)
 		return
