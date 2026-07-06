@@ -30,6 +30,11 @@ type PeerManager struct {
 	// PLI times for congestion control
 	pliTimes map[string]time.Time
 
+<<<<<<< HEAD
+	// Phase 8: Track readers registry to prevent duplicates
+	// Maps trackID to its reader to ensure single reader per track
+	trackReaders map[string]bool
+=======
 	// JitterHandler for packet loss recovery
 	jitterHandler jitter.JitterHandler
 
@@ -38,6 +43,7 @@ type PeerManager struct {
 
 	// Congestion controller for bandwidth adaptation
 	congestionController *congestion.Controller
+>>>>>>> main
 }
 
 // NewPeerManager creates a new peer manager for a room
@@ -46,6 +52,13 @@ func NewPeerManager(roomID string) *PeerManager {
 	cc := congestion.NewController(sm, congestion.DefaultConfig())
 
 	return &PeerManager{
+<<<<<<< HEAD
+		roomID:       roomID,
+		transports:   make(map[string]transport.Transport),
+		pubsub:       pubsub.New(),
+		pliTimes:     make(map[string]time.Time),
+		trackReaders: make(map[string]bool),
+=======
 		roomID:               roomID,
 		transports:           make(map[string]transport.Transport),
 		pubsub:               pubsub.New(),
@@ -53,6 +66,7 @@ func NewPeerManager(roomID string) *PeerManager {
 		jitterHandler:        jitter.NewJitterHandler(true), // Enable jitter buffer
 		simulcastManager:     sm,
 		congestionController: cc,
+>>>>>>> main
 	}
 }
 
@@ -128,35 +142,42 @@ func (pm *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent,
 		trackReceiveTimeout := time.NewTimer(15 * time.Second)
 		trackReceived := false
 
+		log.Printf("PeerManager: [TRACK RECEIVER] STARTED for client %s - waiting for tracks from channel", clientID)
+
 		for {
 			select {
 			case trackWithReader := <-remoteTracksCh:
 				trackReceiveTimeout.Stop() // Stop timeout once we receive a track
 				trackReceived = true
 
+				log.Printf("PeerManager: [TRACK RECEIVER] RECEIVED track from channel for client %s", clientID)
+
 				if trackWithReader.TrackRemote == nil {
-					log.Printf("PeerManager: Received nil track from client %s, skipping", clientID)
+					log.Printf("PeerManager: [TRACK RECEIVER] Received nil track from client %s, skipping", clientID)
 					continue
 				}
 				track := trackWithReader.TrackRemote
 				if track.Track() == nil {
-					log.Printf("PeerManager: Received track with nil Track() from client %s, skipping", clientID)
+					log.Printf("PeerManager: [TRACK RECEIVER] Received track with nil Track() from client %s, skipping", clientID)
 					continue
 				}
 				trackID := track.Track().ID()
+				trackKind := track.Track().Kind().String()
 
-				log.Printf("PeerManager: Received remote track %s (%s) from client %s", trackID, track.Track().Kind().String(), clientID)
+				log.Printf("PeerManager: [TRACK RECEIVER] Processing track %s (kind=%s) from client %s", trackID, trackKind, clientID)
 
-				// Create done channel for cleanup
-				done := make(chan struct{})
-
-				// Publish track
-				reader := pubsub.NewTrackReader(track, func() {
-					close(done)
-					pm.pubsub.Unpub(clientID, trackID)
-				})
-
+				// Phase 8: Check for duplicate track readers
 				pm.mu.Lock()
+<<<<<<< HEAD
+				if pm.trackReaders[trackID] {
+					// Already have a reader for this track, skip
+					log.Printf("PeerManager: [TRACK RECEIVER] DUPLICATE track reader detected for %s, skipping", trackID)
+					pm.mu.Unlock()
+					continue
+				}
+				// Mark this track as having a reader
+				pm.trackReaders[trackID] = true
+=======
 				pm.pubsub.Pub(clientID, reader)
 
 				// Auto-subscribe all other peers to this new track
@@ -179,33 +200,72 @@ func (pm *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent,
 					}
 				}
 
+>>>>>>> main
 				pm.mu.Unlock()
 
-				// Process RTCP for this track
+				log.Printf("PeerManager: [TRACK RECEIVER] Track %s (%s) from client %s - passed duplicate check", trackID, trackKind, clientID)
+
+				// CRITICAL FIX: Handle each track in its own goroutine so the select loop
+				// is not blocked and can immediately receive the next track (e.g., video
+				// arriving right after audio).
+				capturedTrack := trackWithReader
+				capturedTrackID := trackID
+				capturedTrackKind := trackKind
 				pm.wg.Add(1)
 				go func() {
 					defer pm.wg.Done()
 
-					for {
-						packets, _, err := trackWithReader.RTCPReader.ReadRTCP()
+					// Create done channel for cleanup
+					done := make(chan struct{})
 
-						if err != nil {
-							if err != io.EOF {
-								log.Printf("PeerManager: Error reading RTCP for track %s: %v", trackID, err)
+					// Publish track to pubsub - this will start forwarding to all subscribers
+					reader := pubsub.NewTrackReader(capturedTrack.TrackRemote, capturedTrack.Codec, func() {
+						close(done)
+						// Phase 8: Clean up track reader registry
+						pm.mu.Lock()
+						delete(pm.trackReaders, capturedTrackID)
+						pm.mu.Unlock()
+						pm.pubsub.Unpub(clientID, capturedTrackID)
+					})
+
+					// Publish the track - this notifies all subscribers and starts forwarding
+					pm.mu.Lock()
+					log.Printf("PeerManager: [TRACK RECEIVER] Calling pubsub.Pub for track %s (kind=%s) from client %s", capturedTrackID, capturedTrackKind, clientID)
+					if err := pm.pubsub.Pub(clientID, reader); err != nil {
+						log.Printf("PeerManager: [TRACK RECEIVER] ERROR publishing track %s: %v", capturedTrackID, err)
+						pm.mu.Unlock()
+						return
+					}
+					pm.mu.Unlock()
+
+					log.Printf("PeerManager: [TRACK RECEIVER] SUCCESSFULLY published track %s (%s) from client %s to pubsub", capturedTrackID, capturedTrackKind, clientID)
+
+					// Phase 8: Single RTCP processing - no duplicate readers
+					pm.wg.Add(1)
+					go func() {
+						defer pm.wg.Done()
+
+						for {
+							packets, _, err := capturedTrack.RTCPReader.ReadRTCP()
+
+							if err != nil {
+								if err != io.EOF {
+									log.Printf("PeerManager: Error reading RTCP for track %s: %v", capturedTrackID, err)
+								}
+								return
 							}
-							return
-						}
 
-						for _, packet := range packets {
-							switch p := packet.(type) {
-							case *rtcp.PictureLossIndication:
-								log.Printf("PeerManager: Received PLI for track %s", trackID)
-								pm.forwardPLI(clientID, trackID, p)
-							case *rtcp.ReceiverEstimatedMaximumBitrate:
-								log.Printf("PeerManager: Received REMB for track %s: %f", trackID, p.Bitrate)
-								// Update bitrate estimator
-								if estimator, ok := pm.pubsub.BitrateEstimator(trackID); ok {
-									estimator.Feed(clientID, p.Bitrate)
+							for _, packet := range packets {
+								switch p := packet.(type) {
+								case *rtcp.PictureLossIndication:
+									log.Printf("PeerManager: Received PLI for track %s", capturedTrackID)
+									pm.forwardPLI(clientID, capturedTrackID, p)
+								case *rtcp.ReceiverEstimatedMaximumBitrate:
+									log.Printf("PeerManager: Received REMB for track %s: %f", capturedTrackID, p.Bitrate)
+									// Update bitrate estimator
+									if estimator, ok := pm.pubsub.BitrateEstimator(capturedTrackID); ok {
+										estimator.Feed(clientID, p.Bitrate)
+									}
 								}
 								// Update congestion controller with REMB bitrate
 								pm.congestionController.UpdateBitrateEstimate(clientID, uint32(p.Bitrate))
@@ -239,9 +299,13 @@ func (pm *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent,
 								}
 							}
 						}
-					}
-				}()
+					}()
 
+<<<<<<< HEAD
+					// Wait for track cleanup
+					<-done
+				}()
+=======
 				// NOTE: RTP packet processing (jitter buffer for NACK generation)
 				// is now handled in pubsub.forwardTrack -> processAndForwardPacket.
 				// We removed the duplicate reader here because calling track.ReadRTP()
@@ -250,6 +314,7 @@ func (pm *PeerManager) Add(tr transport.Transport) (<-chan pubsub.PubTrackEvent,
 
 				// Wait for track cleanup
 				<-done
+>>>>>>> main
 
 			case <-trackReceiveTimeout.C:
 				if !trackReceived {
@@ -396,7 +461,8 @@ func (pm *PeerManager) Sub(pubClientID, trackID, subClientID string, writer tran
 		return err
 	}
 
-	// Start RTCP processing for subscriber
+	// Phase 8: Single RTCP processing for subscriber
+	// Start RTCP processing for this subscriber only once
 	pm.wg.Add(1)
 	go func() {
 		defer pm.wg.Done()

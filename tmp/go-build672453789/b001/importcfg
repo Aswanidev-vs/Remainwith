@@ -1,0 +1,15 @@
+# import config
+packagefile Remainwith/config=g:\Remainwith\tmp\gocache\a4\a408995b41212ed90795885f3ca393e22b9f36425dfafea2577c035929c64d85-d
+packagefile Remainwith/db=g:\Remainwith\tmp\go-build672453789\b205\_pkg_.a
+packagefile Remainwith/internal/about=g:\Remainwith\tmp\gocache\53\532c76a0d1025a1322f2972c2cc3d27747e98cf10092e8ee7d92eec38e5e4164-d
+packagefile Remainwith/internal/chat=g:\Remainwith\tmp\go-build672453789\b231\_pkg_.a
+packagefile Remainwith/internal/handler=g:\Remainwith\tmp\go-build672453789\b232\_pkg_.a
+packagefile Remainwith/internal/message=g:\Remainwith\tmp\go-build672453789\b256\_pkg_.a
+packagefile Remainwith/internal/sfu=g:\Remainwith\tmp\go-build672453789\b257\_pkg_.a
+packagefile Remainwith/internal/signaling=g:\Remainwith\tmp\gocache\70\70abfc7408e0acb8e9139689755bffcf2f1dfac06732bb8767f12177a5e8fe1c-d
+packagefile Remainwith/internal/ws=g:\Remainwith\tmp\go-build672453789\b354\_pkg_.a
+packagefile context=g:\Remainwith\tmp\gocache\9a\9ad251161b2f6e13554b66ff86c289b8a2d382b0eb376d3d8aac22b58c8ecc5c-d
+packagefile log=g:\Remainwith\tmp\gocache\0b\0b48e043b67d3433336968615e72d3637b3d39c531f2af58092f1899ba33d24b-d
+packagefile net/http=g:\Remainwith\tmp\gocache\f2\f200e7d4140fd8abad8730a19a8693454ba8d8a918bd57736a835482a3a9ab09-d
+packagefile time=g:\Remainwith\tmp\gocache\25\251ffcf4c5ab9f685330276563ae57a1a1216b67aaea228b437907588a1d8d9a-d
+packagefile runtime=g:\Remainwith\tmp\gocache\3e\3e434f0698c7a36d5528d28bbd6e8872f1564a59fa05392fe2488ff894e57bdf-d

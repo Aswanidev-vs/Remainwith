@@ -1,0 +1,9 @@
+./auth.go
+./auth_cram_md5.go
+./auth_login.go
+./auth_plain.go
+./auth_scram.go
+./auth_xoauth2.go
+./errorregistry.go
+./smtp.go
+./smtp_ehlo.go

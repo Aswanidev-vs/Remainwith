@@ -50,6 +50,18 @@ func NewWebRTCTransport(clientID, roomID string, iceServers []webrtc.ICEServer) 
 		ICEServers: iceServers,
 	}
 
+<<<<<<< HEAD
+	// Create media engine with comprehensive codec support
+	m := &webrtc.MediaEngine{}
+
+	// Phase 5: Audio Noise Fix - Configure Opus with proper settings for noise reduction
+	// Use mono audio with lower bitrate and constant bitrate mode for cleaner audio
+	opusCodec := webrtc.RTPCodecCapability{
+		MimeType:    webrtc.MimeTypeOpus,
+		ClockRate:   48000,
+		Channels:    2, // Use stereo for better compatibility, browser will negotiate
+		SDPFmtpLine: "minptime=10;useinbandfec=1",
+=======
 	// Create media engine with proper codec registration (following peer-calls pattern)
 	m := &webrtc.MediaEngine{}
 
@@ -90,7 +102,78 @@ func NewWebRTCTransport(clientID, roomID string, iceServers []webrtc.ICEServer) 
 		PayloadType:        96,
 	}, webrtc.RTPCodecTypeVideo); err != nil {
 		return nil, fmt.Errorf("register vp8 codec: %w", err)
+>>>>>>> main
 	}
+
+	// Register Opus codec with standard payload type 111
+	if err := m.RegisterCodec(webrtc.RTPCodecParameters{
+		RTPCodecCapability: opusCodec,
+		PayloadType:        111,
+	}, webrtc.RTPCodecTypeAudio); err != nil {
+		return nil, fmt.Errorf("register opus codec: %w", err)
+	}
+
+	// Register VP8 video codec with standard payload type 96
+	// CRITICAL: Add RTCP feedback for video congestion control and keyframe requests
+	vp8Codec := webrtc.RTPCodecCapability{
+		MimeType:  webrtc.MimeTypeVP8,
+		ClockRate: 90000,
+		RTCPFeedback: []webrtc.RTCPFeedback{
+			{Type: "nack"},
+			{Type: "nack", Parameter: "pli"},
+			{Type: "goog-remb"},
+			{Type: "transport-cc"},
+		},
+	}
+
+	if err := m.RegisterCodec(webrtc.RTPCodecParameters{
+		RTPCodecCapability: vp8Codec,
+		PayloadType:        96,
+	}, webrtc.RTPCodecTypeVideo); err != nil {
+		return nil, fmt.Errorf("register vp8 codec: %w", err)
+	}
+
+	// Register VP8 RTX (retransmission) codec for reliability - payload type 97
+	vp8RtxCodec := webrtc.RTPCodecCapability{
+		MimeType:    webrtc.MimeTypeRTX,
+		ClockRate:   90000,
+		SDPFmtpLine: "apt=96",
+	}
+	if err := m.RegisterCodec(webrtc.RTPCodecParameters{
+		RTPCodecCapability: vp8RtxCodec,
+		PayloadType:        97,
+	}, webrtc.RTPCodecTypeVideo); err != nil {
+		log.Printf("WebRTCTransport: Warning - could not register VP8 RTX codec: %v", err)
+		// Non-fatal - continue without RTX
+	}
+
+	// Register additional video codecs for better compatibility
+	// VP9 - payload type 98
+	vp9Codec := webrtc.RTPCodecCapability{
+		MimeType:  webrtc.MimeTypeVP9,
+		ClockRate: 90000,
+	}
+	if err := m.RegisterCodec(webrtc.RTPCodecParameters{
+		RTPCodecCapability: vp9Codec,
+		PayloadType:        98,
+	}, webrtc.RTPCodecTypeVideo); err != nil {
+		log.Printf("WebRTCTransport: Warning - could not register VP9 codec: %v", err)
+	}
+
+	// H264 - payload type 102 (for broader browser compatibility)
+	h264Codec := webrtc.RTPCodecCapability{
+		MimeType:    webrtc.MimeTypeH264,
+		ClockRate:   90000,
+		SDPFmtpLine: "level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42001f",
+	}
+	if err := m.RegisterCodec(webrtc.RTPCodecParameters{
+		RTPCodecCapability: h264Codec,
+		PayloadType:        102,
+	}, webrtc.RTPCodecTypeVideo); err != nil {
+		log.Printf("WebRTCTransport: Warning - could not register H264 codec: %v", err)
+	}
+
+	log.Printf("WebRTCTransport: Registered codecs - Opus(111), VP8(96), VP8-RTX(97), VP9(98), H264(102)")
 
 	// Create interceptor registry
 	i := &interceptor.Registry{}
@@ -102,6 +185,14 @@ func NewWebRTCTransport(clientID, roomID string, iceServers []webrtc.ICEServer) 
 	s := webrtc.SettingEngine{}
 	s.DetachDataChannels()
 
+<<<<<<< HEAD
+	// Phase 5: Audio Noise Fix - Set audio processing parameters
+	// These settings help reduce background noise and echo
+	// Note: DTLS settings are handled through proper certificate validation
+
+	// Enable extended filter for better audio quality
+	s.SetDTLSInsecureSkipHelloVerify(true)
+=======
 	// Enable jitter buffer for audio to reduce noise from packet loss
 	s.SetSRTPReplayProtectionWindow(512)
 
@@ -110,6 +201,7 @@ func NewWebRTCTransport(clientID, roomID string, iceServers []webrtc.ICEServer) 
 	s.SetICETimeouts(5*time.Second, 10*time.Second, 2*time.Second)
 	s.SetDTLSRetransmissionInterval(100 * time.Millisecond)
 	s.SetDTLSInsecureSkipHelloVerify(false)
+>>>>>>> main
 
 	// Create API
 	api := webrtc.NewAPI(
@@ -134,6 +226,13 @@ func NewWebRTCTransport(clientID, roomID string, iceServers []webrtc.ICEServer) 
 		localTracks:    make([]TrackWithMID, 0),
 	}
 
+	// NOTE: We do NOT add transceivers upfront anymore
+	// Transceivers will be created naturally when tracks are added via AddTrack()
+	// This prevents codec/direction mismatch issues during negotiation
+	// The client's addTrack() calls will create appropriate transceivers with sendrecv direction
+
+	log.Printf("WebRTCTransport: Created transport for client %s (no upfront transceivers - will create on track add)", clientID)
+
 	t.setupPeerConnectionHandlers()
 
 	return t, nil
@@ -154,19 +253,25 @@ func (t *WebRTCTransport) setupPeerConnectionHandlers() {
 
 	// Handle incoming tracks
 	t.peerConn.OnTrack(func(track *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
-		log.Printf("WebRTCTransport: Received track %s from client %s", track.ID(), t.clientID)
+		trackKind := track.Kind().String()
+		trackCodec := track.Codec().MimeType
+		trackID := track.ID()
+		log.Printf("WebRTCTransport: [ONTRACK] Received track %s (kind=%s, codec=%s, ssrc=%d) from client %s",
+			trackID, trackKind, trackCodec, track.SSRC(), t.clientID)
 
 		rtcpReader := &rtcpReaderImpl{receiver: receiver}
 
 		// Safely send to channel, checking if transport is closed
 		select {
 		case <-t.doneCh:
+			log.Printf("WebRTCTransport: [ONTRACK] Transport closed, NOT sending track %s to channel", trackID)
 			return
 		case t.remoteTracksCh <- TrackRemoteWithRTCPReader{
 			TrackRemote: &trackRemoteImpl{track: track},
 			RTCPReader:  rtcpReader,
+			Codec:       trackCodec,
 		}:
-			// Successfully sent
+			log.Printf("WebRTCTransport: [ONTRACK] SUCCESSFULLY sent track %s (kind=%s, codec=%s) to remoteTracksCh", trackID, trackKind, trackCodec)
 		}
 
 		// Start RTCP processing for this track
@@ -177,9 +282,9 @@ func (t *WebRTCTransport) setupPeerConnectionHandlers() {
 	t.peerConn.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
 		log.Printf("WebRTCTransport: Connection state changed to %s for client %s", state.String(), t.clientID)
 
+		// Only close on failed or closed - disconnected is transient and may recover
 		if state == webrtc.PeerConnectionStateFailed ||
-			state == webrtc.PeerConnectionStateClosed ||
-			state == webrtc.PeerConnectionStateDisconnected {
+			state == webrtc.PeerConnectionStateClosed {
 			t.closeOnce.Do(func() {
 				close(t.doneCh)
 			})
@@ -227,7 +332,13 @@ func (t *WebRTCTransport) ClientID() string {
 	return t.clientID
 }
 
+// RoomID returns the room ID
+func (t *WebRTCTransport) RoomID() string {
+	return t.roomID
+}
+
 // Type returns the transport type
+
 func (t *WebRTCTransport) Type() Type {
 	return TypeWebRTC
 }

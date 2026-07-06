@@ -22,6 +22,8 @@ const (
 type Transport interface {
 	// ClientID returns the unique identifier for this transport's client
 	ClientID() string
+	// RoomID returns the room identifier for this transport
+	RoomID() string
 	// Type returns the transport type
 	Type() Type
 
@@ -81,6 +83,7 @@ type RTCPReader interface {
 type TrackRemoteWithRTCPReader struct {
 	TrackRemote TrackRemote
 	RTCPReader  RTCPReader
+	Codec       string // MimeType of the negotiated codec, e.g. "video/vp9"
 }
 
 // RTCPWriter writes RTCP packets

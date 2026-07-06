@@ -3,11 +3,16 @@ package pubsub
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"sync"
 	"time"
 
 	"Remainwith/internal/sfu/jitter"
+<<<<<<< HEAD
+	"Remainwith/internal/sfu/recorder"
+=======
+>>>>>>> main
 	"Remainwith/internal/transport"
 
 	"github.com/pion/rtcp"
@@ -20,19 +25,22 @@ type PubTrack struct {
 	TrackID  string
 	PeerID   string
 	Kind     string
+	Codec    string // MimeType of the negotiated codec e.g. "video/vp8", "video/vp9", "audio/opus"
 	Reader   transport.TrackRemote
 }
 
 // TrackReader wraps a track remote with cleanup functionality
 type TrackReader struct {
 	track   transport.TrackRemote
+	Codec   string // MimeType of the negotiated codec
 	onClose func()
 }
 
 // NewTrackReader creates a new track reader
-func NewTrackReader(track transport.TrackRemote, onClose func()) *TrackReader {
+func NewTrackReader(track transport.TrackRemote, codec string, onClose func()) *TrackReader {
 	return &TrackReader{
 		track:   track,
+		Codec:   codec,
 		onClose: onClose,
 	}
 }
@@ -96,8 +104,19 @@ type PubSub struct {
 	// Bitrate estimators
 	bitrateEstimators map[string]*BitrateEstimator
 
+<<<<<<< HEAD
+	// Audio recorder for recording tracks
+	recorder *recorder.AudioRecorder
+
+	// Recording sessions indexed by trackID
+	recordingSessions map[string]*recorder.RecordingSession
+
+	// Jitter buffers for audio tracks (trackID -> jitter buffer)
+	jitterBuffers map[string]*jitter.JitterBuffer
+=======
 	// Jitter buffer for packet loss recovery
 	jitterBuffer *jitter.JitterBuffer
+>>>>>>> main
 
 	// Cleanup ticker
 	cleanupTicker *time.Ticker
@@ -153,7 +172,12 @@ func New() *PubSub {
 		eventSubscribers:  make(map[string]chan PubTrackEvent),
 		trackReaders:      make(map[string]*TrackReader),
 		bitrateEstimators: make(map[string]*BitrateEstimator),
+<<<<<<< HEAD
+		recordingSessions: make(map[string]*recorder.RecordingSession),
+		jitterBuffers:     make(map[string]*jitter.JitterBuffer),
+=======
 		jitterBuffer:      jitter.NewJitterBuffer(),
+>>>>>>> main
 		cleanupTicker:     time.NewTicker(30 * time.Second),
 		done:              make(chan struct{}),
 	}
@@ -161,6 +185,59 @@ func New() *PubSub {
 	go ps.cleanupLoop()
 
 	return ps
+}
+
+// EnableRecording enables audio recording with processing
+func (ps *PubSub) EnableRecording(config recorder.RecorderConfig) error {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+
+	if ps.recorder != nil {
+		return fmt.Errorf("recording already enabled")
+	}
+
+	rec, err := recorder.NewAudioRecorder(config)
+	if err != nil {
+		return fmt.Errorf("create audio recorder: %w", err)
+	}
+
+	ps.recorder = rec
+	log.Printf("PubSub: Audio recording enabled with processing")
+	return nil
+}
+
+// DisableRecording disables audio recording
+func (ps *PubSub) DisableRecording() error {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+
+	if ps.recorder == nil {
+		return nil
+	}
+
+	// Stop all active recordings
+	for trackID, session := range ps.recordingSessions {
+		if err := ps.recorder.StopRecording(session.ID); err != nil {
+			log.Printf("PubSub: Error stopping recording for %s: %v", trackID, err)
+		}
+		delete(ps.recordingSessions, trackID)
+	}
+
+	// Close recorder
+	if err := ps.recorder.Close(); err != nil {
+		log.Printf("PubSub: Error closing recorder: %v", err)
+	}
+
+	ps.recorder = nil
+	log.Printf("PubSub: Audio recording disabled")
+	return nil
+}
+
+// IsRecordingEnabled returns true if recording is enabled
+func (ps *PubSub) IsRecordingEnabled() bool {
+	ps.mu.RLock()
+	defer ps.mu.RUnlock()
+	return ps.recorder != nil
 }
 
 // cleanupLoop periodically cleans up stale resources
@@ -196,10 +273,10 @@ func (ps *PubSub) cleanup() {
 // Pub publishes a track
 func (ps *PubSub) Pub(clientID string, reader *TrackReader) error {
 	ps.mu.Lock()
-	defer ps.mu.Unlock()
 
 	track := reader.track
 	trackID := track.Track().ID()
+	trackKind := track.Track().Kind().String()
 
 	// Initialize published tracks map for client if needed
 	if ps.publishedTracks[clientID] == nil {
@@ -211,7 +288,8 @@ func (ps *PubSub) Pub(clientID string, reader *TrackReader) error {
 		ClientID: clientID,
 		TrackID:  trackID,
 		PeerID:   clientID, // peerID is same as clientID for WebRTC
-		Kind:     track.Track().Kind().String(),
+		Kind:     trackKind,
+		Codec:    reader.Codec, // use actual negotiated codec
 		Reader:   track,
 	}
 
@@ -221,25 +299,113 @@ func (ps *PubSub) Pub(clientID string, reader *TrackReader) error {
 	// Initialize bitrate estimator
 	ps.bitrateEstimators[trackID] = NewBitrateEstimator()
 
-	// Notify subscribers
+	// Log current subscribers count
+	subCount := 0
+	for _, trackSubs := range ps.subscriptions[clientID] {
+		for _, sub := range trackSubs {
+			if sub != nil {
+				subCount++
+			}
+		}
+	}
+	log.Printf("PubSub: [TRACK %s] PUBLISHED - clientID: %s, kind: %s, streamID: %s, current subs: %d",
+		trackID, clientID, trackKind, track.Track().StreamID(), subCount)
+
+	// Notify subscribers (within lock to ensure consistency)
 	ps.notifyEventSubscribers(PubTrackEvent{
 		PubTrack: *pubTrack,
 		Type:     TrackEventTypeAdd,
 	})
 
-	log.Printf("PubSub: Track published - clientID: %s, trackID: %s", clientID, trackID)
+	ps.mu.Unlock()
 
-	// Start forwarding RTP packets
-	go ps.forwardTrack(clientID, trackID, reader)
+	// Start forwarding RTP packets with track kind already determined
+	// Pass trackKind directly to avoid race conditions
+	go ps.forwardTrack(clientID, trackID, reader, trackKind)
 
 	return nil
+}
+
+// Terminate terminates all subscriptions and publications for a client
+func (ps *PubSub) Terminate(clientID string) {
+	ps.mu.Lock()
+
+	// 1. Collect all readers to close to avoid deadlocks with onClose callbacks
+	var readersToClose []*TrackReader
+
+	// 2. Unpublish all tracks for this client
+	if tracks, ok := ps.publishedTracks[clientID]; ok {
+		for trackID, pubTrack := range tracks {
+			// Notify subscribers of removal
+			ps.notifyEventSubscribers(PubTrackEvent{
+				PubTrack: *pubTrack,
+				Type:     TrackEventTypeRemove,
+			})
+
+			// Collect reader for closing later (outside lock)
+			if reader, ok := ps.trackReaders[trackID]; ok {
+				readersToClose = append(readersToClose, reader)
+				delete(ps.trackReaders, trackID)
+			}
+
+			// Remove bitrate estimator
+			delete(ps.bitrateEstimators, trackID)
+		}
+		delete(ps.publishedTracks, clientID)
+	}
+
+	// 3. Unsubscribe this client from all tracks it was subscribed to
+	// We need to iterate over all publishers and their tracks
+	for pubClientID, pubTracksMap := range ps.subscriptions {
+		for trackID, subsMap := range pubTracksMap {
+			if sub, ok := subsMap[clientID]; ok {
+				delete(subsMap, clientID)
+
+				// Notify the publisher that a subscription removed
+				if ptMap, ok := ps.publishedTracks[pubClientID]; ok {
+					if pubTrack, ok := ptMap[trackID]; ok {
+						ps.notifyEventSubscribers(PubTrackEvent{
+							PubTrack: *pubTrack,
+							Type:     TrackEventTypeUnsub,
+							// Note: We don't have the Sub struct here in the event, but we know the ClientID
+						})
+						_ = sub // Keep compiler happy if sub is unused
+					}
+				}
+			}
+		}
+	}
+
+	// 4. Clean up event subscriber channel
+	if ch, ok := ps.eventSubscribers[clientID]; ok {
+		close(ch)
+		delete(ps.eventSubscribers, clientID)
+	}
+
+	ps.mu.Unlock()
+
+	// 5. Close readers outside the lock to avoid deadlocks!
+	for _, reader := range readersToClose {
+		reader.Close()
+	}
+
+	log.Printf("PubSub: Client terminated - all tracks and subscriptions removed: %s", clientID)
 }
 
 // Unpub unpublishes a track
 func (ps *PubSub) Unpub(clientID, trackID string) {
 	ps.mu.Lock()
-	defer ps.mu.Unlock()
+	reader := ps.unpubInternal(clientID, trackID)
+	ps.mu.Unlock()
 
+	// Close reader outside the lock
+	if reader != nil {
+		reader.Close()
+	}
+}
+
+// unpubInternal performs the unpublish logic without locking ps.mu
+func (ps *PubSub) unpubInternal(clientID, trackID string) *TrackReader {
 	// Remove from published tracks
 	if tracks, ok := ps.publishedTracks[clientID]; ok {
 		if pubTrack, ok := tracks[trackID]; ok {
@@ -257,9 +423,10 @@ func (ps *PubSub) Unpub(clientID, trackID string) {
 		}
 	}
 
-	// Close track reader
-	if reader, ok := ps.trackReaders[trackID]; ok {
-		reader.Close()
+	// Remove and return track reader for closing outside lock
+	var reader *TrackReader
+	if r, ok := ps.trackReaders[trackID]; ok {
+		reader = r
 		delete(ps.trackReaders, trackID)
 	}
 
@@ -270,6 +437,7 @@ func (ps *PubSub) Unpub(clientID, trackID string) {
 	delete(ps.subscriptions[clientID], trackID)
 
 	log.Printf("PubSub: Track unpublished - clientID: %s, trackID: %s", clientID, trackID)
+	return reader
 }
 
 // Sub subscribes to a track
@@ -309,7 +477,8 @@ func (ps *PubSub) Sub(pubClientID, trackID, subClientID string, writer transport
 		Type:     TrackEventTypeSub,
 	})
 
-	log.Printf("PubSub: Track subscribed - pubClientID: %s, trackID: %s, subClientID: %s", pubClientID, trackID, subClientID)
+	log.Printf("PubSub: [TRACK %s] SUBSCRIBED - pubClientID: %s, subClientID: %s, kind: %s, total subs: %d",
+		trackID, pubClientID, subClientID, pubTrack.Kind, len(ps.subscriptions[pubClientID][trackID]))
 
 	return nil
 }
@@ -388,6 +557,60 @@ func (ps *PubSub) notifyEventSubscribers(event PubTrackEvent) {
 }
 
 // forwardTrack forwards RTP packets from a track to all subscribers
+<<<<<<< HEAD
+func (ps *PubSub) forwardTrack(clientID, trackID string, reader *TrackReader, trackKind string) {
+	ps.forwardDirect(clientID, trackID, reader, trackKind == "video")
+}
+
+// forwardAudioWithJitterBuffer forwards audio with jitter buffering (kept for reference/future use)
+func (ps *PubSub) forwardAudioWithJitterBuffer(clientID, trackID string, reader *TrackReader, jb *jitter.JitterBuffer) {
+	log.Printf("PubSub: Starting jitter-buffered forwarding for audio track %s", trackID)
+	ticker := time.NewTicker(20 * time.Millisecond)
+	defer ticker.Stop()
+	doneCh := make(chan struct{})
+	go func() {
+		defer close(doneCh)
+		for {
+			packet, err := reader.ReadRTP()
+			if err != nil {
+				return
+			}
+			jb.Push(packet, time.Now())
+		}
+	}()
+	for {
+		select {
+		case <-doneCh:
+			return
+		case <-ticker.C:
+			packet := jb.Pop(time.Now())
+			if packet == nil {
+				continue
+			}
+			ps.mu.RLock()
+			subs, ok := ps.subscriptions[clientID][trackID]
+			ps.mu.RUnlock()
+			if !ok {
+				continue
+			}
+			for _, sub := range subs {
+				_ = sub.Writer.WriteRTP(packet)
+			}
+		}
+	}
+}
+
+// forwardDirect forwards packets directly without jitter buffering
+func (ps *PubSub) forwardDirect(clientID, trackID string, reader *TrackReader, isVideoTrack bool) {
+	trackType := "audio"
+	if isVideoTrack {
+		trackType = "video"
+	}
+	log.Printf("PubSub: [TRACK %s] Starting direct forwarding for %s track from client %s", trackID, trackType, clientID)
+
+	packetCount := 0
+	lastLogTime := time.Now()
+=======
 func (ps *PubSub) forwardTrack(clientID, trackID string, reader *TrackReader) {
 	// Read first packet to get the original SSRC
 	firstPacket, err := reader.ReadRTP()
@@ -395,6 +618,7 @@ func (ps *PubSub) forwardTrack(clientID, trackID string, reader *TrackReader) {
 		log.Printf("PubSub: Error reading first RTP from track %s: %v", trackID, err)
 		return
 	}
+>>>>>>> main
 
 	// Use the original SSRC from the first packet
 	// DO NOT rewrite SSRC - this breaks video decoding!
@@ -410,8 +634,18 @@ func (ps *PubSub) forwardTrack(clientID, trackID string, reader *TrackReader) {
 	// Continue with remaining packets
 	for {
 		packet, err := reader.ReadRTP()
-
 		if err != nil {
+<<<<<<< HEAD
+			if err == io.EOF {
+				log.Printf("PubSub: [TRACK %s] Track %s closed (EOF)", trackID, trackType)
+			} else {
+				log.Printf("PubSub: [TRACK %s] Error reading RTP: %v", trackID, err)
+			}
+			return
+		}
+
+		packetCount++
+=======
 			log.Printf("PubSub: Error reading RTP from track %s: %v", trackID, err)
 			// Clean up jitter buffer when track ends
 			ps.jitterBuffer.RemoveBuffer(originalSSRC)
@@ -433,6 +667,7 @@ func (ps *PubSub) processAndForwardPacket(clientID, trackID string, packet *rtp.
 	// to the source to request retransmission
 	if nackPacket != nil {
 		// Get the source transport to send NACK
+>>>>>>> main
 		ps.mu.RLock()
 		sourceTransport, ok := ps.publishedTracks[clientID]
 		ps.mu.RUnlock()
@@ -481,28 +716,59 @@ func (ps *PubSub) processAndForwardPacket(clientID, trackID string, packet *rtp.
 			continue
 		}
 
+<<<<<<< HEAD
+		for _, sub := range subs {
+			if err := sub.Writer.WriteRTP(packet); err != nil {
+				// Throttle logging
+				if packetCount%1000 == 0 {
+					log.Printf("PubSub: [TRACK %s] Error writing RTP to sub %s: %v", trackID, sub.ClientID, err)
+				}
+			}
+		}
+
+		if isVideoTrack && time.Since(lastLogTime) > 10*time.Second {
+			log.Printf("PubSub: [TRACK %s] VIDEO STATS: forwarded %d total packets to %d subscribers",
+				trackID, packetCount, len(subs))
+			lastLogTime = time.Now()
+		}
+=======
 		// Ensure cloned packet has the original SSRC
 		cloned.Header.SSRC = originalSSRC
 
 		if err := sub.Writer.WriteRTP(cloned); err != nil {
 			log.Printf("PubSub: Error writing RTP to subscriber %s: %v", sub.ClientID, err)
 		}
+>>>>>>> main
 	}
 }
 
-// generateTrackSSRC generates a unique SSRC for a track
-// SSRC is a 32-bit value, we use a hash of the trackID
-func generateTrackSSRC(trackID string) uint32 {
-	var hash uint32 = 0
-	for i, c := range trackID {
-		hash = hash*31 + uint32(c) + uint32(i)
+// AutoSubscribe automatically subscribes all existing subscribers to a new track
+func (ps *PubSub) AutoSubscribe(pubClientID, trackID string, writer transport.TrackLocal, rtcpReader transport.RTCPReader) error {
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+
+	for subClientID := range ps.eventSubscribers {
+		if subClientID == pubClientID {
+			continue
+		}
+
+		if ps.subscriptions[pubClientID] == nil {
+			ps.subscriptions[pubClientID] = make(map[string]map[string]*Sub)
+		}
+		if ps.subscriptions[pubClientID][trackID] == nil {
+			ps.subscriptions[pubClientID][trackID] = make(map[string]*Sub)
+		}
+
+		ps.subscriptions[pubClientID][trackID][subClientID] = &Sub{
+			ClientID:   subClientID,
+			Writer:     writer,
+			RTCPReader: rtcpReader,
+		}
+
+		log.Printf("PubSub: Auto-subscribed %s to track %s from %s", subClientID, trackID, pubClientID)
 	}
-	// Ensure SSRC is valid (non-zero and fits in 32 bits)
-	if hash == 0 {
-		hash = 1
-	}
-	// Use upper 31 bits to avoid potential conflicts
-	return hash & 0x7FFFFFFF
+
+	return nil
 }
 
 // Tracks returns all published tracks
@@ -542,44 +808,16 @@ func (ps *PubSub) TrackPropsByTrackID(trackID string) (PubTrack, bool) {
 	return PubTrack{}, false
 }
 
-// Terminate terminates all subscriptions for a client
-func (ps *PubSub) Terminate(clientID string) {
-	ps.mu.Lock()
-	defer ps.mu.Unlock()
+// GetActiveRecordings returns list of active recording track IDs
+func (ps *PubSub) GetActiveRecordings() []string {
+	ps.mu.RLock()
+	defer ps.mu.RUnlock()
 
-	// Unpublish all tracks
-	if tracks, ok := ps.publishedTracks[clientID]; ok {
-		for trackID := range tracks {
-			// Close track reader
-			if reader, ok := ps.trackReaders[trackID]; ok {
-				reader.Close()
-				delete(ps.trackReaders, trackID)
-			}
-
-			// Remove bitrate estimator
-			delete(ps.bitrateEstimators, trackID)
-		}
-		delete(ps.publishedTracks, clientID)
+	ids := make([]string, 0, len(ps.recordingSessions))
+	for id := range ps.recordingSessions {
+		ids = append(ids, id)
 	}
-
-	// Remove all subscriptions by this client
-	for pubClientID, tracks := range ps.subscriptions {
-		for trackID, subs := range tracks {
-			delete(subs, clientID)
-			if len(subs) == 0 {
-				delete(tracks, trackID)
-			}
-		}
-		if len(tracks) == 0 {
-			delete(ps.subscriptions, pubClientID)
-		}
-	}
-
-	// Remove event subscriber
-	if ch, ok := ps.eventSubscribers[clientID]; ok {
-		close(ch)
-		delete(ps.eventSubscribers, clientID)
-	}
+	return ids
 }
 
 // GetJitterStats returns jitter buffer statistics
@@ -592,6 +830,11 @@ func (ps *PubSub) GetJitterStats() map[uint32]struct {
 
 // Close closes the PubSub
 func (ps *PubSub) Close() {
+	// Stop all recordings
+	if ps.recorder != nil {
+		ps.DisableRecording()
+	}
+
 	close(ps.done)
 	ps.cleanupTicker.Stop()
 	ps.jitterBuffer.Clear()

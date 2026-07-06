@@ -15,12 +15,21 @@ require (
 	github.com/pion/rtcp v1.2.15
 	github.com/pion/rtp v1.8.20
 	github.com/pion/webrtc/v4 v4.1.3
+<<<<<<< HEAD
+	golang.org/x/crypto v0.46.0
+=======
 	golang.org/x/crypto v0.51.0
+>>>>>>> main
 	golang.org/x/time v0.14.0
 )
 
 require (
+<<<<<<< HEAD
+	github.com/go-jose/go-jose/v3 v3.0.1 // indirect
+	github.com/golang/protobuf v1.5.3 // indirect
+=======
 	github.com/go-jose/go-jose/v3 v3.0.5 // indirect
+>>>>>>> main
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
@@ -30,6 +39,7 @@ require (
 	github.com/pion/ice/v4 v4.0.10 // indirect
 	github.com/pion/logging v0.2.4 // indirect
 	github.com/pion/mdns/v2 v2.0.7 // indirect
+	github.com/pion/opus v0.0.0-20260122090349-7342caad2cf7 // indirect
 	github.com/pion/randutil v0.1.0 // indirect
 	github.com/pion/sctp v1.8.39 // indirect
 	github.com/pion/sdp/v3 v3.0.14 // indirect

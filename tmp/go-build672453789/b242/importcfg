@@ -1,0 +1,15 @@
+# import config
+packagefile bytes=g:\Remainwith\tmp\gocache\68\68941751f9dea53f8caecbef9f1c33ab1b622ee4272c4153f99dd53abd77944e-d
+packagefile crypto=g:\Remainwith\tmp\gocache\25\25f66d89d4ce5b05aa2eaab057104450c35853ee1a8ec74d457eddccd79ae7ec-d
+packagefile crypto/ecdsa=g:\Remainwith\tmp\gocache\ac\ac8620879fae2c2133d29f9a97b5598a40e90c0a672e9f5448ae61ae6e65ba2a-d
+packagefile crypto/rand=g:\Remainwith\tmp\gocache\21\21e4ab52ff66b5b7bb610d227986f696bf7798e25f7cf34d560034546365a44a-d
+packagefile crypto/rsa=g:\Remainwith\tmp\gocache\c8\c8e368d9d7c3d8f32a8c3f4406ef49a753d6e63ef3dad6c3b5e81b4acb20ae17-d
+packagefile crypto/sha256=g:\Remainwith\tmp\gocache\4d\4d81f683e5ee45e4651d0f5bc344de8f66acdc7d27d2b2d4cba1df01312ff767-d
+packagefile crypto/x509=g:\Remainwith\tmp\gocache\b7\b7f939bdb98dc0decaf6a45cddee185e98c9ea9eecbcca628fb73e6fd1e1a9ef-d
+packagefile crypto/x509/pkix=g:\Remainwith\tmp\gocache\bc\bc32db7997c076cc2fccd727532edf7e047ef923e90969842cf9198e7caa8834-d
+packagefile encoding/asn1=g:\Remainwith\tmp\gocache\12\12bfa21e52e34f74b316b777518ba199ebb4448c5a7373159b97cb296559a4e5-d
+packagefile errors=g:\Remainwith\tmp\gocache\b4\b4fa25b86333fbfe8c1792984abb5081d44b34811f89bb456a2a9d9458217fdf-d
+packagefile fmt=g:\Remainwith\tmp\gocache\5c\5cb2e9dba050c4a615faee08e4f51a040c2f2b00a26551a7cd5b45ffcc8fee1f-d
+packagefile math/big=g:\Remainwith\tmp\gocache\94\949d26f6bfa5f7b00905a0574ae3cf5bc1df1f4074e97ba172b0aebda20d36ef-d
+packagefile sort=g:\Remainwith\tmp\gocache\62\62e4bf5d0db2a205715318df124da99ad69dd0c19dfbfd469f2db4d7dba80703-d
+packagefile time=g:\Remainwith\tmp\gocache\25\251ffcf4c5ab9f685330276563ae57a1a1216b67aaea228b437907588a1d8d9a-d
