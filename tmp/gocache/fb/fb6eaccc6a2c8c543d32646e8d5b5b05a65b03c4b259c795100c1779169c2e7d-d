@@ -1,0 +1,15 @@
+./context.go
+./dash.go
+./forgot_password.go
+./groups.go
+./index.go
+./interests.go
+./jwt.go
+./logger.go
+./login.go
+./logout.go
+./middleware.go
+./profile.go
+./settings.go
+./signup.go
+./videohandler.go

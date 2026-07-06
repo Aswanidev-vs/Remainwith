@@ -1,0 +1,15 @@
+# import config
+packagefile Remainwith/db=g:\Remainwith\tmp\go-build672453789\b205\_pkg_.a
+packagefile Remainwith/internal/handler=g:\Remainwith\tmp\go-build672453789\b232\_pkg_.a
+packagefile context=g:\Remainwith\tmp\gocache\9a\9ad251161b2f6e13554b66ff86c289b8a2d382b0eb376d3d8aac22b58c8ecc5c-d
+packagefile encoding/json=g:\Remainwith\tmp\gocache\dc\dcad1bf5ed014fef4540f9b459ffffede41a8ce30aae416fc8f195ae9cc8c377-d
+packagefile fmt=g:\Remainwith\tmp\gocache\5c\5cb2e9dba050c4a615faee08e4f51a040c2f2b00a26551a7cd5b45ffcc8fee1f-d
+packagefile github.com/coder/websocket=g:\Remainwith\tmp\gocache\76\7669a6907267818dbd98e8e239fd7c019a6ef3cfd52ebdc956edbfceaf339880-d
+packagefile github.com/coder/websocket/wsjson=g:\Remainwith\tmp\gocache\ea\ea525bf5895b797600526521cf1afdc6e1a2806761a36c0c895863479ceaaea2-d
+packagefile github.com/golang-jwt/jwt/v5=g:\Remainwith\tmp\gocache\74\7451e1b4fe9d23e694a32141ead7b131b487df2a0f250eea6bf41e490125d8e8-d
+packagefile html/template=g:\Remainwith\tmp\gocache\2e\2e962edd6f74cbd37745d1512495e807dc3da604e954ef70e0f1ced860823b03-d
+packagefile log=g:\Remainwith\tmp\gocache\0b\0b48e043b67d3433336968615e72d3637b3d39c531f2af58092f1899ba33d24b-d
+packagefile net/http=g:\Remainwith\tmp\gocache\f2\f200e7d4140fd8abad8730a19a8693454ba8d8a918bd57736a835482a3a9ab09-d
+packagefile strconv=g:\Remainwith\tmp\gocache\2a\2a2df57bcddcddcaa1e861eda869cd6bfb5b48284ff64fb175ba313791663ee7-d
+packagefile sync=g:\Remainwith\tmp\gocache\04\04ceea857de9dca15c2e61f863b538afad6b7fea033e52bf260ff871ae567599-d
+packagefile time=g:\Remainwith\tmp\gocache\25\251ffcf4c5ab9f685330276563ae57a1a1216b67aaea228b437907588a1d8d9a-d

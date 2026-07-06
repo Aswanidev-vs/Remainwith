@@ -1,0 +1,3 @@
+./jsonlog.go
+./log.go
+./stdlog.go

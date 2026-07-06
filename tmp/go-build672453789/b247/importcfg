@@ -1,0 +1,23 @@
+# import config
+packagefile bytes=g:\Remainwith\tmp\gocache\68\68941751f9dea53f8caecbef9f1c33ab1b622ee4272c4153f99dd53abd77944e-d
+packagefile crypto/hmac=g:\Remainwith\tmp\gocache\d5\d59ee81b0b79b0a3292780a3bcef0fec901cab99d8ed46fb1c013e95ce2ae0cf-d
+packagefile crypto/md5=g:\Remainwith\tmp\gocache\85\855ec0cd481d9cecf8ce108dd7cc0a1e733c03f8ed0328933ad3f34252734174-d
+packagefile crypto/pbkdf2=g:\Remainwith\tmp\gocache\74\74a344ba1932cd572ae098bc8b5243833cc6d08b9ba5142fe982a2df39da4c70-d
+packagefile crypto/rand=g:\Remainwith\tmp\gocache\21\21e4ab52ff66b5b7bb610d227986f696bf7798e25f7cf34d560034546365a44a-d
+packagefile crypto/sha1=g:\Remainwith\tmp\gocache\2a\2a8c134b080bc5b6333d780ca2d14f5123831071e5486751a077295f4b7f4efd-d
+packagefile crypto/sha256=g:\Remainwith\tmp\gocache\4d\4d81f683e5ee45e4651d0f5bc344de8f66acdc7d27d2b2d4cba1df01312ff767-d
+packagefile crypto/tls=g:\Remainwith\tmp\gocache\03\03e64dcd0ed558581af92641a081a278d7c480219a2e30df3c999b462b7bf259-d
+packagefile encoding/base64=g:\Remainwith\tmp\gocache\8c\8cca9772967b803af2e3722e89cbaa3e6db559da4bbb33e8c5110690d9d8ee86-d
+packagefile errors=g:\Remainwith\tmp\gocache\b4\b4fa25b86333fbfe8c1792984abb5081d44b34811f89bb456a2a9d9458217fdf-d
+packagefile fmt=g:\Remainwith\tmp\gocache\5c\5cb2e9dba050c4a615faee08e4f51a040c2f2b00a26551a7cd5b45ffcc8fee1f-d
+packagefile github.com/wneessen/go-mail/log=g:\Remainwith\tmp\go-build672453789\b243\_pkg_.a
+packagefile golang.org/x/text/secure/precis=g:\Remainwith\tmp\gocache\13\13ecaf5e20bb1b1750d4c005f269f46ae2fbfa3b2f669807332119b688004627-d
+packagefile hash=g:\Remainwith\tmp\gocache\40\405f9c336b914618f2efddd4dfee2f693d06660884e98a8dfaee85e6c0f4fa86-d
+packagefile io=g:\Remainwith\tmp\gocache\10\102e3c93e42b267d1b392ef324d5c6cf3752e0fc36317d75ebf73b9c67f0abae-d
+packagefile net=g:\Remainwith\tmp\gocache\bb\bbc5f367ca6124c5fcce1ae1daff3a02fdd6cd8af687f5aed08976423172db5e-d
+packagefile net/textproto=g:\Remainwith\tmp\gocache\a2\a2c1c765a3c567a490bcdd7b554d904be419e55cf1c705ce9b751bb9c9c0dd48-d
+packagefile os=g:\Remainwith\tmp\gocache\4d\4df78071d983a4a46bd4b1e232ace3e4aa4541a6706e58621a0c0065d6d5a0e8-d
+packagefile strconv=g:\Remainwith\tmp\gocache\2a\2a2df57bcddcddcaa1e861eda869cd6bfb5b48284ff64fb175ba313791663ee7-d
+packagefile strings=g:\Remainwith\tmp\gocache\76\767ccb8217bd66a3394af652343d2d6fc780cdb83ae09e7b38f834d53ef16b9a-d
+packagefile sync=g:\Remainwith\tmp\gocache\04\04ceea857de9dca15c2e61f863b538afad6b7fea033e52bf260ff871ae567599-d
+packagefile time=g:\Remainwith\tmp\gocache\25\251ffcf4c5ab9f685330276563ae57a1a1216b67aaea228b437907588a1d8d9a-d

@@ -9,9 +9,13 @@ import (
 	"time"
 
 	"Remainwith/internal/sfu/jitter"
+<<<<<<< HEAD
 	"Remainwith/internal/sfu/recorder"
+=======
+>>>>>>> main
 	"Remainwith/internal/transport"
 
+	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
 )
 
@@ -100,6 +104,7 @@ type PubSub struct {
 	// Bitrate estimators
 	bitrateEstimators map[string]*BitrateEstimator
 
+<<<<<<< HEAD
 	// Audio recorder for recording tracks
 	recorder *recorder.AudioRecorder
 
@@ -108,6 +113,10 @@ type PubSub struct {
 
 	// Jitter buffers for audio tracks (trackID -> jitter buffer)
 	jitterBuffers map[string]*jitter.JitterBuffer
+=======
+	// Jitter buffer for packet loss recovery
+	jitterBuffer *jitter.JitterBuffer
+>>>>>>> main
 
 	// Cleanup ticker
 	cleanupTicker *time.Ticker
@@ -163,8 +172,12 @@ func New() *PubSub {
 		eventSubscribers:  make(map[string]chan PubTrackEvent),
 		trackReaders:      make(map[string]*TrackReader),
 		bitrateEstimators: make(map[string]*BitrateEstimator),
+<<<<<<< HEAD
 		recordingSessions: make(map[string]*recorder.RecordingSession),
 		jitterBuffers:     make(map[string]*jitter.JitterBuffer),
+=======
+		jitterBuffer:      jitter.NewJitterBuffer(),
+>>>>>>> main
 		cleanupTicker:     time.NewTicker(30 * time.Second),
 		done:              make(chan struct{}),
 	}
@@ -544,6 +557,7 @@ func (ps *PubSub) notifyEventSubscribers(event PubTrackEvent) {
 }
 
 // forwardTrack forwards RTP packets from a track to all subscribers
+<<<<<<< HEAD
 func (ps *PubSub) forwardTrack(clientID, trackID string, reader *TrackReader, trackKind string) {
 	ps.forwardDirect(clientID, trackID, reader, trackKind == "video")
 }
@@ -596,10 +610,32 @@ func (ps *PubSub) forwardDirect(clientID, trackID string, reader *TrackReader, i
 
 	packetCount := 0
 	lastLogTime := time.Now()
+=======
+func (ps *PubSub) forwardTrack(clientID, trackID string, reader *TrackReader) {
+	// Read first packet to get the original SSRC
+	firstPacket, err := reader.ReadRTP()
+	if err != nil {
+		log.Printf("PubSub: Error reading first RTP from track %s: %v", trackID, err)
+		return
+	}
+>>>>>>> main
 
+	// Use the original SSRC from the first packet
+	// DO NOT rewrite SSRC - this breaks video decoding!
+	originalSSRC := firstPacket.SSRC
+	log.Printf("PubSub: Starting track forwarding for %s with SSRC %d", trackID, originalSSRC)
+
+	// Get or create jitter buffer for this track using ORIGINAL SSRC
+	jb := ps.jitterBuffer.GetOrCreateBuffer(originalSSRC)
+
+	// Process first packet
+	ps.processAndForwardPacket(clientID, trackID, firstPacket, jb, originalSSRC)
+
+	// Continue with remaining packets
 	for {
 		packet, err := reader.ReadRTP()
 		if err != nil {
+<<<<<<< HEAD
 			if err == io.EOF {
 				log.Printf("PubSub: [TRACK %s] Track %s closed (EOF)", trackID, trackType)
 			} else {
@@ -609,14 +645,78 @@ func (ps *PubSub) forwardDirect(clientID, trackID string, reader *TrackReader, i
 		}
 
 		packetCount++
+=======
+			log.Printf("PubSub: Error reading RTP from track %s: %v", trackID, err)
+			// Clean up jitter buffer when track ends
+			ps.jitterBuffer.RemoveBuffer(originalSSRC)
+			return
+		}
+
+		ps.processAndForwardPacket(clientID, trackID, packet, jb, originalSSRC)
+	}
+}
+
+// processAndForwardPacket processes a single RTP packet and forwards to subscribers
+// Following peer-calls pattern: write the same packet to all subscribers
+func (ps *PubSub) processAndForwardPacket(clientID, trackID string, packet *rtp.Packet, jb *jitter.Buffer, originalSSRC uint32) {
+	// Push packet to jitter buffer for packet loss detection
+	// The jitter buffer tracks sequence numbers and can generate NACKs
+	nackPacket := jb.Push(packet)
+
+	// If jitter buffer detected missing packets, we need to send a NACK
+	// to the source to request retransmission
+	if nackPacket != nil {
+		// Get the source transport to send NACK
+>>>>>>> main
 		ps.mu.RLock()
-		subs, ok := ps.subscriptions[clientID][trackID]
+		sourceTransport, ok := ps.publishedTracks[clientID]
 		ps.mu.RUnlock()
 
-		if !ok || len(subs) == 0 {
+		if ok && sourceTransport != nil {
+			// We need to send the NACK to the source
+			// This will be handled by the peer_manager which has access to transports
+			// For now, log it - the peer_manager's RTCP handler will handle NACKs from subscribers
+			if nack, ok := nackPacket.(*rtcp.TransportLayerNack); ok {
+				log.Printf("PubSub: Jitter buffer requesting NACK for %d packets on track %s", len(nack.Nacks), trackID)
+			}
+		}
+	}
+
+	// Get subscribers
+	ps.mu.RLock()
+	tracksMap, ok := ps.subscriptions[clientID]
+	if !ok {
+		ps.mu.RUnlock()
+		return
+	}
+
+	subs, ok := tracksMap[trackID]
+	ps.mu.RUnlock()
+
+	if !ok || len(subs) == 0 {
+		return
+	}
+
+	// Ensure packet has correct SSRC (should already be set from original)
+	packet.Header.SSRC = originalSSRC
+
+	// Marshal the packet once and clone per-subscriber to avoid sharing the same
+	// packet instance across different writers (some writers may mutate the packet).
+	raw, err := packet.Marshal()
+	if err != nil {
+		log.Printf("PubSub: Error marshaling RTP packet for track %s: %v", trackID, err)
+		return
+	}
+
+	for _, sub := range subs {
+		// Unmarshal into a fresh packet instance for each subscriber
+		cloned := &rtp.Packet{}
+		if err := cloned.Unmarshal(raw); err != nil {
+			log.Printf("PubSub: Error unmarshaling RTP packet for subscriber %s: %v", sub.ClientID, err)
 			continue
 		}
 
+<<<<<<< HEAD
 		for _, sub := range subs {
 			if err := sub.Writer.WriteRTP(packet); err != nil {
 				// Throttle logging
@@ -631,6 +731,14 @@ func (ps *PubSub) forwardDirect(clientID, trackID string, reader *TrackReader, i
 				trackID, packetCount, len(subs))
 			lastLogTime = time.Now()
 		}
+=======
+		// Ensure cloned packet has the original SSRC
+		cloned.Header.SSRC = originalSSRC
+
+		if err := sub.Writer.WriteRTP(cloned); err != nil {
+			log.Printf("PubSub: Error writing RTP to subscriber %s: %v", sub.ClientID, err)
+		}
+>>>>>>> main
 	}
 }
 
@@ -712,6 +820,14 @@ func (ps *PubSub) GetActiveRecordings() []string {
 	return ids
 }
 
+// GetJitterStats returns jitter buffer statistics
+func (ps *PubSub) GetJitterStats() map[uint32]struct {
+	Received uint64
+	Lost     uint64
+} {
+	return ps.jitterBuffer.Stats()
+}
+
 // Close closes the PubSub
 func (ps *PubSub) Close() {
 	// Stop all recordings
@@ -721,4 +837,5 @@ func (ps *PubSub) Close() {
 
 	close(ps.done)
 	ps.cleanupTicker.Stop()
+	ps.jitterBuffer.Clear()
 }

@@ -1,0 +1,21 @@
+# import config
+packagefile Remainwith/config=g:\Remainwith\tmp\gocache\a4\a408995b41212ed90795885f3ca393e22b9f36425dfafea2577c035929c64d85-d
+packagefile Remainwith/db=g:\Remainwith\tmp\go-build672453789\b205\_pkg_.a
+packagefile Remainwith/internal/call/video=g:\Remainwith\tmp\gocache\eb\ebac76320934bf0127b17739e55798fae4fc976d4883ce408df8e7cd3fab2cae-d
+packagefile bytes=g:\Remainwith\tmp\gocache\68\68941751f9dea53f8caecbef9f1c33ab1b622ee4272c4153f99dd53abd77944e-d
+packagefile context=g:\Remainwith\tmp\gocache\9a\9ad251161b2f6e13554b66ff86c289b8a2d382b0eb376d3d8aac22b58c8ecc5c-d
+packagefile crypto/rand=g:\Remainwith\tmp\gocache\21\21e4ab52ff66b5b7bb610d227986f696bf7798e25f7cf34d560034546365a44a-d
+packagefile encoding/hex=g:\Remainwith\tmp\gocache\4a\4a41bdf0c91f72b74a1defe6c993fda32222a4ac44f87f0492512e4786bfcd92-d
+packagefile encoding/json=g:\Remainwith\tmp\gocache\dc\dcad1bf5ed014fef4540f9b459ffffede41a8ce30aae416fc8f195ae9cc8c377-d
+packagefile fmt=g:\Remainwith\tmp\gocache\5c\5cb2e9dba050c4a615faee08e4f51a040c2f2b00a26551a7cd5b45ffcc8fee1f-d
+packagefile github.com/golang-jwt/jwt/v5=g:\Remainwith\tmp\gocache\74\7451e1b4fe9d23e694a32141ead7b131b487df2a0f250eea6bf41e490125d8e8-d
+packagefile github.com/justinas/nosurf=g:\Remainwith\tmp\gocache\f1\f12b1a424b0e162ce54a8c00851a6692c79a56fe2002292d58f0152b7856749a-d
+packagefile github.com/wneessen/go-mail=g:\Remainwith\tmp\go-build672453789\b240\_pkg_.a
+packagefile golang.org/x/crypto/bcrypt=g:\Remainwith\tmp\gocache\25\25de417f3590da03664d3df97ee8c864a821178c02902de3610a621cc477e169-d
+packagefile html/template=g:\Remainwith\tmp\gocache\2e\2e962edd6f74cbd37745d1512495e807dc3da604e954ef70e0f1ced860823b03-d
+packagefile log=g:\Remainwith\tmp\gocache\0b\0b48e043b67d3433336968615e72d3637b3d39c531f2af58092f1899ba33d24b-d
+packagefile net/http=g:\Remainwith\tmp\gocache\f2\f200e7d4140fd8abad8730a19a8693454ba8d8a918bd57736a835482a3a9ab09-d
+packagefile os=g:\Remainwith\tmp\gocache\4d\4df78071d983a4a46bd4b1e232ace3e4aa4541a6706e58621a0c0065d6d5a0e8-d
+packagefile strconv=g:\Remainwith\tmp\gocache\2a\2a2df57bcddcddcaa1e861eda869cd6bfb5b48284ff64fb175ba313791663ee7-d
+packagefile strings=g:\Remainwith\tmp\gocache\76\767ccb8217bd66a3394af652343d2d6fc780cdb83ae09e7b38f834d53ef16b9a-d
+packagefile time=g:\Remainwith\tmp\gocache\25\251ffcf4c5ab9f685330276563ae57a1a1216b67aaea228b437907588a1d8d9a-d

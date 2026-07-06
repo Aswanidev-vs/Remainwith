@@ -1,0 +1,5 @@
+# import config
+packagefile fmt=g:\Remainwith\tmp\gocache\5c\5cb2e9dba050c4a615faee08e4f51a040c2f2b00a26551a7cd5b45ffcc8fee1f-d
+packagefile io=g:\Remainwith\tmp\gocache\10\102e3c93e42b267d1b392ef324d5c6cf3752e0fc36317d75ebf73b9c67f0abae-d
+packagefile log=g:\Remainwith\tmp\gocache\0b\0b48e043b67d3433336968615e72d3637b3d39c531f2af58092f1899ba33d24b-d
+packagefile log/slog=g:\Remainwith\tmp\go-build672453789\b244\_pkg_.a

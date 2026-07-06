@@ -102,6 +102,7 @@ func (tm *TracksManager) Sub(params SubParams, writer transport.TrackLocal, rtcp
 	// Update room activity
 	tm.roomActivity[params.RoomID] = time.Now()
 
+<<<<<<< HEAD
 	// Phase 4: Immediate subscription - no delay, direct subscription
 	err := pm.Sub(params.PubClientID, params.TrackID, params.SubClientID, writer, rtcpReader)
 	if err == nil {
@@ -133,6 +134,26 @@ func (tm *TracksManager) SubImmediate(roomID, pubClientID, trackID, subClientID 
 		TrackID:     trackID,
 		SubClientID: subClientID,
 	}, writer, rtcpReader)
+=======
+	// Attempt subscription with retry logic for transient failures
+	var err error
+	for retries := 0; retries < 3; retries++ {
+		err = pm.Sub(params.PubClientID, params.TrackID, params.SubClientID, writer, rtcpReader)
+		if err == nil {
+			log.Printf("TracksManager: Subscribed %s to track %s from %s in room %s",
+				params.SubClientID, params.TrackID, params.PubClientID, params.RoomID)
+			return nil
+		}
+		if retries < 2 {
+			log.Printf("TracksManager: Sub retry %d for %s: %v", retries+1, params.TrackID, err)
+			tm.mu.Unlock()
+			time.Sleep(10 * time.Millisecond)
+			tm.mu.Lock()
+		}
+	}
+
+	return fmt.Errorf("subscribe failed after retries: %w", err)
+>>>>>>> main
 }
 
 // Unsub unsubscribes a client from a track
@@ -192,6 +213,7 @@ func (tm *TracksManager) CleanupInactiveRooms() {
 	tm.mu.Lock()
 	defer tm.mu.Unlock()
 
+<<<<<<< HEAD
 	cutoff := time.Now().Add(-5 * time.Minute)            // 5 minutes of inactivity
 	aggressiveCutoff := time.Now().Add(-30 * time.Second) // 30 seconds for empty rooms
 
@@ -202,6 +224,15 @@ func (tm *TracksManager) CleanupInactiveRooms() {
 				log.Printf("TracksManager: Cleaning up empty room %s (inactive for 30s)", roomID)
 				tm.cleanupRoom(roomID, pm)
 			}
+=======
+	cutoff := time.Now().Add(-5 * time.Minute) // 5 minutes of inactivity
+
+	for roomID, pm := range tm.peerManagers {
+		// Check if room is empty
+		if pm.Size() == 0 {
+			log.Printf("TracksManager: Cleaning up empty room %s", roomID)
+			tm.cleanupRoom(roomID, pm)
+>>>>>>> main
 			continue
 		}
 
@@ -213,6 +244,7 @@ func (tm *TracksManager) CleanupInactiveRooms() {
 	}
 }
 
+<<<<<<< HEAD
 // RemoveClient removes a client and all their tracks immediately
 // Phase 4: Immediate cleanup on disconnect
 func (tm *TracksManager) RemoveClient(roomID, clientID string) error {
@@ -257,6 +289,8 @@ func (tm *TracksManager) GetAllTracks() []pubsub.PubTrack {
 	return allTracks
 }
 
+=======
+>>>>>>> main
 // cleanupRoom removes a room and cleans up resources
 func (tm *TracksManager) cleanupRoom(roomID string, pm *PeerManager) {
 	// Close peer manager

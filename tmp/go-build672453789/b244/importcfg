@@ -1,0 +1,23 @@
+# import config
+packagefile bytes=g:\Remainwith\tmp\gocache\68\68941751f9dea53f8caecbef9f1c33ab1b622ee4272c4153f99dd53abd77944e-d
+packagefile context=g:\Remainwith\tmp\gocache\9a\9ad251161b2f6e13554b66ff86c289b8a2d382b0eb376d3d8aac22b58c8ecc5c-d
+packagefile encoding=g:\Remainwith\tmp\gocache\60\60a63d03090ebc55d9b56f7d09521fe6242b3dc3faae74b11860be27d498b74c-d
+packagefile encoding/json=g:\Remainwith\tmp\gocache\dc\dcad1bf5ed014fef4540f9b459ffffede41a8ce30aae416fc8f195ae9cc8c377-d
+packagefile errors=g:\Remainwith\tmp\gocache\b4\b4fa25b86333fbfe8c1792984abb5081d44b34811f89bb456a2a9d9458217fdf-d
+packagefile fmt=g:\Remainwith\tmp\gocache\5c\5cb2e9dba050c4a615faee08e4f51a040c2f2b00a26551a7cd5b45ffcc8fee1f-d
+packagefile io=g:\Remainwith\tmp\gocache\10\102e3c93e42b267d1b392ef324d5c6cf3752e0fc36317d75ebf73b9c67f0abae-d
+packagefile log=g:\Remainwith\tmp\gocache\0b\0b48e043b67d3433336968615e72d3637b3d39c531f2af58092f1899ba33d24b-d
+packagefile log/internal=g:\Remainwith\tmp\gocache\c5\c58604fd64336a763103bad5c607390bddf1e415da93ef5fa23233c6b593fa8c-d
+packagefile log/slog/internal=g:\Remainwith\tmp\go-build672453789\b245\_pkg_.a
+packagefile log/slog/internal/buffer=g:\Remainwith\tmp\go-build672453789\b246\_pkg_.a
+packagefile math=g:\Remainwith\tmp\gocache\2f\2f4e4cae8f24d077b48febd0e85470157479f863061961123cdf9cd2510537dc-d
+packagefile reflect=g:\Remainwith\tmp\gocache\13\13aae263d08c07833390c4e3c8c326accf5e1f04ca4904c961d4f37c8da4ff26-d
+packagefile runtime=g:\Remainwith\tmp\gocache\3e\3e434f0698c7a36d5528d28bbd6e8872f1564a59fa05392fe2488ff894e57bdf-d
+packagefile slices=g:\Remainwith\tmp\gocache\b8\b836729ed0307acd3ef93a799348028968867d222d3aad69da83e9e6a3c2ef53-d
+packagefile strconv=g:\Remainwith\tmp\gocache\2a\2a2df57bcddcddcaa1e861eda869cd6bfb5b48284ff64fb175ba313791663ee7-d
+packagefile strings=g:\Remainwith\tmp\gocache\76\767ccb8217bd66a3394af652343d2d6fc780cdb83ae09e7b38f834d53ef16b9a-d
+packagefile sync=g:\Remainwith\tmp\gocache\04\04ceea857de9dca15c2e61f863b538afad6b7fea033e52bf260ff871ae567599-d
+packagefile sync/atomic=g:\Remainwith\tmp\gocache\d4\d462e39eaa8754d1125a7cfa147f3421156b18d4b366d97172d297856f925e73-d
+packagefile time=g:\Remainwith\tmp\gocache\25\251ffcf4c5ab9f685330276563ae57a1a1216b67aaea228b437907588a1d8d9a-d
+packagefile unicode=g:\Remainwith\tmp\gocache\62\62d27f5fd101e516d5e75615dc5ad3333c8a980eabd49631f987234a005ecf65-d
+packagefile unicode/utf8=g:\Remainwith\tmp\gocache\04\0424907cc529b7e1f5471db6e0a1c50e16f3101d37bbf06319848d5823f1ec86-d

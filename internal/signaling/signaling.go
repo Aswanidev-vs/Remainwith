@@ -141,7 +141,9 @@ func (s *SignalingServer) handleJoin(msg SignalMessage) {
 	rm := GetRoomManager()
 	room, exists := rm.GetRoom(msg.RoomID)
 	if !exists {
-		log.Printf("Room %s not found", msg.RoomID)
+		// Room may not exist yet - it will be created via API
+		// Just log and continue, don't treat as error
+		log.Printf("Signaling: Room %s not found yet, will be created via API", msg.RoomID)
 		return
 	}
 
@@ -194,6 +196,7 @@ func (s *SignalingServer) handleMute(msg SignalMessage) {
 	rm := GetRoomManager()
 	room, exists := rm.GetRoom(msg.RoomID)
 	if !exists {
+		// Room may not exist yet
 		return
 	}
 
@@ -218,6 +221,7 @@ func (s *SignalingServer) handleCameraToggle(msg SignalMessage) {
 	rm := GetRoomManager()
 	room, exists := rm.GetRoom(msg.RoomID)
 	if !exists {
+		// Room may not exist yet
 		return
 	}
 

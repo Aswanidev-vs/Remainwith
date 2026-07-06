@@ -1,0 +1,6 @@
+# import config
+packagefile Remainwith/db=g:\Remainwith\tmp\gobuild-check\go-build2370135299\b205\_pkg_.a
+packagefile Remainwith/internal/handler=g:\Remainwith\tmp\gobuild-check\go-build2370135299\b232\_pkg_.a
+packagefile encoding/json=g:\Remainwith\tmp\gocache\dc\dcad1bf5ed014fef4540f9b459ffffede41a8ce30aae416fc8f195ae9cc8c377-d
+packagefile net/http=g:\Remainwith\tmp\gocache\f2\f200e7d4140fd8abad8730a19a8693454ba8d8a918bd57736a835482a3a9ab09-d
+packagefile strconv=g:\Remainwith\tmp\gocache\2a\2a2df57bcddcddcaa1e861eda869cd6bfb5b48284ff64fb175ba313791663ee7-d
